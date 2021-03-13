@@ -1,20 +1,25 @@
-#include <d2d1.h>
 #include <windows.h>
-LRESULT CALLBACK Windowproc(
-	_In_ HWND hwnd,
-	_In_ UINT uMsg,
-	_In_ WPARAM wParam,
-	_In_ LPARAM lparam
-);
+#include <iostream>
+HINSTANCE hInst;
+LPSTR command = GetCommandLineA();
+int main() {
+	WinMain(hInst,NULL,command,0);
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 int CALLBACK WinMain(
 	_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE previnstance,
 	_In_ LPSTR cmdline,
 	_In_ int cmdshow
 ) {
-
 	WNDCLASSEX window;
-
-	HWND app = CreateWindowEx(NULL, L"yeetboi", L"yeetboi", NULL, 400, 400, 400, 400, NULL, NULL, hInstance, NULL);
+	window.lpfnWndProc = WndProc;
+	window.lpszClassName = L"yeetboi2";
+	window.hInstance = hInstance;
+	RegisterClassEx(&window);
+	HWND app = CreateWindowEx(NULL, L"yeetboi2", L"yeetboi", WS_OVERLAPPEDWINDOW, 400, 400, 400, 400, NULL, NULL, hInstance, NULL);
+	while (true) {
+		ShowWindow(app, NULL);
+	}
 }
-
