@@ -87,6 +87,7 @@ int WINAPI wWinMain(
 			}
 		}
 		memcpy(IDdata, IDdatabuf, 6400);
+		
 	}
 }
 LRESULT CALLBACK WndProc(HWND app, UINT msg, WPARAM wparam, LPARAM lparam) {
