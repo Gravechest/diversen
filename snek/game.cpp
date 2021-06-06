@@ -3,7 +3,7 @@
 #include <thread>
 #include "global.h" 
 int size = 3;
-int direction = 0;
+char direction = 0;
 int id[400];
 int lifespan[400];
 int idbuf[400];
@@ -23,12 +23,20 @@ HDC init_game(HWND app,char food) {
     memset(lifespan, 0, 1600);
     memset(idbuf, 0, 1600);
     memset(lifespanbuf, 0, 1600);
-    id[food] = 2;
-    id[20] = 1;
+    id[food] = 3;
+    if (wormID == 0) {
+        id[20] = 1;
+        id[100] = 2;
+    } 
+    else {
+        id[20] = 2;
+        id[100] = 1;
+    }
     lifespan[20] = size;
+    lifespan[100] = size;
     return BeginPaint(app, &verf);
 }
-void snake_mov(int itt, int dir) {
+void snake_mov(int itt, int dir, int Wid) {
     int nwpcs = itt + dir;
     if (itt % 20 == 19 && nwpcs % 20 == 0) {
         return;
@@ -39,30 +47,46 @@ void snake_mov(int itt, int dir) {
     if (id[nwpcs] == 1) {
         return;
     }
-    if (id[nwpcs] == 2) {
+    if (id[nwpcs] == 3) {
         size += 1;
-        idbuf[random(400)] = 2;
     }
-    idbuf[nwpcs] = 1;
+    idbuf[nwpcs] = Wid;
     lifespanbuf[nwpcs] = size;
 }
 void the_game(HDC pixel) {
     memcpy(lifespanbuf, lifespan, 1600);
     memcpy(idbuf, id, 1600);
+    int enemie_direction = socket_data(direction);
     for (int i = 0; i < 400; i++) {
-        if (lifespan[i] == size) {
+        if (lifespan[i] == size && wormID == id[i]) {
             switch (direction) {
             case 0:
-                snake_mov(i, 1);
+                snake_mov(i, 1, id[i]);
                 break;
             case 1:
-                snake_mov(i, -1);
+                snake_mov(i, -1,id[i]);
                 break;
             case 2:
-                snake_mov(i, 20);
+                snake_mov(i, 20, id[i]);
                 break;
             case 3:
-                snake_mov(i, -20);
+                snake_mov(i, -20, id[i]);
+                break;
+            }
+        }
+        else if (lifespan[i] == size) {
+            switch(enemie_direction){
+            case 0:
+                snake_mov(i, 1, id[i]);
+                break;
+            case 1:
+                snake_mov(i, -1, id[i]);
+                break;
+            case 2:
+                snake_mov(i, 20, id[i]);
+                break;
+            case 3:
+                snake_mov(i, -20, id[i]);
                 break;
             }
         }
@@ -84,6 +108,9 @@ void the_game(HDC pixel) {
                 kwast = CreateSolidBrush(RGB(0, 0, 0));
                 break;
             case 2:
+                kwast = CreateSolidBrush(RGB(0, 255, 0));
+                break;
+            case 3:
                 kwast = CreateSolidBrush(RGB(255, 0, 0));
                 break;
             }
