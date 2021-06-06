@@ -44,10 +44,11 @@ void snake_mov(int itt, int dir, int Wid) {
     if (itt % 20 == 0 && nwpcs % 20 == 19) {
         return;
     }
-    if (id[nwpcs] == 1) {
+    if (id[nwpcs] == 1 || id[nwpcs] == 2) {
         return;
     }
     if (id[nwpcs] == 3) {
+        id[new_food()] = 3;
         size += 1;
     }
     idbuf[nwpcs] = Wid;
@@ -58,7 +59,7 @@ void the_game(HDC pixel) {
     memcpy(idbuf, id, 1600);
     int enemie_direction = socket_data(direction);
     for (int i = 0; i < 400; i++) {
-        if (lifespan[i] == size && wormID == id[i]) {
+        if (lifespan[i] == size && wormID + 1 == id[i]) {
             switch (direction) {
             case 0:
                 snake_mov(i, 1, id[i]);
