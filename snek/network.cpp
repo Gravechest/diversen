@@ -3,6 +3,7 @@
 #pragma comment(lib,"Ws2_32.lib")
 char wormID;
 char msg;
+char food;
 WSADATA data;
 SOCKET sock;
 char enemie_direction;
@@ -20,7 +21,11 @@ char network_init() {
 	return msg;
 }
 int socket_data(char loc) {
-	send(sock,&loc,2,0);
+	send(sock,&loc,1,0);
 	recv(sock,&enemie_direction, 1, 0);
 	return enemie_direction;
+}
+int new_food() {
+	recv(sock, &food, 1, 0);
+	return food;
 }
