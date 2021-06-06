@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <thread>
 #include "global.h"
-LRESULT CALLBACK WndProc(HWND app, UINT msg, WPARAM wparam, LPARAM lparam);
+LRESULT CALLBACK WndProc(HWND app, UINT umsg, WPARAM wparam, LPARAM lparam);
 int WINAPI wWinMain(
 	HINSTANCE hInstance,
 	HINSTANCE previnstance,
@@ -19,6 +19,11 @@ int WINAPI wWinMain(
 	char food = network_init();
 	HDC pixel = init_game(app,food);
 	while (true) {
+		if (PeekMessage(&msg, app, 0, 0, 0) != 0) {
+			GetMessage(&msg, app, 0, 0);
+			TranslateMessage(&msg);
+			DispatchMessageW(&msg);
+		}
 		the_game(pixel);
 		if (PeekMessage(&msg, app, 0, 0, 0) != 0) {
 			GetMessage(&msg, app, 0, 0);
@@ -28,5 +33,8 @@ int WINAPI wWinMain(
 	}
 }
 LRESULT CALLBACK WndProc(HWND app, UINT msg, WPARAM wparam, LPARAM lparam) {
+	if (WM_CLOSE == msg) {
+		TerminateProcess(app, 1);
+	}
 	return DefWindowProc(app, msg, wparam, lparam);
 }
