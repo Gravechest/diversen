@@ -2,14 +2,15 @@
 #include <random>
 #include <thread>
 #include "global.h" 
+const int lvlsz = 1600;
 int size = 3;
 char direction = 0;
-int id[400];
-int lifespan[400];
-int idbuf[400];
-int lifespanbuf[400];
+int id[lvlsz];
+int lifespan[lvlsz];
+int idbuf[lvlsz];
+int lifespanbuf[lvlsz];
 PAINTSTRUCT verf;
-RECT rect;  
+RECT rect;
 HBRUSH kwast;
 int random(int x) {
     std::uniform_int_distribution<int> dist(0, x);
@@ -18,30 +19,24 @@ int random(int x) {
     int randf = dist(rand);
     return randf;
 }
-HDC init_game(HWND app,char food) {
-    memset(id, 0, 1600);
-    memset(lifespan, 0, 1600);
-    memset(idbuf, 0, 1600);
-    memset(lifespanbuf, 0, 1600);
+HDC init_game(HWND app, char food) {
+    memset(id, 0, lvlsz * 4);
+    memset(lifespan, 0, lvlsz * 4);
+    memset(idbuf, 0, lvlsz * 4);
+    memset(lifespanbuf, 0, lvlsz * 4);
     id[food] = 3;
-    if (wormID == 0) {
-        id[20] = 1;
-        id[100] = 2;
-    } 
-    else {
-        id[20] = 2;
-        id[100] = 1;
-    }
+    id[20] = 1;
+    id[100] = 2;
     lifespan[20] = size;
     lifespan[100] = size;
     return BeginPaint(app, &verf);
 }
 void snake_mov(int itt, int dir, int Wid) {
     int nwpcs = itt + dir;
-    if (itt % 20 == 19 && nwpcs % 20 == 0) {
+    if (itt % 40 == 39 && nwpcs % 40 == 0) {
         return;
     }
-    if (itt % 20 == 0 && nwpcs % 20 == 19) {
+    if (itt % 40 == 0 && nwpcs % 40 == 19) {
         return;
     }
     if (id[nwpcs] == 1 || id[nwpcs] == 2) {
@@ -55,28 +50,12 @@ void snake_mov(int itt, int dir, int Wid) {
     lifespanbuf[nwpcs] = size;
 }
 void the_game(HDC pixel) {
-    memcpy(lifespanbuf, lifespan, 1600);
-    memcpy(idbuf, id, 1600);
+    memcpy(lifespanbuf, lifespan, lvlsz * 4);
+    memcpy(idbuf, id, lvlsz * 4);
     int enemie_direction = socket_data(direction);
-    for (int i = 0; i < 400; i++) {
+    for (int i = 0; i < lvlsz; i++) {
         if (lifespan[i] == size && wormID + 1 == id[i]) {
             switch (direction) {
-            case 0:
-                snake_mov(i, 1, id[i]);
-                break;
-            case 1:
-                snake_mov(i, -1,id[i]);
-                break;
-            case 2:
-                snake_mov(i, 20, id[i]);
-                break;
-            case 3:
-                snake_mov(i, -20, id[i]);
-                break;
-            }
-        }
-        else if (lifespan[i] == size) {
-            switch(enemie_direction){
             case 0:
                 snake_mov(i, 1, id[i]);
                 break;
@@ -84,10 +63,26 @@ void the_game(HDC pixel) {
                 snake_mov(i, -1, id[i]);
                 break;
             case 2:
-                snake_mov(i, 20, id[i]);
+                snake_mov(i, 40, id[i]);
                 break;
             case 3:
-                snake_mov(i, -20, id[i]);
+                snake_mov(i, -40, id[i]);
+                break;
+            }
+        }
+        else if (lifespan[i] == size) {
+            switch (enemie_direction) {
+            case 0:
+                snake_mov(i, 1, id[i]);
+                break;
+            case 1:
+                snake_mov(i, -1, id[i]);
+                break;
+            case 2:
+                snake_mov(i, 40, id[i]);
+                break;
+            case 3:
+                snake_mov(i, -40, id[i]);
                 break;
             }
         }
@@ -98,11 +93,11 @@ void the_game(HDC pixel) {
             }
         }
     }
-    memcpy(lifespan, lifespanbuf, 1600);
-    memcpy(id, idbuf, 1600);
-    rect = { 0,0,400,400 };
+    memcpy(lifespan, lifespanbuf, lvlsz * 4);
+    memcpy(id, idbuf, lvlsz * 4);
+    rect = { 0,0,1600,1600 };
     FillRect(pixel, &rect, CreateSolidBrush(RGB(255, 255, 255)));
-    for (int i = 0; i < 400; i++) {
+    for (int i = 0; i < lvlsz; i++) {
         if (id[i] != 0) {
             switch (id[i]) {
             case 1:
@@ -115,8 +110,8 @@ void the_game(HDC pixel) {
                 kwast = CreateSolidBrush(RGB(255, 0, 0));
                 break;
             }
-            int offsety = i * 20 % 400;
-            int offsetx = i / 20 * 20;
+            int offsety = i * 20 % 1600;
+            int offsetx = i / 40 * 20;
             rect = { offsety,offsetx ,offsety + 20,offsetx + 20 };
             FillRect(pixel, &rect, kwast);
         }
@@ -134,4 +129,4 @@ void the_game(HDC pixel) {
         direction = 3;
     }
     Sleep(100);
-}
+}   
