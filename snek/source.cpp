@@ -14,10 +14,10 @@ int WINAPI wWinMain(
 	window.lpszClassName = L"yeetboi2";
 	window.hInstance = hInstance;
 	RegisterClass(&window);
-	HWND app = CreateWindowEx(0, L"yeetboi2", L"yeetboi", WS_OVERLAPPEDWINDOW, 0, 0, 400, 400, NULL, NULL, hInstance, NULL);
+	HWND app = CreateWindowEx(0, L"yeetboi2", L"yeetboi", WS_OVERLAPPEDWINDOW, 0, 0, 800, 800, NULL, NULL, hInstance, NULL);
 	ShowWindow(app, cmdshow);
-	char food = network_init();
-	HDC pixel = init_game(app,food);
+	int food = network_init();
+	HDC pixel = init_game(app, food);
 	while (true) {
 		if (PeekMessage(&msg, app, 0, 0, 0) != 0) {
 			GetMessage(&msg, app, 0, 0);
