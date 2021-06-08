@@ -19,16 +19,16 @@ int random(int x) {
     int randf = dist(rand);
     return randf;
 }
-HDC init_game(HWND app, char food) {
+HDC init_game(HWND app, int food) {
     memset(id, 0, lvlsz * 4);
     memset(lifespan, 0, lvlsz * 4);
     memset(idbuf, 0, lvlsz * 4);
     memset(lifespanbuf, 0, lvlsz * 4);
     id[food] = 3;
-    id[20] = 1;
-    id[100] = 2;
-    lifespan[20] = size;
-    lifespan[100] = size;
+    id[40] = 1;
+    id[200] = 2;
+    lifespan[40] = size;
+    lifespan[200] = size;
     return BeginPaint(app, &verf);
 }
 void snake_mov(int itt, int dir, int Wid) {
@@ -36,7 +36,7 @@ void snake_mov(int itt, int dir, int Wid) {
     if (itt % 40 == 39 && nwpcs % 40 == 0) {
         return;
     }
-    if (itt % 40 == 0 && nwpcs % 40 == 19) {
+    if (itt % 40 == 0 && nwpcs % 40 == 39) {
         return;
     }
     if (id[nwpcs] == 1 || id[nwpcs] == 2) {
@@ -110,7 +110,7 @@ void the_game(HDC pixel) {
                 kwast = CreateSolidBrush(RGB(255, 0, 0));
                 break;
             }
-            int offsety = i * 20 % 1600;
+            int offsety = i * 20 % 800;
             int offsetx = i / 40 * 20;
             rect = { offsety,offsetx ,offsety + 20,offsetx + 20 };
             FillRect(pixel, &rect, kwast);
@@ -129,4 +129,4 @@ void the_game(HDC pixel) {
         direction = 3;
     }
     Sleep(100);
-}   
+}
