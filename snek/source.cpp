@@ -11,10 +11,10 @@ int WINAPI wWinMain(
 	MSG msg;
 	WNDCLASS window = {};
 	window.lpfnWndProc = WndProc;
-	window.lpszClassName = L"yeetboi2";
+	window.lpszClassName = L"snek";
 	window.hInstance = hInstance;
 	RegisterClass(&window);
-	HWND app = CreateWindowEx(0, L"yeetboi2", L"yeetboi", WS_OVERLAPPEDWINDOW, 0, 0, 800, 800, NULL, NULL, hInstance, NULL);
+	HWND app = CreateWindowEx(0, L"snek", L"snek", WS_OVERLAPPEDWINDOW, 0, 0, 850, 850, NULL, NULL, hInstance, NULL);
 	ShowWindow(app, cmdshow);
 	int food = network_init();
 	HDC pixel = init_game(app, food);
