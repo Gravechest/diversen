@@ -1,12 +1,18 @@
 #include "global.h"
 #include <WinSock.h>
+#include <vector>
+std::vector<char> wormDir = {0};
+std::vector<char> wormLoc_init;
+char wormloc;
+char wormCount;
+char new_Worm_loc[2];
+char new_Worm;
 int nw_food;
 char wormID;
 char msg[2];
 char food[2];
 WSADATA data;
 SOCKET sock;
-char enemie_direction;
 
 int network_init() {
 	WORD ver = MAKEWORD(2, 2);
@@ -19,18 +25,38 @@ int network_init() {
 	connect(sock, (sockaddr*)&adres, sizeof(adres));
 	recv(sock, msg, 2, 0);
 	recv(sock, &wormID, 1, 0);
-	nw_food = msg[0] + msg[1] * 256;
+	recv(sock, &wormCount, 1, 0);
+	for (int i = 0; i < wormCount; i++) {
+		recv(sock, &wormloc, 1, 0);
+		wormLoc_init.push_back(wormloc);
+	}
+	for (int i = 0; i < wormLoc_init.size(); i+=2) {
+		wormLoc.push_back(wormLoc_init[i] % 127 + wormLoc_init[i + 1] / 127);
+	}
+	nw_food = msg[0] + msg[1] * 127;
 	return nw_food;
 }
 
-int socket_data(char loc) {
+void newWorm() {
+	recv(sock, &new_Worm, 1, 0);
+	if (new_Worm != 0) {
+		recv(sock, new_Worm_loc, 2, 0);
+		wormLoc.push_back(new_Worm_loc[0] % 127 + new_Worm_loc[1] / 127);
+		wormDir.push_back(0);
+	}
+}
+
+void socket_data(char loc) {
 	send(sock, &loc, 1, 0);
-	recv(sock, &enemie_direction, 1, 0);
-	return enemie_direction;
+	wormDir.clear();
+	for (int i = 0; i < wormLoc.size(); i++) {
+		recv(sock, &wormloc, 1, 0);
+		wormDir.push_back(wormloc);
+	}
 }
 
 int new_food() {
 	recv(sock, food, 2, 0);
-	nw_food = food[0] + food[1] * 256;
+	nw_food = food[0] + food[1] * 127;
 	return nw_food;
 }
