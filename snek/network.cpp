@@ -3,7 +3,8 @@
 #include <vector>
 std::vector<char> wormDir = {0};
 std::vector<char> wormLoc_init;
-char wormloc;
+char buf;
+char wormloc[2];
 char wormCount;
 char new_Worm_loc[2];
 char new_Worm;
@@ -27,11 +28,12 @@ int network_init() {
 	recv(sock, &wormID, 1, 0);
 	recv(sock, &wormCount, 1, 0);
 	for (int i = 0; i < wormCount; i++) {
-		recv(sock, &wormloc, 1, 0);
-		wormLoc_init.push_back(wormloc);
+		recv(sock, wormloc, 2, 0);
+		wormLoc_init.push_back(wormloc[0] + wormloc[1] * 127);
 	}
 	for (int i = 0; i < wormLoc_init.size(); i+=2) {
-		wormLoc.push_back(wormLoc_init[i] % 127 + wormLoc_init[i + 1] / 127);
+		wormLoc.push_back(wormLoc_init[i] + wormLoc_init[i + 1] * 127);
+		wormDir.push_back(0);
 	}
 	nw_food = msg[0] + msg[1] * 127;
 	return nw_food;
@@ -39,10 +41,10 @@ int network_init() {
 
 void newWorm() {
 	recv(sock, &new_Worm, 1, 0);
-	if (new_Worm != 0) {
+	if (new_Worm == 1) {
 		recv(sock, new_Worm_loc, 2, 0);
-		wormLoc.push_back(new_Worm_loc[0] % 127 + new_Worm_loc[1] / 127);
-		wormDir.push_back(0);
+		wormLoc.push_back(new_Worm_loc[0] + new_Worm_loc[1] * 127);
+		wormDir.push_back(0);	
 	}
 }
 
@@ -50,8 +52,8 @@ void socket_data(char loc) {
 	send(sock, &loc, 1, 0);
 	wormDir.clear();
 	for (int i = 0; i < wormLoc.size(); i++) {
-		recv(sock, &wormloc, 1, 0);
-		wormDir.push_back(wormloc);
+		recv(sock, &buf, 1, 0);
+		wormDir.push_back(buf);
 	}
 }
 
