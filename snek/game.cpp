@@ -2,6 +2,8 @@
 #include <random>
 #include <thread>
 #include "global.h" 
+#include <vector>
+std::vector<int> wormLoc;
 const int lvlsz = 1600;
 int size = 3;
 char direction = 0;
@@ -25,13 +27,12 @@ HDC init_game(HWND app, int food) {
     memset(idbuf, 0, lvlsz * 4);
     memset(lifespanbuf, 0, lvlsz * 4);
     id[food] = 3;
-    id[40] = 1;
-    id[200] = 2;
-    lifespan[40] = size;
-    lifespan[200] = size;
+    for (int i = 0; i < wormLoc.size(); i++) {
+        id[wormLoc[i]] = 1;
+    }
     return BeginPaint(app, &verf);
 }
-void snake_mov(int itt, int dir, int Wid) {
+void snake_mov(int itt, int dir) {
     int nwpcs = itt + dir;
     if (itt % 40 == 39 && nwpcs % 40 == 0) {
         return;
@@ -43,49 +44,46 @@ void snake_mov(int itt, int dir, int Wid) {
         return;
     }
     if (id[nwpcs] == 3) {
-        id[new_food()] = 3;
+        idbuf[new_food()] = 3;
+        for (int i = 0; i < lvlsz; i++) {
+            if (lifespan[i] == size) {
+                lifespanbuf[i] = size + 1;
+            }
+        }
         size += 1;
+        lifespanbuf[nwpcs] = size;
+        idbuf[nwpcs] = 1;
+        return;
     }
-    idbuf[nwpcs] = Wid;
+    idbuf[nwpcs] = 1;
     lifespanbuf[nwpcs] = size;
 }
 void the_game(HDC pixel) {
     memcpy(lifespanbuf, lifespan, lvlsz * 4);
     memcpy(idbuf, id, lvlsz * 4);
-    int enemie_direction = socket_data(direction);
+    newWorm();
+    socket_data(direction);
+    for (int i = 0; i < wormLoc.size(); i++) {
+        switch (wormDir[i]) {
+        case 0:
+            snake_mov(wormLoc[i],1);
+            wormLoc[i] += 1;
+            break;
+        case 1:
+            snake_mov(wormLoc[i], -1);
+            wormLoc[i] -= 1;
+            break;
+        case 2:
+            snake_mov(wormLoc[i], 40);
+            wormLoc[i] += 40;
+            break;
+        case 3:
+            snake_mov(wormLoc[i], -40);
+            wormLoc[i] -= 40;
+            break;
+        }
+    }
     for (int i = 0; i < lvlsz; i++) {
-        if (lifespan[i] == size && wormID + 1 == id[i]) {
-            switch (direction) {
-            case 0:
-                snake_mov(i, 1, id[i]);
-                break;
-            case 1:
-                snake_mov(i, -1, id[i]);
-                break;
-            case 2:
-                snake_mov(i, 40, id[i]);
-                break;
-            case 3:
-                snake_mov(i, -40, id[i]);
-                break;
-            }
-        }
-        else if (lifespan[i] == size) {
-            switch (enemie_direction) {
-            case 0:
-                snake_mov(i, 1, id[i]);
-                break;
-            case 1:
-                snake_mov(i, -1, id[i]);
-                break;
-            case 2:
-                snake_mov(i, 40, id[i]);
-                break;
-            case 3:
-                snake_mov(i, -40, id[i]);
-                break;
-            }
-        }
         if (lifespan[i] > 0) {
             lifespanbuf[i] = lifespan[i] - 1;
             if (lifespanbuf[i] == 0) {
