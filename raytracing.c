@@ -2,7 +2,7 @@
 #include <gl/GL.h>
 #include <math.h>
 typedef float vec3[3];
-unsigned char texture[250][250][3];
+unsigned char texture[700][1000][3];
 LRESULT CALLBACK WndProc(HWND app, UINT msg, WPARAM wparam, LPARAM lparam);
 int WINAPI wWinMain(
 	HINSTANCE hInstance,
@@ -24,29 +24,32 @@ int WINAPI wWinMain(
 	window.lpszClassName = L"yeetboi2";
 	window.hInstance = hInstance;
 	RegisterClass(&window);
-	HWND app = CreateWindowEx(0, L"yeetboi2", L"yeetboi", WS_OVERLAPPEDWINDOW, 200, 200, 517, 537, NULL, NULL, hInstance, NULL);
+	HWND app = CreateWindowEx(0, L"yeetboi2", L"yeetboi", WS_OVERLAPPEDWINDOW, 200, 200, 1017, 737, NULL, NULL, hInstance, NULL);
 	ShowWindow(app, cmdshow);
 	HDC pixel = GetDC(app);
 	SetPixelFormat(pixel, ChoosePixelFormat(pixel, &pfd), &pfd);
 	wglMakeCurrent(pixel, wglCreateContext(pixel));
-	glPixelZoom(2, 2);
-	vec3 rayxy[500];
-	for (int i = 0; i < 500; i++) {
-		rayxy[i][0] = cosf((float)i / 150);
-		rayxy[i][1] = sinf((float)i / 150);
-		rayxy[i][2] = (float)i / 150 - 0.5;
+	vec3 rayxy[1000];
+	for (int i = 0; i < 1000; i++) {
+		rayxy[i][0] = cosf((float)i / 636);
+		rayxy[i][1] = sinf((float)i / 636);
+		rayxy[i][2] = (float)i / 333 - 4.5;
 	}
-	for (int i = 0; i < 500; i++) {
-		for (int i2 = 0; i2 < 500; i2++) {
-			unsigned char bounce = 1;
-			vec3 addVal = { rayxy[i2][0],rayxy[i2][1],rayxy[i][2] };
+	for (int i = 0; i < 700; i++) {
+		for (int i2 = 0; i2 < 1000; i2++) {
+			vec3 addVal = { rayxy[i2][0],rayxy[i2][1],rayxy[i][2]};
 			vec3 ray = { 0,0,0  };
-			for (int i3 = 0; i3 < 20; i3++) {
+			for (int i3 = 0; i3 < 1000; i3++) {
 				ray[0] += addVal[0];
 				ray[1] += addVal[1];
 				ray[2] += addVal[2];
-				if (ray[2] < -1) {
-					texture[i][i2][2] += 255;
+				if (ray[2] < -100) {
+					if (int(ray[0] + ray[1]) % 2 == 0) {
+						texture[i][i2][2] = 255;
+					}
+					else {
+						texture[i][i2][0] = 255;
+					}
 					break;
 				}
 			}
@@ -58,7 +61,7 @@ int WINAPI wWinMain(
 			TranslateMessage(&msg);
 			DispatchMessageW(&msg);
 		}
-		glDrawPixels(500, 500, GL_RGB, GL_UNSIGNED_BYTE, &texture);
+		glDrawPixels(1000, 700, GL_RGB, GL_UNSIGNED_BYTE, &texture);
 		SwapBuffers(pixel);
 	}
 }
