@@ -182,12 +182,12 @@ void getNumberInput(){
 }	
 void pixelConvertor(int x,int y){
 	x /= divider;
-	x *= divider;
-	int offset = x * imageSize * 3 + y * 3;
-	image[offset] = color.r;
-	image[offset + 1] = color.g;
-	image[offset + 2] = color.b;
 	y /= divider;
+	int offset = x * imageSize * 3 + y * 3;
+	image[offset + 2] = color.r;
+	image[offset + 1] = color.g;
+	image[offset] = color.b;
+	x *= divider;
 	y *= divider;
 	drawSquare(x,y,divider,color);
 	
