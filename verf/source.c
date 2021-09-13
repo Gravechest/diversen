@@ -5,22 +5,25 @@
 #include <math.h>
 #define resX 1080
 #define resY 1920
-typedef struct PARTICLE{float x;float y;float velx;float vely;} PARTICLE;
 typedef struct VEC2{float x;float y;} VEC2;
-typedef struct COLOR{unsigned char r;unsigned char g;unsigned char b;} COLOR;
-unsigned char texture[resX][resY][3];
-unsigned char background[resX][resY][3];
+typedef struct VECI2{short int x;short int y;} VECI2;
+typedef struct COLOR{char r;char g;char b;} COLOR;
+char texture[resX][resY][3];
+int imageSize;
+char * image;
+float divider;
 const char className[] = "myWindowClass";
-unsigned char menuStatus = 1;
+char menuStatus = 1;
 // woord en getal lengte, heeft een dubbel doel
-unsigned char wordLng; 
-int word[256];
+char wordLng; 
+char word[256];
 int getal;
 char * font;
-unsigned char mouseInput;
+char mouseInput;
 COLOR color;
 POINT mouse;
 POINT mouseBuf;
+COLOR colorBlack = {0,0,0};
 PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
 	PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,PFD_TYPE_RGBA,
 	24,0, 0, 0, 0, 0, 0,0,0,0,
@@ -30,12 +33,22 @@ HWND hwnd;
 MSG Msg;
 HDC wdcontext;
 
-void drawSquare(int x, int y, int size,unsigned char r,unsigned char g,unsigned char b){
+void drawSquare(int x, int y, int size,COLOR color){
 	for(int i = x;i < x + size;i++){
 		for(int i2 = y;i2 < y + size;i2++){
-			texture[i][i2][0] = r;
-			texture[i][i2][1] = g;
-			texture[i][i2][2] = b;
+			texture[i][i2][0] = color.r;
+			texture[i][i2][1] = color.g;
+			texture[i][i2][2] = color.b;
+		}
+	}
+}
+
+void drawRect(int x,int y, int sx, int sy,COLOR color){
+	for(int i = x;i < x + sx;i++){
+		for(int i2 = y;i2 < y + sy;i2++){
+			texture[i][i2][0] = color.r;
+			texture[i][i2][1] = color.g;
+			texture[i][i2][2] = color.b;
 		}
 	}
 }
@@ -44,7 +57,8 @@ void fontDrawing(int x,int y,int offset){
 	font += offset + 1000;
 	for(int i = 0;i < 50;i+=10){
 		for(int i2 = 0;i2 < 50;i2+=10){
-			drawSquare(x + i,y + i2,10,font[2],font[1],font[0]);
+			COLOR color = {font[2],font[1],font[0]};
+			drawSquare(x + i,y + i2,10,color);
 			font+=4;
 		}
 		font-=220;
@@ -52,16 +66,20 @@ void fontDrawing(int x,int y,int offset){
 	font -= offset;
 }
 
+void drawPoint(int x,int y){
+	
+}
+
 char * loadImage(const char * file){
-	FILE * image = fopen(file,"rb+");
-	fseek(image,0,SEEK_END);
-	int size = ftell(image);
-	fseek(image,0,SEEK_SET);
+	FILE * imageF = fopen(file,"rb+");
+	fseek(imageF,0,SEEK_END);
+	int size = ftell(imageF);
+	fseek(imageF,0,SEEK_SET);
 	char * data = malloc(14);
-	fread(data,1,14,image);
+	fread(data,1,14,imageF);
 	char * returndata = malloc(size);
-	fseek(image,data[10] - 14,SEEK_CUR);
-	fread(returndata,1,size - ftell(image),image);
+	fseek(imageF,data[10] - 14,SEEK_CUR);
+	fread(returndata,1,size - ftell(imageF),imageF);
 	free(data);
 	return returndata;
 }
@@ -97,9 +115,6 @@ void WINAPI Quarter1(){
 		}
 	}
 	for(;;){
-		for(int i = 0;i < wordLng;i++){
-			fontDrawing(200,200 + i * 50,word[i]);
-		}
 		glDrawPixels(resY,resX,GL_RGB,GL_UNSIGNED_BYTE,&texture);
 		SwapBuffers(wdcontext);
 	}
@@ -108,20 +123,56 @@ void WINAPI Quarter1(){
 void getNumberInput(){
 	for(int i = 0x30;i < 0x40;i++){
 		if(GetAsyncKeyState(i)){
+			int offset = 0;
 			if(i < 0x34){
-				word[wordLng] = 1360 + i * 20;
+				offset = 1360 + i * 20;
 			}
 			else{
-				word[wordLng] = 2360 + i * 20;
+				offset = 2360 + i * 20;
 			}
+			word[wordLng] = i - 0x30;
+			fontDrawing(resX - 100,30 + wordLng * 50,offset);
 			wordLng++;
 		}
 	}
-	if(GetAsyncKeyState(VK_ENTER)){
-		wordLng = 0;
+	if(GetAsyncKeyState(VK_RETURN)){
+		switch(menuStatus){
+		case 1:
+			drawRect(resX - 100,30,100,wordLng * 50,colorBlack);
+			for(int i = 0;i < wordLng;i++){
+				int subSize = word[i];
+				for(int i2 = i + 1;i2 < wordLng;i2++){
+					subSize *= 10;
+				}
+				imageSize += subSize;
+			}
+			image = malloc(imageSize * imageSize);
+			int y = resY - 200;
+			divider = y / imageSize;
+			memset(word,0,sizeof(word));
+			menuStatus = 0;
+			wordLng = 0;
+			break;
+		}
 	}
-}
+	if(GetAsyncKeyState(VK_ESCAPE)){
+		exit(0);
+	}
+}	
+void pixelConvertor(int x,int y){
+	x /= divider;
+	x *= divider;
+	y /= divider;
+	y *= divider;
+	for(int i = x;i < x + divider;i++){
+		for(int i2 = y;i2 < y + divider;i2++){
+			texture[i][i2][0] = color.r;
+			texture[i][i2][1] = color.g;
+			texture[i][i2][2] = color.b;
+		}
+	}
 
+}
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch (msg){
 	case WM_KEYDOWN:
@@ -168,7 +219,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wdcontext = GetDC(hwnd);
 	ShowCursor(1);
 	CreateThread(0,0,Quarter1,0,0,0);
-
 	for(;;){
 		while(PeekMessage(&Msg,hwnd,0,0,0)){
 			GetMessage(&Msg, hwnd, 0, 0);
@@ -178,23 +228,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		if(mouseInput & 1){
 			GetCursorPos(&mouse);
 			mouse.y = resX - mouse.y;
-			VEC2 normCoords = {mouse.y - mouseBuf.y,mouse.x - mouseBuf.x};
-			VEC2 Coords = {mouse.y,mouse.x};
-			short int minus = fmaxf(fabsf(normCoords.x),fabsf(normCoords.y));
-			normCoords.x /= minus;
-			normCoords.y /= minus;
-			while(minus > 0){
-				texture[(int)Coords.x][(int)Coords.y][0] = color.r;
-				texture[(int)Coords.x][(int)Coords.y][1] = color.g;
-				texture[(int)Coords.x][(int)Coords.y][2] = color.b;
-				Coords.x -= normCoords.x;
-				Coords.y -= normCoords.y;
-				minus--;
+			if(mouse.y > 100 && mouse.x > 100 && mouse.y < resX - 100 && mouse.x < resY - 100){
+				VEC2 normCoords = {mouse.y - mouseBuf.y,mouse.x - mouseBuf.x};
+				VEC2 Coords = {mouse.y,mouse.x};
+				short int minus = fmaxf(fabsf(normCoords.x),fabsf(normCoords.y));
+				normCoords.x /= minus;
+				normCoords.y /= minus;
+				while(minus > 0){
+					pixelConvertor((int)Coords.x,(int)Coords.y);
+					Coords.x -= normCoords.x;
+					Coords.y -= normCoords.y;
+					minus--;
+				}
+				mouseBuf = mouse;
 			}
-			mouseBuf = mouse;
 		}
 		Sleep(3);
 	}
 	return Msg.wParam;
 }
-
