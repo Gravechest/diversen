@@ -12,7 +12,6 @@ char texture[resX][resY][3];
 int imageSize;
 char * image;
 float divider;
-const char className[] = "myWindowClass";
 char menuStatus = 1;
 // woord en getal lengte, heeft een dubbel doel
 char wordLng; 
@@ -146,9 +145,9 @@ void getNumberInput(){
 				}
 				imageSize += subSize;
 			}
-			image = malloc(imageSize * imageSize);
-			int y = resY - 200;
-			divider = y / imageSize;
+			image = malloc(imageSize * imageSize * 3);
+			int x = resX - 200;
+			divider = x / imageSize;
 			memset(word,0,sizeof(word));
 			menuStatus = 0;
 			wordLng = 0;
@@ -158,20 +157,40 @@ void getNumberInput(){
 	if(GetAsyncKeyState(VK_ESCAPE)){
 		exit(0);
 	}
+	if(GetAsyncKeyState(0x53)){
+		char pxLng[4] = {imageSize,imageSize >> 8,imageSize >> 16,imageSize >> 24};
+		int imBytes = imageSize * imageSize * 3 + 54;
+		char flSz[4] = {imBytes,imBytes >> 8,imBytes >> 16,imBytes >> 24};
+		FILE * imageF = fopen("test.bmp","wb+");
+		//Generally purposed bitmap header
+		char Header[14] = {0x42,0x4d,flSz[0],flSz[1],flSz[2],flSz[3]
+			,0x00,0x00,0x00,0x00,0x36,0x00,0x00,0x00};
+		imBytes -= 54;
+		flSz[0] = imBytes;
+		flSz[1] = imBytes >> 8;
+		flSz[2] = imBytes >> 16;
+		flSz[3] = imBytes >> 32;
+		//Medium sized bitmap header
+		char bitmapHeader[40] = {0x28,0x00,0x00,0x00,pxLng[0],pxLng[1],pxLng[2],pxLng[3],pxLng[0],
+			pxLng[1],pxLng[2],pxLng[3],0x01,0x00,0x18,0x00,0x00,0x00,0x00,0x00,flSz[0],flSz[1],flSz[2],
+			flSz[3],0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+		fwrite(Header,1,14,imageF);
+		fwrite(bitmapHeader,1,40,imageF);
+		fwrite(image,1,imBytes,imageF);
+		fclose(imageF);
+	}
 }	
 void pixelConvertor(int x,int y){
 	x /= divider;
 	x *= divider;
+	int offset = x * imageSize * 3 + y * 3;
+	image[offset] = color.r;
+	image[offset + 1] = color.g;
+	image[offset + 2] = color.b;
 	y /= divider;
 	y *= divider;
-	for(int i = x;i < x + divider;i++){
-		for(int i2 = y;i2 < y + divider;i2++){
-			texture[i][i2][0] = color.r;
-			texture[i][i2][1] = color.g;
-			texture[i][i2][2] = color.b;
-		}
-	}
-
+	drawSquare(x,y,divider,color);
+	
 }
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch (msg){
@@ -212,16 +231,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	LPSTR lpCmdLine, int nCmdShow)
 {
-	WNDCLASSEX wc = { sizeof(WNDCLASSEX),0,WndProc,0,0,hInstance,0,0,0,0,className,0 };
+	WNDCLASSEX wc = { sizeof(WNDCLASSEX),0,WndProc,0,0,hInstance,0,0,0,0,"hendrik",0 };
 	RegisterClassEx(&wc);
-	hwnd = CreateWindowEx(WS_EX_CLIENTEDGE, className, "raycasting", WS_VISIBLE | WS_POPUP | WS_EX_TOPMOST,
+	hwnd = CreateWindowEx(WS_EX_CLIENTEDGE, "hendrik", "Verf", WS_VISIBLE | WS_POPUP | WS_EX_TOPMOST,
 		0, 0, 1920, 1080, NULL, NULL, hInstance, NULL);
 	wdcontext = GetDC(hwnd);
 	ShowCursor(1);
 	CreateThread(0,0,Quarter1,0,0,0);
 	for(;;){
 		while(PeekMessage(&Msg,hwnd,0,0,0)){
-			GetMessage(&Msg, hwnd, 0, 0);
+			GetMessage(&Msg,hwnd,0,0);
 			TranslateMessage(&Msg);
 			DispatchMessageW(&Msg);
 		}
