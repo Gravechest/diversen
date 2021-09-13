@@ -11,6 +11,11 @@ typedef struct COLOR{unsigned char r;unsigned char g;unsigned char b;} COLOR;
 unsigned char texture[resX][resY][3];
 unsigned char background[resX][resY][3];
 const char className[] = "myWindowClass";
+unsigned char menuStatus = 1;
+// woord en getal lengte, heeft een dubbel doel
+unsigned char wordLng; 
+int word[256];
+int getal;
 char * font;
 unsigned char mouseInput;
 COLOR color;
@@ -25,23 +30,26 @@ HWND hwnd;
 MSG Msg;
 HDC wdcontext;
 
-fontDrawing(int x,int y,int offset){
-	font += offset;
-	for(int i = 0;i < 5;i++){
-		for(int i2 = 0;i2 < 5;i2++){
-			texture[i][i2][0] = font[0];
+void drawSquare(int x, int y, int size,unsigned char r,unsigned char g,unsigned char b){
+	for(int i = x;i < x + size;i++){
+		for(int i2 = y;i2 < y + size;i2++){
+			texture[i][i2][0] = r;
+			texture[i][i2][1] = g;
+			texture[i][i2][2] = b;
 		}
 	}
-	font -= offset + 25;
 }
 
-void drawFont(int x,int y,char car){
-	switch(car){
-		case '0':
-			fontDrawing(0,0,200);
-		break;
+void fontDrawing(int x,int y,int offset){
+	font += offset + 1000;
+	for(int i = 0;i < 50;i+=10){
+		for(int i2 = 0;i2 < 50;i2+=10){
+			drawSquare(x + i,y + i2,10,font[2],font[1],font[0]);
+			font+=4;
+		}
+		font-=220;
 	}
-	
+	font -= offset;
 }
 
 char * loadImage(const char * file){
@@ -89,12 +97,35 @@ void WINAPI Quarter1(){
 		}
 	}
 	for(;;){
+		for(int i = 0;i < wordLng;i++){
+			fontDrawing(200,200 + i * 50,word[i]);
+		}
 		glDrawPixels(resY,resX,GL_RGB,GL_UNSIGNED_BYTE,&texture);
-		SwapBuffers(wdcontext);  
+		SwapBuffers(wdcontext);
 	}
 }
+
+void getNumberInput(){
+	for(int i = 0x30;i < 0x40;i++){
+		if(GetAsyncKeyState(i)){
+			if(i < 0x34){
+				word[wordLng] = 1360 + i * 20;
+			}
+			else{
+				word[wordLng] = 2360 + i * 20;
+			}
+			wordLng++;
+		}
+	}
+	if(GetAsyncKeyState(VK_ENTER)){
+		wordLng = 0;
+	}
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch (msg){
+	case WM_KEYDOWN:
+		getNumberInput();
 	case WM_LBUTTONDOWN:
 		GetCursorPos(&mouseBuf);
 		mouseBuf.y = resX - mouseBuf.y;
@@ -113,9 +144,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		else{
 			mouseInput |= 1;
 		}
-		break;
-	case WM_INPUT:
-		exit(0); 	
+		break;	
 	case WM_LBUTTONUP:
 		mouseInput &= ~1;
 		break;
@@ -168,3 +197,4 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	}
 	return Msg.wParam;
 }
+
