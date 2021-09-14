@@ -23,6 +23,7 @@ COLOR color;
 POINT mouse;
 POINT mouseBuf;
 COLOR colorBlack = {0,0,0};
+COLOR colorWhite = {255,255,255};
 PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
 	PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,PFD_TYPE_RGBA,
 	24,0, 0, 0, 0, 0, 0,0,0,0,
@@ -52,6 +53,33 @@ void drawRect(int x,int y, int sx, int sy,COLOR color){
 	}
 }
 
+void pixelConvertor(int x,int y){
+	x /= divider;
+	y /= divider;
+	int offset = x * imageSize * 3 + y * 3;
+	image[offset + 2] = color.r;
+	image[offset + 1] = color.g;
+	image[offset] = color.b;
+	x *= divider;
+	y *= divider;
+	drawSquare(x,y,divider,color);
+	
+}
+
+void drawLine(int x,int y, int desx,int desy,COLOR color){
+	VEC2 normCoords = {x - desx,y - desy};
+	VEC2 Coords = {x,y};
+	short int minus = fmaxf(fabsf(normCoords.x),fabsf(normCoords.y));
+	normCoords.x /= minus;
+	normCoords.y /= minus;
+	while(minus > 0){
+		pixelConvertor((int)Coords.x,(int)Coords.y);
+		Coords.x -= normCoords.x;
+		Coords.y -= normCoords.y;
+		minus--;
+	}
+}
+
 void fontDrawing(int x,int y,int offset){
 	font += offset + 1000;
 	for(int i = 0;i < 50;i+=10){
@@ -63,10 +91,6 @@ void fontDrawing(int x,int y,int offset){
 		font-=220;
 	}
 	font -= offset;
-}
-
-void drawPoint(int x,int y){
-	
 }
 
 char * loadImage(const char * file){
@@ -180,18 +204,7 @@ void getNumberInput(){
 		fclose(imageF);
 	}
 }	
-void pixelConvertor(int x,int y){
-	x /= divider;
-	y /= divider;
-	int offset = x * imageSize * 3 + y * 3;
-	image[offset + 2] = color.r;
-	image[offset + 1] = color.g;
-	image[offset] = color.b;
-	x *= divider;
-	y *= divider;
-	drawSquare(x,y,divider,color);
-	
-}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch (msg){
 	case WM_KEYDOWN:
@@ -248,17 +261,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			GetCursorPos(&mouse);
 			mouse.y = resX - mouse.y;
 			if(mouse.y > 100 && mouse.x > 100 && mouse.y < resX - 100 && mouse.x < resY - 100){
-				VEC2 normCoords = {mouse.y - mouseBuf.y,mouse.x - mouseBuf.x};
-				VEC2 Coords = {mouse.y,mouse.x};
-				short int minus = fmaxf(fabsf(normCoords.x),fabsf(normCoords.y));
-				normCoords.x /= minus;
-				normCoords.y /= minus;
-				while(minus > 0){
-					pixelConvertor((int)Coords.x,(int)Coords.y);
-					Coords.x -= normCoords.x;
-					Coords.y -= normCoords.y;
-					minus--;
-				}
+				drawLine(mouse.y,mouse.x,mouseBuf.y,mouseBuf.x,color);
 				mouseBuf = mouse;
 			}
 		}
