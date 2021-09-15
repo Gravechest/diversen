@@ -54,6 +54,8 @@ void drawRect(int x,int y, int sx, int sy,COLOR color){
 }
 
 void pixelConvertor(int x,int y){
+	x -= 100;
+	y -= 100;
 	x /= divider;
 	y /= divider;
 	int offset = x * imageSize * 3 + y * 3;
@@ -62,8 +64,9 @@ void pixelConvertor(int x,int y){
 	image[offset] = color.b;
 	x *= divider;
 	y *= divider;
+	x += 100;
+	y += 100;
 	drawSquare(x,y,divider,color);
-	
 }
 
 void drawLine(int x,int y, int desx,int desy,COLOR color){
@@ -169,9 +172,10 @@ void getNumberInput(){
 				}
 				imageSize += subSize;
 			}
-			image = malloc(imageSize * imageSize * 3);
-			int x = resX - 200;
-			divider = x / imageSize;
+			image = calloc(imageSize * imageSize * 3,1);
+			int y = resY - 200;
+			divider = y / imageSize;
+			divider /= 1.5;
 			memset(word,0,sizeof(word));
 			menuStatus = 0;
 			wordLng = 0;
@@ -209,6 +213,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch (msg){
 	case WM_KEYDOWN:
 		getNumberInput();
+		break;
 	case WM_LBUTTONDOWN:
 		GetCursorPos(&mouseBuf);
 		mouseBuf.y = resX - mouseBuf.y;
@@ -224,7 +229,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			}
 			drawPencil();
 		}
-		else{
+		else if(mouseBuf.y > 100 && mouseBuf.x > 100 && mouseBuf.y < resX - 100 && mouseBuf.x < resY - 840){
 			mouseInput |= 1;
 		}
 		break;	
@@ -259,10 +264,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		}
 		if(mouseInput & 1){
 			GetCursorPos(&mouse);
-			mouse.y = resX - mouse.y;
-			if(mouse.y > 100 && mouse.x > 100 && mouse.y < resX - 100 && mouse.x < resY - 100){
-				drawLine(mouse.y,mouse.x,mouseBuf.y,mouseBuf.x,color);
-				mouseBuf = mouse;
+			if(mouse.y > 100 && mouse.x > 100 && mouse.y < resX - 100 && mouse.x < resY - 840){
+				mouse.y = resX - mouse.y;
+				if(mouse.y > 100 && mouse.x > 100 && mouse.y < resX - 100 && mouse.x < resY - 100){
+					drawLine(mouse.y,mouse.x,mouseBuf.y,mouseBuf.x,color);
+					mouseBuf = mouse;
+				}
+			}
+			else{
+				mouseInput &= ~1;
 			}
 		}
 		Sleep(3);
