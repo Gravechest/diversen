@@ -1,19 +1,29 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-char header[] = {
+int offset = 0x000000fc;
+int sectionCount = 0;
+int exedataSz;
+int asmSz;
+char *asm;
+char *exedata;
+
+FILE *file;
+
+char header[28] = {
 	0x4d,0x5a,0x00,0x00,     									//MZ
 	0x50,0x45,0x00,0x00,      									//beginning of file header
 	0x4c,0x01,													//machine type
 	0x01,0x00,													//number of sections 
-	0x00,0x00,0x00,0x00,										//buildDate
+	0xff,0xff,0xff,0xff,										//buildDate
 	0x00,0x00,0x00,0x00,										
 	0x00,0x00,0x00,0x00,										
 	0xe0,0x00,													//optional header size
 	0x03,0x01
 };
 
-char optHeader[] = {		
-							
+char optHeader[] = {						
 	0x0b,0x01,										//executable flags
 	0x08,
 	0x00,
@@ -43,12 +53,9 @@ char optHeader[] = {
 	0x00,0x00,0x01,0x00,
 	0x00,0x01,0x00,0x00,
 	0x00,0x00,0x00,0x00,
-	0x10,0x00,0x00,0x00
-		
-};
+	0x10,0x00,0x00,0x00};
 
-char linking[]{
-
+char linking[] = {
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,        //export dir							
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,		//import dir
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,		//resource dir
@@ -68,36 +75,65 @@ char linking[]{
 	
 };
 
-FILE *createExe(char *name){
-	FILE *file = fopen(name,"w");
-	fwrite(header,sizeof(header),1,file);
-	return file;
+void createSection(int flags,int entrypoint,int size){
+	char name[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
+	switch(flags){
+		case 0x60000020:
+			memcpy(name,".text",5);
+			optHeader[4] = size;
+			optHeader[5] = size >> 8;
+			optHeader[16] = entrypoint;
+			optHeader[17] = entrypoint >> 8; 
+			asm = calloc(size,1);
+			asmSz = size;
+			break;
+		case 0x40000040:
+			memcpy(name,".data",5);
+			optHeader[8] = size;
+			optHeader[9] = size >> 8;
+			exedata = calloc(size,1);
+			exedataSz = size;
+			break;
+		default:
+			memcpy(name,".unknown",8);
+	}
+	fseek(file,offset,SEEK_SET);
+	fwrite(name,8,1,file);
+	fwrite(&size,1,4,file);
+	fwrite(&offset,1,4,file);
+	fwrite(&size,1,4,file);
+	fwrite(&offset,1,4,file);
+	fseek(file,offset + 36,SEEK_SET);
+	fwrite(&flags,1,4,file);
+	offset += 0x28;
+	sectionCount++;
 }
 
-void closeExe(FILE *file){
-	
+void createExe(char *name){
+	file = fopen(name,"w");
+}
+
+void closeExe(){
+	header[10] = sectionCount;
+	optHeader[60] = offset;
+	optHeader[61] = offset >> 8;
+	optHeader[62] = offset >> 16;
+	int headerSizes = offset + asmSz + exedataSz;
+	optHeader[56] = headerSizes;
+	optHeader[57] = headerSizes >> 8;
+	fseek(file,0,SEEK_SET);
+	fwrite(header,sizeof(header),1,file);
+	fwrite(optHeader,sizeof(optHeader),1,file);
+	fwrite(linking,sizeof(linking),1,file);
+	fseek(file,offset,SEEK_SET);
+	fwrite(asm,asmSz,1,file);
+	fwrite(exedata,exedataSz,1,file);
 	fclose(file);
 }
 
 void main(){
-	FILE *file = createExe("gert.exe");
-	
+	createExe("gert.exe");
+	createSection(0x60000020,0x00000240,20);
+	createSection(0x40000040,0x00000280,20);
+	closeExe();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
