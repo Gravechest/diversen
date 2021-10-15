@@ -7,6 +7,7 @@ int sectionCount = 0;
 int exedataSz;
 int asmSz;
 char *asm;
+int asmOffset;
 char *exedata;
 
 FILE *file;
@@ -46,7 +47,7 @@ char optHeader[] = {
 	0x29,0x01,0x00,0x00,                         	//groote van .exe file
 	0x24,0x01,0x00,0x00,							//groote van de headers
 	0x00,0x00,0x00,0x00,							//checksum
-	0x02,0x00,										//subSystem
+	0x03,0x00,										//subSystem
 	0x00,0x40,										//dll caracteristics
 	0x00,0x00,0x01,0x00,							
 	0x00,0x01,0x00,0x00,
@@ -84,6 +85,8 @@ void createSection(int flags,int entrypoint,int size){
 			optHeader[5] = size >> 8;
 			optHeader[16] = entrypoint;
 			optHeader[17] = entrypoint >> 8; 
+			optHeader[20] = entrypoint;
+			optHeader[21] = entrypoint >> 8;
 			asm = calloc(size,1);
 			asmSz = size;
 			break;
@@ -91,6 +94,8 @@ void createSection(int flags,int entrypoint,int size){
 			memcpy(name,".data",5);
 			optHeader[8] = size;
 			optHeader[9] = size >> 8;
+			optHeader[24] = entrypoint;
+			optHeader[25] = entrypoint >> 8;
 			exedata = calloc(size,1);
 			exedataSz = size;
 			break;
@@ -117,7 +122,8 @@ void closeExe(){
 	header[10] = sectionCount;
 	optHeader[60] = offset;
 	optHeader[61] = offset >> 8;
-	optHeader[62] = offset >> 16;
+	optHeader[16] = offset;
+	optHeader[17] = offset >> 8;
 	int headerSizes = offset + asmSz + exedataSz;
 	optHeader[56] = headerSizes;
 	optHeader[57] = headerSizes >> 8;
@@ -131,9 +137,18 @@ void closeExe(){
 	fclose(file);
 }
 
+void addAsm(char val){
+	asm[asmOffset] = val;
+	asmOffset++;
+}
+
 void main(){
 	createExe("gert.exe");
-	createSection(0x60000020,0x00000240,20);
-	createSection(0x40000040,0x00000280,20);
+	createSection(0x60000020,0x0000014c,20);
+	createSection(0x40000040,0x00000160,20);
+	addAsm(0x6a);
+	addAsm(0x10);
+	addAsm(0xeb);
+	addAsm(0xfc);
 	closeExe();
 }
