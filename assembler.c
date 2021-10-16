@@ -197,7 +197,6 @@ void closeExe(){
 	}
 	for(int i = 0;i < libsCount;i++){
 		int rel = libs[i].first - libs[0].first + dataOffset + (funcCount * 8);
-		printf("%x",rel);
 		exedata[bufOffset2] = rel;
 		exedata[bufOffset2 + 1] = rel >> 8;
 		bufOffset2 += 12;
@@ -247,6 +246,20 @@ void addAsm(char val){
 	asmOffset++;
 }
 
+void addAsmD(short val){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val >> 8;
+	asmOffset+=2; 
+}
+
+void addAsmQ(int val){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val >> 8;
+	asm[asmOffset+2] = val >> 16;
+	asm[asmOffset+3] = val >> 24;
+	asmOffset+=4; 
+}
+
 void addLibrary(char *name,int nameSz){
 	libs = realloc(libs,sizeof(libs) * (libsCount + 1));
 	libs[libsCount].name = malloc(nameSz);
@@ -269,20 +282,6 @@ void main(){
 	createSection(20,96);
 	addLibrary("USER32.dll",10);
 	addFunction("MessageBoxA",0,11);
-	addAsm(0x6a);
-	addAsm(0x00);
-	addAsm(0x6a);
-	addAsm(0x00);
-	addAsm(0x6a);
-	addAsm(0x00);
-	addAsm(0x6a);
-	addAsm(0x00);
-    addAsm(0xff);
-	addAsm(0x15);
-	addAsm(0x64);
-	addAsm(0x01);
-	addAsm(0x40);
-	addAsm(0x00);
-	addAsm(0xc3);
+		
 	closeExe();
 }
