@@ -26,11 +26,18 @@ typedef struct FUNCTION{
 	int lib;
 }FUNCTION;
 
+typedef struct FLINKING{
+	int pos;
+	int type;
+}FLINKING;
+
 int libsCount;
 int funcCount;
+int linkCount;
 
 LIBRARY *libs;
 FUNCTION *func;
+FLINKING *link;
 
 char header[28] = {
 	0x4d,0x5a,0x00,0x00,     									//MZ
@@ -258,6 +265,20 @@ void addAsmQ(int val){
 	asm[asmOffset+2] = val >> 16;
 	asm[asmOffset+3] = val >> 24;
 	asmOffset+=4; 
+}
+
+void callFunction(char *func){
+	link = realloc(link,sizeof(linkCount) * (linkCount + 1));
+	for(int i = 0;i < funcCount;i++){
+		if(!memcmp(func,func[i].name,strlen(func)){
+			
+			linkCount++;
+			link[linkCount].pos = asmOffset;
+			link[linkCount].type = i;
+			asmOffset += 4;
+			break;
+		}
+	}
 }
 
 void addLibrary(char *name,int nameSz){
