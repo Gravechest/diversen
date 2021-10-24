@@ -3,6 +3,7 @@
 #include <string.h>
 
 const int headerSz = 0x000000fc;
+
 int exedataSz;
 int asmSz;
 int asmOffset;
@@ -16,14 +17,15 @@ FILE *file;
 
 typedef struct LIBRARY{
 	int namesize;
-	char *name;
 	int first;
+	char *name;
 }LIBRARY;
 
 typedef struct FUNCTION{
 	int namesize;
-	char *name;
 	int lib;
+	int mempos;
+	char *name;
 }FUNCTION;
 
 typedef struct FLINKING{
@@ -38,6 +40,11 @@ int linkCount;
 LIBRARY *libs;
 FUNCTION *func;
 FLINKING *link;
+
+inline void printx(int val){
+	printf("%x",val);
+	printf("\n");
+}
 
 char header[28] = {
 	0x4d,0x5a,0x00,0x00,     									//MZ
@@ -179,6 +186,7 @@ void closeExe(){
 	int libfunct = 0;
 
 	for(int i = 0;i < funcCount;i++){
+		func[i].mempos = dataOffset + bufOffset2 + 0x00400000;
 		if(libfunct != func[i].lib){
 			libfunct = func[i].lib;
 			libs[libfunct].first = bufOffset;
@@ -238,6 +246,13 @@ void closeExe(){
 			bufOffset2 += libs[i].namesize + 2;
 		}
 	}
+	for(int i = 0;i < linkCount;i++){
+
+		asm[link[i].pos] = func[link[i].type].mempos;
+		asm[link[i].pos+1] = func[link[i].type].mempos >> 8;
+		asm[link[i].pos+2] = func[link[i].type].mempos >> 16;
+		asm[link[i].pos+3] = func[link[i].type].mempos >> 24;
+	}
 	fseek(file,0,SEEK_SET);
 	fwrite(header,sizeof(header),1,file);
 	fwrite(optHeader,sizeof(optHeader),1,file);
@@ -254,27 +269,29 @@ void addAsm(char val){
 }
 
 void addAsmD(short val){
-	asm[asmOffset] = val;
-	asm[asmOffset+1] = val >> 8;
+	asm[asmOffset] = val >> 8;
+	asm[asmOffset+1] = val;
 	asmOffset+=2; 
 }
 
 void addAsmQ(int val){
-	asm[asmOffset] = val;
-	asm[asmOffset+1] = val >> 8;
-	asm[asmOffset+2] = val >> 16;
-	asm[asmOffset+3] = val >> 24;
+	asm[asmOffset] = val >> 24;
+	asm[asmOffset+1] = val >> 16;
+	asm[asmOffset+2] = val >> 8;
+	asm[asmOffset+3] = val;
 	asmOffset+=4; 
 }
 
-void callFunction(char *func){
+void callFunction(char *funct){
+	addAsmD(0xff15);
 	link = realloc(link,sizeof(linkCount) * (linkCount + 1));
 	for(int i = 0;i < funcCount;i++){
-		if(!memcmp(func,func[i].name,strlen(func)){
-			
-			linkCount++;
+		if(!memcmp(funct,func[i].name,strlen(funct))){
+			printx(asmOffset);
 			link[linkCount].pos = asmOffset;
+			printx(link[linkCount].pos);
 			link[linkCount].type = i;
+			linkCount++;
 			asmOffset += 4;
 			break;
 		}
@@ -298,11 +315,23 @@ void addFunction(char *name,int type,int nameSz){
 	funcCount++;
 }
 
+/*
+list
+---------------------------------------
+0x6a = push byte
+*/
+
 void main(){
 	createExe("gert.exe",2);
 	createSection(20,96);
 	addLibrary("USER32.dll",10);
 	addFunction("MessageBoxA",0,11);
-		
+	addAsmD(0x6a00);
+	addAsmD(0x6a00);
+	addAsmD(0x6a00);
+	addAsmD(0x6a00);
+	callFunction("MessageBoxA");
+	addAsmD(0xc3);
 	closeExe();
 }
+
