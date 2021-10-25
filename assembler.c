@@ -195,6 +195,7 @@ void closeExe(){
 		libs[0].first = dataOffset;
 	}
 	int libfunct = 0;
+	int subtract = bufOffset;
 	for(int i = 0;i < funcCount;i++){
 		func[i].mempos = dataOffset + bufOffset2 + 0x00400000;
 		if(libfunct != func[i].lib){
@@ -204,8 +205,15 @@ void closeExe(){
 		}
 		exedata[bufOffset2] = bufOffset;
 		exedata[bufOffset2 + 1] = bufOffset >> 8;
+		if(func[i].namesize & 1){
+			bufOffset += func[i].namesize + 5;
+		}
+		else{
+			bufOffset += func[i].namesize + 6;
+		}
 		bufOffset2 += 8;
 	}
+	bufOffset = subtract;
 	for(int i = 0;i < funcCount;i++){
 		exedata[bufOffset2] = bufOffset;
 		exedata[bufOffset2 + 1] = bufOffset >> 8;
@@ -374,38 +382,77 @@ void acessVar(int vari){
 }
 
 /*
+decode table
+---------------------------------------
+small
+0 | 8 = eax 
+1 | 9 = ecx
+2 | a = edx
+3 | b = ebx
+4 | c = esp
+5 | d = ebp
+6 | e = esi
+7 | f = edi
+
+big
+c1 = eax
+c2 = ecx
+d1 = edx
+d2 = ebx
+e1 = esp
+e2 = ebp
+f1 = esi
+f2 = edi
+---------------------------------------
 list
 ---------------------------------------
-0x6a = push byte
-0x68 = push int
+0x00 = add reg->reg (byt)
+0x01 = add reg->reg (int)
+0x04 = add byt->eax
+0x05 = add int->eax 
+0x3c = cmp eax->byt
 0x50 = push eax
 0x51 = push ecx
 0x52 = push edx
 0x53 = push ebx
+0x68 = push int
+0x6a = push byt
+0x75 = jmp (!=)
+0x88 = mov reg->reg (byt)
+0x89 = mov reg->reg (int)
+0xa0 = mov mem->eax (byt)
+0xa1 = mov mem->eax (int)
+0xa2 = mov eax->mem (byt)
+0xa3 = mov eax->mem	(int)
+0xb0 = mov byt->eax	
+0xb1 = mov byt->ecx
+0xb2 = mov byt->edx
+0xb3 = mov byt->ebx 
 0xb8 = mov int->eax
-0xa3 = mov eax->mem
+0xeb = jmp (byt)
 */
 
 void main(){
 	createExe("gert.exe",2);
-	createSection(40,200);
+	createSection(80,300);
 	addLibrary("KERNEL32.dll");
-	addLibrary("USER32.dll");
 	addFunction("GetStdHandle",0);
-	addFunction("MessageBoxA",1);
-	createVarS("hello world!");
-	addAsmP(0x6a,0x00);
-	addAsm(0x68);
+	addFunction("WriteConsole",0);
+	createVarS("hello world!");	
+	addAsmP(0x68,0xfffffff6);
+	callFunction("GetStdHandle");
+	addAsmP(0x89,0xc3);
+	addAsm(0x53);
+	addAsm(0xa1);
 	acessVar(0);
-	addAsmP(0x6a,0x00);	
+	addAsm(0x50);
+	addAsmP(0x6a,0x10);
 	addAsmP(0x6a,0x00);
-	callFunction("MessageBoxA");
+	addAsmP(0x6a,0x00);
 	closeExe();
 	CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
 	return 10;
 }
-
-
 
 
 
