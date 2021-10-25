@@ -1,6 +1,10 @@
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+STARTUPINFO startupinfo = {sizeof(STARTUPINFO),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+PROCESS_INFORMATION process_info = {0,0,0,0};
 
 const int headerSz = 0x000000fc;
 
@@ -14,6 +18,14 @@ char *asm;
 char *exedata;
 
 FILE *file;
+
+typedef struct VARIABLE{
+	int size;
+	int *ref;
+	int count;
+	char flags;
+	char *data;
+}VARIABLE;
 
 typedef struct LIBRARY{
 	int namesize;
@@ -36,10 +48,12 @@ typedef struct FLINKING{
 int libsCount;
 int funcCount;
 int linkCount;
+int varCount;
 
 LIBRARY *libs;
 FUNCTION *func;
 FLINKING *link;
+VARIABLE *var;
 
 inline void printx(int val){
 	printf("%x",val);
@@ -111,7 +125,7 @@ char linking[] = {
 };
 
 void createSection(int tsz,int dsz){
-	int flags[2] = {0x60000020,0x40000040};
+	int flags[2] = {0x60000020,0xc0000040};
 	char name[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	asm = calloc(tsz,1);
 	asmSz = tsz;
@@ -166,9 +180,7 @@ void closeExe(){
 		linking[97] = dataOffset >> 8;
 		linking[100] = adresstableSz;
 		linking[101] = adresstableSz >> 8;
-		
 		dataOffset += adresstableSz * 2;
-
 		linking[8] = dataOffset;
 		linking[9] = dataOffset >> 8;
 		linking[12] = importdirSz;
@@ -177,29 +189,24 @@ void closeExe(){
 		dataOffset -= adresstableSz * 2;
 	}
 
-	
 	int bufOffset = dataOffset + adresstableSz * 2 + importdirSz;
 	int bufOffset2 = 0;
 	if(libsCount){
-		libs[0].first = bufOffset;
+		libs[0].first = dataOffset;
 	}
 	int libfunct = 0;
-
 	for(int i = 0;i < funcCount;i++){
 		func[i].mempos = dataOffset + bufOffset2 + 0x00400000;
 		if(libfunct != func[i].lib){
 			libfunct = func[i].lib;
-			libs[libfunct].first = bufOffset;
+			libs[libfunct].first = dataOffset + (i * 8);
+			printx(libfunct);
 		}
 		exedata[bufOffset2] = bufOffset;
 		exedata[bufOffset2 + 1] = bufOffset >> 8;
 		bufOffset2 += 8;
 	}
 	for(int i = 0;i < funcCount;i++){
-		if(libfunct != func[i].lib){
-			libfunct = func[i].lib;
-			libs[libfunct].first = bufOffset;
-		}
 		exedata[bufOffset2] = bufOffset;
 		exedata[bufOffset2 + 1] = bufOffset >> 8;
 		bufOffset2 += 8;
@@ -210,8 +217,9 @@ void closeExe(){
 			bufOffset += func[i].namesize + 6;
 		}
 	}
+	printx(bufOffset);
 	for(int i = 0;i < libsCount;i++){
-		int rel = libs[i].first - libs[0].first + dataOffset + (funcCount * 8);
+		int rel = libs[i].first + (funcCount * 8);
 		exedata[bufOffset2] = rel;
 		exedata[bufOffset2 + 1] = rel >> 8;
 		bufOffset2 += 12;
@@ -222,6 +230,12 @@ void closeExe(){
 		exedata[bufOffset2] = rel;
 		exedata[bufOffset2 + 1] = rel >> 8;	
 		bufOffset2 += 4;
+		if(libs[i].namesize & 1){
+			bufOffset += libs[i].namesize + 1;
+		}
+		else{
+			bufOffset += libs[i].namesize + 2;
+		}
 	}
 
 	bufOffset2 += 32;
@@ -246,8 +260,25 @@ void closeExe(){
 			bufOffset2 += libs[i].namesize + 2;
 		}
 	}
+	int bob = bufOffset2 + 0x00400000 + dataOffset;
+	for(int i = 0;i < varCount;i++){
+		for(int i2 = 0;i2 < var[i].count;i2++){
+			printf("%x",var[i].ref[i2]);
+			asm[var[i].ref[i2]] = bob;
+			asm[var[i].ref[i2]+1] = bob >> 8;
+			asm[var[i].ref[i2]+2] = bob >> 16;
+			asm[var[i].ref[i2]+3] = bob >> 24;
+			if(var[i].flags & 0x01){
+				for(int i3 = 0;i3 < var[i].size;i3++){
+					exedata[bufOffset2+i3] = var[i].data[i3];
+				}
+				bob++;
+				
+			}
+		}
+		bob += var[i].size;
+	}
 	for(int i = 0;i < linkCount;i++){
-
 		asm[link[i].pos] = func[link[i].type].mempos;
 		asm[link[i].pos+1] = func[link[i].type].mempos >> 8;
 		asm[link[i].pos+2] = func[link[i].type].mempos >> 16;
@@ -268,28 +299,32 @@ void addAsm(char val){
 	asmOffset++;
 }
 
-void addAsmD(short val){
+void addAsmEx(short val){
 	asm[asmOffset] = val >> 8;
 	asm[asmOffset+1] = val;
+	asmOffset+=2;
+}
+void addAsmP(char val,char val2){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val2;
 	asmOffset+=2; 
 }
 
-void addAsmQ(int val){
-	asm[asmOffset] = val >> 24;
-	asm[asmOffset+1] = val >> 16;
-	asm[asmOffset+2] = val >> 8;
-	asm[asmOffset+3] = val;
-	asmOffset+=4; 
+void addAsmPQ(char val,int val2){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val2 >> 24;
+	asm[asmOffset+2] = val2 >> 16;
+	asm[asmOffset+3] = val2 >> 8;
+	asm[asmOffset+4] = val2;
+	asmOffset+=5; 
 }
 
 void callFunction(char *funct){
-	addAsmD(0xff15);
+	addAsmEx(0xff15);
 	link = realloc(link,sizeof(linkCount) * (linkCount + 1));
 	for(int i = 0;i < funcCount;i++){
 		if(!memcmp(funct,func[i].name,strlen(funct))){
-			printx(asmOffset);
 			link[linkCount].pos = asmOffset;
-			printx(link[linkCount].pos);
 			link[linkCount].type = i;
 			linkCount++;
 			asmOffset += 4;
@@ -298,40 +333,87 @@ void callFunction(char *funct){
 	}
 }
 
-void addLibrary(char *name,int nameSz){
+void addLibrary(char *name){
 	libs = realloc(libs,sizeof(libs) * (libsCount + 1));
-	libs[libsCount].name = malloc(nameSz);
-	libs[libsCount].namesize = nameSz;
-	memcpy(libs[libsCount].name,name,nameSz);
+	libs[libsCount].name = malloc(strlen(name));
+	libs[libsCount].namesize = strlen(name);
+	memcpy(libs[libsCount].name,name,strlen(name));
 	libsCount++;
 }
 
-void addFunction(char *name,int type,int nameSz){
+void addFunction(char *name,int type){
 	func = realloc(func,sizeof(func) * (funcCount + 1));
 	func[funcCount].lib = type;
-	func[funcCount].name = malloc(nameSz);
-	func[funcCount].namesize = nameSz;
-	memcpy(func[funcCount].name,name,nameSz);
+	func[funcCount].name = malloc(strlen(name));
+	func[funcCount].namesize = strlen(name);
+	memcpy(func[funcCount].name,name,strlen(name));
 	funcCount++;
+}
+
+void createVar(int size){
+	varCount++;
+	var = realloc(var,sizeof(VARIABLE) * varCount);
+	var[varCount-1].size = size;
+}
+
+void createVarS(char *str){
+	varCount++;
+	var = realloc(var,sizeof(VARIABLE) * varCount);
+	int sz = strlen(str);
+	var[varCount-1].size = sz;
+	var[varCount-1].data = malloc(sz);
+	var[varCount-1].flags |= 0x01;
+	memcpy(var[varCount-1].data,str,sz);
+}
+
+void acessVar(int vari){
+	var[vari].ref = realloc(var[vari].ref,sizeof(int) * (var[vari].count + 1));
+	var[vari].ref[var[vari].count] = asmOffset;
+	var[vari].count++;
+	asmOffset += 4;
 }
 
 /*
 list
 ---------------------------------------
 0x6a = push byte
+0x68 = push int
+0x50 = push eax
+0x51 = push ecx
+0x52 = push edx
+0x53 = push ebx
+0xb8 = mov int->eax
+0xa3 = mov eax->mem
 */
 
 void main(){
 	createExe("gert.exe",2);
-	createSection(20,96);
-	addLibrary("USER32.dll",10);
-	addFunction("MessageBoxA",0,11);
-	addAsmD(0x6a00);
-	addAsmD(0x6a00);
-	addAsmD(0x6a00);
-	addAsmD(0x6a00);
+	createSection(40,200);
+	addLibrary("KERNEL32.dll");
+	addLibrary("USER32.dll");
+	addFunction("GetStdHandle",0);
+	addFunction("MessageBoxA",1);
+	createVarS("hello world!");
+	addAsmP(0x6a,0x00);
+	addAsm(0x68);
+	acessVar(0);
+	addAsmP(0x6a,0x00);	
+	addAsmP(0x6a,0x00);
 	callFunction("MessageBoxA");
-	addAsmD(0xc3);
 	closeExe();
+	CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
+	return 10;
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
