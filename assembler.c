@@ -447,7 +447,7 @@ list
 
 void main(){
 	createExe("gert.exe",3);
-	createSection(70,167);
+	createSection(127,203);
 	addLibrary("KERNEL32.dll");
 	addFunction("WriteConsoleA",0);
 	addFunction("GetStdHandle",0);
@@ -471,10 +471,12 @@ void main(){
 	callFunction("WriteConsoleA");
 	addAsm(0xa1);
 	acessVar(0);
+	addAsmP(0x3c,40);
+	addAsmP(0x74,10);
 	addAsmP(0x04,1);
 	addAsm(0xa3);
 	acessVar(0);
-	addAsmP(0xeb,-33);
+	addAsmP(0xeb,-37);
 	closeExe();
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
@@ -482,5 +484,4 @@ void main(){
 	else{
 		CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
 	}
-	return 10;
 }
