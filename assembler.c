@@ -10,6 +10,7 @@ const int headerSz = 0x000000fc;
 
 int exedataSz;
 int asmSz;
+int dataSz;
 int asmOffset;
 int dataOffset;
 int nameOffset;
@@ -129,6 +130,7 @@ void createSection(int tsz,int dsz){
 	char name[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	asm = calloc(tsz,1);
 	asmSz = tsz;
+	dataSz = dsz;
 	int size = headerSz + 0x54;
 	optHeader[16] = size;
 	optHeader[17] = size >> 8; 
@@ -283,12 +285,15 @@ void closeExe(){
 			asm[var[i].ref[i2]+3] = bob >> 24;
 			if(var[i].flags & 0x01){
 				for(int i3 = 0;i3 < var[i].size;i3++){
-					exedata[bufOffset2+i3] = var[i].data[i3];
+					exedata[bufOffset2] = var[i].data[i3];
+					bufOffset2++;
 				}
-				bob++;
 			}
-			bob += var[i].size;
 		}
+		if(var[i].flags & 0x01){
+			bob++;
+		}
+		bob += var[i].size;
 	}
 	for(int i = 0;i < linkCount;i++){
 		asm[link[i].pos] = func[link[i].type].mempos;
@@ -304,6 +309,11 @@ void closeExe(){
 	fwrite(asm,asmSz,1,file);
 	fwrite(exedata,exedataSz,1,file);
 	fclose(file);
+	printf("\nasm teveel\n");
+	printf("%i",asmSz - asmOffset);
+	printf("\ndata teveel\n");
+	printf("%i",dataSz - bufOffset2);
+	printf("\n");
 }
 
 void addAsm(char val){
@@ -324,10 +334,10 @@ void addAsmP(char val,char val2){
 
 void addAsmPQ(char val,int val2){
 	asm[asmOffset] = val;
-	asm[asmOffset+1] = val2 >> 24;
-	asm[asmOffset+2] = val2 >> 16;
-	asm[asmOffset+3] = val2 >> 8;
-	asm[asmOffset+4] = val2;
+	asm[asmOffset+1] = val2;
+	asm[asmOffset+2] = val2 >> 8;
+	asm[asmOffset+3] = val2 >> 16;
+	asm[asmOffset+4] = val2 >> 24;
 	asmOffset+=5; 
 }
 
@@ -436,20 +446,35 @@ list
 */
 
 void main(){
-	createExe("gert.exe",2);
-	createSection(80,300);
+	createExe("gert.exe",3);
+	createSection(70,167);
 	addLibrary("KERNEL32.dll");
-	addLibrary("USER32.dll");
+	addFunction("WriteConsoleA",0);
 	addFunction("GetStdHandle",0);
-	addFunction("MessageBoxA",1);
-	createVarS("hello world!");	
-	addAsm(0x50);
+	createVarS("helloWorld!_");	
+	addAsmPQ(0x68,-11);
+	callFunction("GetStdHandle");
+	addAsmP(0x89,0xc3);
+	addAsmPQ(0x68,-10);
+	callFunction("GetStdHandle");
+	addAsmP(0x89,0xc1);
+	createVar(1);
+	addAsm(0xb8);
+	acessVar(1);
+	addAsmP(0x6a,0);
+	addAsmP(0x6a,0);
+	addAsmP(0x6a,12);
 	addAsm(0xb8);
 	acessVar(0);
 	addAsm(0x50);
-	addAsmP(0x6a,0x00);
-	addAsmP(0x6a,0x00);
-	callFunction("MessageBoxA");
+	addAsm(0x53);
+	callFunction("WriteConsoleA");
+	addAsm(0xa1);
+	acessVar(0);
+	addAsmP(0x04,1);
+	addAsm(0xa3);
+	acessVar(0);
+	addAsmP(0xeb,-33);
 	closeExe();
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
@@ -459,11 +484,3 @@ void main(){
 	}
 	return 10;
 }
-
-
-
-
-
-
-
-
