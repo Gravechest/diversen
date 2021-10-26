@@ -55,7 +55,7 @@ FUNCTION *func;
 FLINKING *link;
 VARIABLE *var;
 
-inline void printx(int val){
+void inline printx(int val){
 	printf("%x",val);
 	printf("\n");
 }
@@ -125,7 +125,7 @@ char linking[] = {
 };
 
 void createSection(int tsz,int dsz){
-	int flags[2] = {0x60000020,0xc0000040};
+	int flags[2] = {0xe0000020,0xc0000040};
 	char name[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	asm = calloc(tsz,1);
 	asmSz = tsz;
@@ -173,13 +173,14 @@ void createExe(char *name,int type){
 }
 
 void closeExe(){
-	int adresstableSz = funcCount * 8;
+	int adresstableSz = funcCount * 4 + libsCount * 4; 
 	int importdirSz = libsCount * 20 + 32;
 	if(libsCount + funcCount){
 		linking[96] = dataOffset;
 		linking[97] = dataOffset >> 8;
 		linking[100] = adresstableSz;
 		linking[101] = adresstableSz >> 8;
+
 		dataOffset += adresstableSz * 2;
 		linking[8] = dataOffset;
 		linking[9] = dataOffset >> 8;
@@ -197,12 +198,12 @@ void closeExe(){
 	int libfunct = 0;
 	int subtract = bufOffset;
 	for(int i = 0;i < funcCount;i++){
-		func[i].mempos = dataOffset + bufOffset2 + 0x00400000;
 		if(libfunct != func[i].lib){
 			libfunct = func[i].lib;
-			libs[libfunct].first = dataOffset + (i * 8);
-			printx(libfunct);
+			bufOffset2 += 4;
+			libs[libfunct].first = dataOffset + bufOffset2;
 		}
+		func[i].mempos = dataOffset + bufOffset2 + 0x00400000;
 		exedata[bufOffset2] = bufOffset;
 		exedata[bufOffset2 + 1] = bufOffset >> 8;
 		if(func[i].namesize & 1){
@@ -211,13 +212,19 @@ void closeExe(){
 		else{
 			bufOffset += func[i].namesize + 6;
 		}
-		bufOffset2 += 8;
+		bufOffset2 += 4;
+		
 	}
+	bufOffset2 += 4;
 	bufOffset = subtract;
+	libfunct = 0;
 	for(int i = 0;i < funcCount;i++){
+		if(libfunct != func[i].lib){
+			bufOffset2 += 4;
+		}
 		exedata[bufOffset2] = bufOffset;
 		exedata[bufOffset2 + 1] = bufOffset >> 8;
-		bufOffset2 += 8;
+		bufOffset2 += 4;
 		if(func[i].namesize & 1){
 			bufOffset += func[i].namesize + 5;
 		}
@@ -225,16 +232,16 @@ void closeExe(){
 			bufOffset += func[i].namesize + 6;
 		}
 	}
-	printx(bufOffset);
+	bufOffset2 += 4;
 	for(int i = 0;i < libsCount;i++){
-		int rel = libs[i].first + (funcCount * 8);
+		int rel = libs[i].first + funcCount * 4 + libsCount * 4;
 		exedata[bufOffset2] = rel;
 		exedata[bufOffset2 + 1] = rel >> 8;
 		bufOffset2 += 12;
 		exedata[bufOffset2] = bufOffset;
 		exedata[bufOffset2 + 1] = bufOffset >> 8;
 		bufOffset2 += 4;
-		rel -= funcCount * 8;
+		rel -= funcCount * 4 + libsCount * 4;
 		exedata[bufOffset2] = rel;
 		exedata[bufOffset2 + 1] = rel >> 8;	
 		bufOffset2 += 4;
@@ -245,9 +252,7 @@ void closeExe(){
 			bufOffset += libs[i].namesize + 2;
 		}
 	}
-
 	bufOffset2 += 32;
-
 	for(int i = 0;i < funcCount;i++){
 		bufOffset2 += 2;
 		memcpy(exedata + bufOffset2,func[i].name,func[i].namesize);
@@ -281,10 +286,9 @@ void closeExe(){
 					exedata[bufOffset2+i3] = var[i].data[i3];
 				}
 				bob++;
-				
 			}
+			bob += var[i].size;
 		}
-		bob += var[i].size;
 	}
 	for(int i = 0;i < linkCount;i++){
 		asm[link[i].pos] = func[link[i].type].mempos;
@@ -393,7 +397,6 @@ small
 5 | d = ebp
 6 | e = esi
 7 | f = edi
-
 big
 c1 = eax
 c2 = ecx
@@ -436,26 +439,26 @@ void main(){
 	createExe("gert.exe",2);
 	createSection(80,300);
 	addLibrary("KERNEL32.dll");
+	addLibrary("USER32.dll");
 	addFunction("GetStdHandle",0);
-	addFunction("WriteConsole",0);
+	addFunction("MessageBoxA",1);
 	createVarS("hello world!");	
-	addAsmP(0x68,0xfffffff6);
-	callFunction("GetStdHandle");
-	addAsmP(0x89,0xc3);
-	addAsm(0x53);
-	addAsm(0xa1);
+	addAsm(0x50);
+	addAsm(0xb8);
 	acessVar(0);
 	addAsm(0x50);
-	addAsmP(0x6a,0x10);
 	addAsmP(0x6a,0x00);
 	addAsmP(0x6a,0x00);
+	callFunction("MessageBoxA");
 	closeExe();
-	CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
+	if(optHeader[68] == 3){
+		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
+	}
+	else{
+		CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
+	}
 	return 10;
 }
-
-
-
 
 
 
