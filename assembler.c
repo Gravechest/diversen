@@ -193,6 +193,7 @@ void closeExe(){
 	}
 
 	int bufOffset = dataOffset + adresstableSz * 2 + importdirSz;
+	printx(bufOffset);
 	int bufOffset2 = 0;
 	if(libsCount){
 		libs[0].first = dataOffset;
@@ -265,7 +266,6 @@ void closeExe(){
 			bufOffset2 += func[i].namesize + 4;
 		}
 	}
-	
 	for(int i = 0;i < libsCount;i++){
 		memcpy(exedata + bufOffset2,libs[i].name,libs[i].namesize);
 		if(libs[i].namesize & 1){
@@ -278,7 +278,6 @@ void closeExe(){
 	int bob = bufOffset2 + 0x00400000 + dataOffset;
 	for(int i = 0;i < varCount;i++){
 		for(int i2 = 0;i2 < var[i].count;i2++){
-			printf("%x",var[i].ref[i2]);
 			asm[var[i].ref[i2]] = bob;
 			asm[var[i].ref[i2]+1] = bob >> 8;
 			asm[var[i].ref[i2]+2] = bob >> 16;
@@ -301,6 +300,7 @@ void closeExe(){
 		asm[link[i].pos+2] = func[link[i].type].mempos >> 16;
 		asm[link[i].pos+3] = func[link[i].type].mempos >> 24;
 	}
+	printx(bufOffset2);
 	fseek(file,0,SEEK_SET);
 	fwrite(header,sizeof(header),1,file);
 	fwrite(optHeader,sizeof(optHeader),1,file);
@@ -326,6 +326,14 @@ void addAsmEx(short val){
 	asm[asmOffset+1] = val;
 	asmOffset+=2;
 }
+
+void addAsmExP(short val,char val2){
+	asm[asmOffset] = val >> 8;
+	asm[asmOffset+1] = val;
+	asm[asmOffset+2] = val2;
+	asmOffset+=3;
+}
+
 void addAsmP(char val,char val2){
 	asm[asmOffset] = val;
 	asm[asmOffset+1] = val2;
@@ -364,12 +372,16 @@ void addLibrary(char *name){
 }
 
 void addFunction(char *name,int type){
-	func = realloc(func,sizeof(func) * (funcCount + 1));
+	func = realloc(func,sizeof(FUNCTION) * (funcCount + 1));
 	func[funcCount].lib = type;
-	func[funcCount].name = malloc(strlen(name));
+	func[funcCount].name = calloc(20,1);
 	func[funcCount].namesize = strlen(name);
 	memcpy(func[funcCount].name,name,strlen(name));
 	funcCount++;
+	for(int i = 0;i < funcCount;i++){
+		printf("%s",func[i].name);
+		printf("\n");
+	}
 }
 
 void createVar(int size){
@@ -397,7 +409,7 @@ void acessVar(int vari){
 
 /*
 decode table
----------------------------------------
+
 small
 0 | 8 = eax 
 1 | 9 = ecx
@@ -407,6 +419,7 @@ small
 5 | d = ebp
 6 | e = esi
 7 | f = edi
+
 big
 c1 = eax
 c2 = ecx
@@ -416,9 +429,8 @@ e1 = esp
 e2 = ebp
 f1 = esi
 f2 = edi
----------------------------------------
+
 list
----------------------------------------
 0x00 = add reg->reg (byt)
 0x01 = add reg->reg (int)
 0x04 = add byt->eax
@@ -442,16 +454,18 @@ list
 0xb2 = mov byt->edx
 0xb3 = mov byt->ebx 
 0xb8 = mov int->eax
+
 0xeb = jmp (byt)
 */
 
 void main(){
 	createExe("gert.exe",3);
-	createSection(127,203);
+	createSection(128,204);
 	addLibrary("KERNEL32.dll");
 	addFunction("WriteConsoleA",0);
 	addFunction("GetStdHandle",0);
-	createVarS("helloWorld!_");	
+	addFunction("ExitProcess",0);
+	createVarS("helloWorld!");	
 	addAsmPQ(0x68,-11);
 	callFunction("GetStdHandle");
 	addAsmP(0x89,0xc3);
@@ -471,12 +485,14 @@ void main(){
 	callFunction("WriteConsoleA");
 	addAsm(0xa1);
 	acessVar(0);
-	addAsmP(0x3c,40);
-	addAsmP(0x74,10);
-	addAsmP(0x04,1);
+	addAsmP(0x3c,1);
+	addAsmP(0x74,9);
+	addAsmP(0x04,3);
 	addAsm(0xa3);
 	acessVar(0);
 	addAsmP(0xeb,-37);
+	addAsmP(0x6a,0x00);
+	addAsmP(0xeb,0xfe);
 	closeExe();
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
