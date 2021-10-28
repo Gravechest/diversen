@@ -46,15 +46,24 @@ typedef struct FLINKING{
 	int type;
 }FLINKING;
 
+typedef struct LABEL{
+	int pos;
+	int refC;
+	int *ref;
+	int *loc;
+}LABEL;
+
 int libsCount;
 int funcCount;
 int linkCount;
 int varCount;
+int lblCount;
 
 LIBRARY *libs;
 FUNCTION *func;
 FLINKING *link;
 VARIABLE *var;
+LABEL *lbl;
 
 void inline printx(int val){
 	printf("%x",val);
@@ -405,6 +414,19 @@ void acessVar(int vari){
 	var[vari].ref[var[vari].count] = asmOffset;
 	var[vari].count++;
 	asmOffset += 4;
+}
+
+void createLabel(){
+	lbl = realloc(lbl,sizeof(LABEL) * (lblCount + 1));
+	lbl.pos = asmOffset;
+}
+
+void label(int id){
+	lbl[id].ref = realloc(lbl[id].ref,sizeof(int) * (lbl[id].refC + 1));
+	lbl[id].loc = realloc(lbl[id].loc,sizeof(int) * (lbl[id].refC + 1));
+	lbl[id].pos = asmOffset;
+	lbl[id].refC++;
+	asmOffset++;
 }
 
 /*
