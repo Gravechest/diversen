@@ -105,7 +105,7 @@ char optHeader[] = {
 	0x29,0x01,0x00,0x00,                         	//groote van .exe file
 	0x24,0x01,0x00,0x00,							//groote van de headers
 	0x00,0x00,0x00,0x00,							//checksum
-	0x03,0x00,										//subSystem
+	0x00,0x00,										//subSystem
 	0x00,0x40,										//dll caracteristics
 	0x00,0x00,0x01,0x00,							
 	0x00,0x01,0x00,0x00,
@@ -133,6 +133,42 @@ char linking[] = {
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00      	//reserverd
 	
 };
+
+void linkLabels(){
+	for(int i = 0;i < lblCount;i++){
+		for(int i2 = 0;i2 < lbl[i].refC;i2++){
+			asm[lbl[i].ref[i2]] = lbl[i].pos - lbl[i].ref[i2] - 1;
+		}	
+	}
+}
+
+void createBootloader(char* name){
+	asm = calloc(1474560,1);
+	file = fopen(name,"wb");
+}
+
+void closeBootloader(){
+	linkLabels();
+	int bob = asmOffset;
+	for(int i = 0;i < varCount;i++){
+		for(int i2 = 0;i2 < var[i].count;i2++){
+
+			asm[var[i].ref[i2]] = bob;
+			if(var[i].flags & 0x01){
+				for(int i3 = 0;i3 < var[i].size;i3++){
+					asm[bob] = var[i].data[i3];
+					bob++;
+				}
+				bob -= var[i].size - 1;
+			}
+		}
+		bob += var[i].size;
+	}
+	asm[510] = 0x55;
+	asm[511] = 0xaa;
+	fwrite(asm,1474560,1,file);
+	fclose(file);
+}
 
 void createSection(int tsz,int dsz){
 	int flags[2] = {0xe0000020,0xc0000040};
@@ -179,11 +215,12 @@ void createSection(int tsz,int dsz){
 }
 
 void createExe(char *name,int type){
-	file = fopen(name,"w");
+	file = fopen(name,"wb");
 	optHeader[68] = type;
 }
 
 void closeExe(){
+	linkLabels();
 	int adresstableSz = funcCount * 4 + libsCount * 4; 
 	int importdirSz = libsCount * 20 + 32;
 	if(libsCount + funcCount){
@@ -202,7 +239,6 @@ void closeExe(){
 	}
 
 	int bufOffset = dataOffset + adresstableSz * 2 + importdirSz;
-	printx(bufOffset);
 	int bufOffset2 = 0;
 	if(libsCount){
 		libs[0].first = dataOffset;
@@ -325,31 +361,31 @@ void closeExe(){
 	printf("\n");
 }
 
-void addAsm(char val){
+void Asm(char val){
 	asm[asmOffset] = val;
 	asmOffset++;
 }
 
-void addAsmEx(short val){
+void AsmEx(short val){
 	asm[asmOffset] = val >> 8;
 	asm[asmOffset+1] = val;
 	asmOffset+=2;
 }
 
-void addAsmExP(short val,char val2){
+void AsmExP(short val,char val2){
 	asm[asmOffset] = val >> 8;
 	asm[asmOffset+1] = val;
 	asm[asmOffset+2] = val2;
 	asmOffset+=3;
 }
 
-void addAsmP(char val,char val2){
+void AsmP(char val,char val2){
 	asm[asmOffset] = val;
 	asm[asmOffset+1] = val2;
 	asmOffset+=2; 
 }
 
-void addAsmPQ(char val,int val2){
+void AsmPQ(char val,int val2){
 	asm[asmOffset] = val;
 	asm[asmOffset+1] = val2;
 	asm[asmOffset+2] = val2 >> 8;
@@ -359,7 +395,7 @@ void addAsmPQ(char val,int val2){
 }
 
 void callFunction(char *funct){
-	addAsmEx(0xff15);
+	AsmEx(0xff15);
 	link = realloc(link,sizeof(linkCount) * (linkCount + 1));
 	for(int i = 0;i < funcCount;i++){
 		if(!memcmp(funct,func[i].name,strlen(funct))){
@@ -409,24 +445,35 @@ void createVarS(char *str){
 	memcpy(var[varCount-1].data,str,sz);
 }
 
-void acessVar(int vari){
+void accesVar(int vari){
 	var[vari].ref = realloc(var[vari].ref,sizeof(int) * (var[vari].count + 1));
 	var[vari].ref[var[vari].count] = asmOffset;
 	var[vari].count++;
-	asmOffset += 4;
+	asmOffset+=4;
+}
+
+void accesVar8b(int vari){
+	var[vari].ref = realloc(var[vari].ref,sizeof(int) * (var[vari].count + 1));
+	var[vari].ref[var[vari].count] = asmOffset;
+	var[vari].count++;
+	var[vari].flags |= 0x04;
+	asmOffset++;
 }
 
 void createLabel(){
-	lbl = realloc(lbl,sizeof(LABEL) * (lblCount + 1));
-	lbl.pos = asmOffset;
+	lbl[lblCount].pos = asmOffset;
+	lblCount++;
 }
 
 void label(int id){
 	lbl[id].ref = realloc(lbl[id].ref,sizeof(int) * (lbl[id].refC + 1));
 	lbl[id].loc = realloc(lbl[id].loc,sizeof(int) * (lbl[id].refC + 1));
-	lbl[id].pos = asmOffset;
+	lbl[id].ref[lbl[id].refC] = asmOffset;
 	lbl[id].refC++;
 	asmOffset++;
+}
+void labelAmm(int amm){
+	lbl = calloc(sizeof(LABEL) * amm,1);
 }
 
 /*
@@ -452,7 +499,13 @@ e2 = ebp
 f1 = esi
 f2 = edi
 
-list
+extensions
+0x80 = byt arithmic
+
+list ring 0
+0xcd = int
+
+list ring 3
 0x00 = add reg->reg (byt)
 0x01 = add reg->reg (int)
 0x04 = add byt->eax
@@ -462,64 +515,52 @@ list
 0x51 = push ecx
 0x52 = push edx
 0x53 = push ebx
+0x58 = pop  eax
+0x59 = pop  ecx
+0x5a = pop  edx
+0x5b = pop  ebx
 0x68 = push int
 0x6a = push byt
-0x75 = jmp (!=)
-0x88 = mov reg->reg (byt)
-0x89 = mov reg->reg (int)
-0xa0 = mov mem->eax (byt)
-0xa1 = mov mem->eax (int)
-0xa2 = mov eax->mem (byt)
-0xa3 = mov eax->mem	(int)
-0xb0 = mov byt->eax	
-0xb1 = mov byt->ecx
-0xb2 = mov byt->edx
-0xb3 = mov byt->ebx 
-0xb8 = mov int->eax
-
-0xeb = jmp (byt)
+0x75 = jmp 	(!=)
+0x88 = mov	reg->reg (byt)
+0x89 = mov  reg->reg (int)
+0xa0 = mov  mem->eax (byt)
+0xa1 = mov  mem->eax (int)
+0xa2 = mov  eax->mem (byt)
+0xa3 = mov  eax->mem (int)
+0xb0 = mov  byt->eax	
+0xb1 = mov  byt->ecx
+0xb2 = mov  byt->edx
+0xb3 = mov  byt->ebx 
+0xb4 = mov  byt->eax (h)
+0xb5 = mov  byt->ecx (h)
+0xb6 = mov  byt->edx (h)
+0xb7 = mov  byt->ebx (h)
+0xb8 = mov  int->eax
+0xeb = jmp  (byt)
 */
 
 void main(){
-	createExe("gert.exe",3);
-	createSection(128,204);
-	addLibrary("KERNEL32.dll");
-	addFunction("WriteConsoleA",0);
-	addFunction("GetStdHandle",0);
-	addFunction("ExitProcess",0);
-	createVarS("helloWorld!");	
-	addAsmPQ(0x68,-11);
-	callFunction("GetStdHandle");
-	addAsmP(0x89,0xc3);
-	addAsmPQ(0x68,-10);
-	callFunction("GetStdHandle");
-	addAsmP(0x89,0xc1);
-	createVar(1);
-	addAsm(0xb8);
-	acessVar(1);
-	addAsmP(0x6a,0);
-	addAsmP(0x6a,0);
-	addAsmP(0x6a,12);
-	addAsm(0xb8);
-	acessVar(0);
-	addAsm(0x50);
-	addAsm(0x53);
-	callFunction("WriteConsoleA");
-	addAsm(0xa1);
-	acessVar(0);
-	addAsmP(0x3c,1);
-	addAsmP(0x74,9);
-	addAsmP(0x04,3);
-	addAsm(0xa3);
-	acessVar(0);
-	addAsmP(0xeb,-37);
-	addAsmP(0x6a,0x00);
-	addAsmP(0xeb,0xfe);
-	closeExe();
+	createBootloader("epic.img");
+	labelAmm(3);
+	AsmP(0xb0,0x13);
+	AsmP(0xb4,0x00);
+	AsmP(0xcd,0x10);
+	AsmP(0xb0,0x03);
+	createLabel();
+	Asm(0x50);
+	AsmP(0x88,0xd8);
+	AsmP(0x04,0x01);
+	AsmP(0x88,0xc3);
+	Asm(0x58);
+	AsmP(0xcd,0x10);
+	Asm(0xeb);
+	label(0);
+	closeBootloader();
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
 	}
-	else{
+	else if(optHeader[68] == 2){
 		CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
 	}
 }
