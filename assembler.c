@@ -168,6 +168,9 @@ void closeBootloader(){
 	asm[511] = 0xaa;
 	fwrite(asm,1474560,1,file);
 	fclose(file);
+	FILE *debug = fopen("debug.obj","wb");
+	fwrite(asm,512,1,debug);
+	fclose(debug);
 }
 
 void createSection(int tsz,int dsz){
@@ -385,6 +388,21 @@ void AsmP(char val,char val2){
 	asmOffset+=2; 
 }
 
+void AsmPD(char val,short val2){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val2;
+	asm[asmOffset+2] = val2 >> 8;
+	asmOffset+=3; 
+}
+
+void AsmPSD(char val,char val2,short val3){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val2;
+	asm[asmOffset+2] = val3;
+	asm[asmOffset+3] = val3 >> 8;
+	asmOffset+=4; 
+}
+
 void AsmPQ(char val,int val2){
 	asm[asmOffset] = val;
 	asm[asmOffset+1] = val2;
@@ -506,11 +524,16 @@ list ring 0
 0xcd = int
 
 list ring 3
-0x00 = add reg->reg (byt)
-0x01 = add reg->reg (int)
-0x04 = add byt->eax
-0x05 = add int->eax 
-0x3c = cmp eax->byt
+0x00 = add  reg->reg (byt)
+0x01 = add  reg->reg (int)
+0x04 = add  byt->eax
+0x05 = add  int->eax 
+0x06 = push es
+0x07 = pop  es
+0x2d = sub  int->eax
+0x31 = xor  reg->reg
+0x3b = cmp  reg->mem
+0x3c = cmp  eax->byt
 0x50 = push eax
 0x51 = push ecx
 0x52 = push edx
@@ -522,12 +545,16 @@ list ring 3
 0x68 = push int
 0x6a = push byt
 0x75 = jmp 	(!=)
+0x7c = jmp  (<)
 0x88 = mov	reg->reg (byt)
 0x89 = mov  reg->reg (int)
+0x8b = mov  eax->ptr
+0x8e = mov  reg->reg (seg)
 0xa0 = mov  mem->eax (byt)
 0xa1 = mov  mem->eax (int)
 0xa2 = mov  eax->mem (byt)
 0xa3 = mov  eax->mem (int)
+0xaa = stosb
 0xb0 = mov  byt->eax	
 0xb1 = mov  byt->ecx
 0xb2 = mov  byt->edx
@@ -537,25 +564,46 @@ list ring 3
 0xb6 = mov  byt->edx (h)
 0xb7 = mov  byt->ebx (h)
 0xb8 = mov  int->eax
+0xb9 = mov  int->ecx
+0xba = mov  int->edx
+0xbb = mov  int->ebx
+0xe2 = loop
 0xeb = jmp  (byt)
+0xf3 = rep
 */
 
 void main(){
 	createBootloader("epic.img");
 	labelAmm(3);
-	AsmP(0xb0,0x13);
-	AsmP(0xb4,0x00);
+	AsmPD(0xb8,0x0013);
 	AsmP(0xcd,0x10);
-	AsmP(0xb0,0x03);
+	AsmPD(0x68,0xa000);
+	Asm(0x07);
+	createLabel(); 
+	AsmP(0x31,0xff);
+	AsmP(0xb1,0xff);
 	createLabel();
+	Asm(0x51);
+	AsmP(0xb1,0x20);
+	AsmP(0xf3,0xaa);
+	Asm(0x59);
 	Asm(0x50);
-	AsmP(0x88,0xd8);
-	AsmP(0x04,0x01);
-	AsmP(0x88,0xc3);
+	AsmP(0x8c,0xc0);
+	AsmP(0x04,0x12);
+	AsmP(0x8e,0xc0);
 	Asm(0x58);
-	AsmP(0xcd,0x10);
+	Asm(0xe2);
+	label(1);
+	Asm(0x50);
+	Asm(0x06);
+	Asm(0x58);
+	AsmPD(0x2d,0x1000);
+	Asm(0x50);
+	Asm(0x07);
+	Asm(0x58);
 	Asm(0xeb);
 	label(0);
+
 	closeBootloader();
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
