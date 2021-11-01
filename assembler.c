@@ -143,7 +143,7 @@ void linkLabels(){
 }
 
 void createBootloader(char* name){
-	asm = calloc(1474560,1);
+	asm = calloc(33548800,1);
 	file = fopen(name,"wb");
 }
 
@@ -171,6 +171,9 @@ void closeBootloader(){
 	FILE *debug = fopen("debug.obj","wb");
 	fwrite(asm,512,1,debug);
 	fclose(debug);
+	FILE *real = fopen("real.iso","wb");
+	fwrite(asm,33548800,1,real);
+	fclose(real);
 }
 
 void createSection(int tsz,int dsz){
@@ -574,36 +577,16 @@ list ring 3
 
 void main(){
 	createBootloader("epic.img");
-	labelAmm(3);
-	AsmPD(0xb8,0x0013);
-	AsmP(0xcd,0x10);
-	AsmPD(0x68,0xa000);
-	Asm(0x07);
-	createLabel(); 
-	AsmP(0x31,0xff);
-	AsmP(0xb1,0xff);
+	labelAmm(1);
+	AsmP(0xb1,0x04);
 	createLabel();
-	Asm(0x51);
-	AsmP(0xb1,0x20);
-	AsmP(0xf3,0xaa);
-	Asm(0x59);
-	Asm(0x50);
-	AsmP(0x8c,0xc0);
-	AsmP(0x04,0x12);
-	AsmP(0x8e,0xc0);
-	Asm(0x58);
-	Asm(0xe2);
-	label(1);
-	Asm(0x50);
-	Asm(0x06);
-	Asm(0x58);
-	AsmPD(0x2d,0x1000);
-	Asm(0x50);
-	Asm(0x07);
-	Asm(0x58);
-	Asm(0xeb);
+	AsmP(0xb4,0x0e);
+	AsmP(0xcd,0x10);
+	AsmP(0x04,0x01);
+	AsmP(0xb4,0x86);
+	AsmP(0xcd,0x15);
+	Asm(0xeb);	
 	label(0);
-
 	closeBootloader();
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
