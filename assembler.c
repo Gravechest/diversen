@@ -514,16 +514,13 @@ e1 = esp
 e2 = ebp
 f1 = esi
 f2 = edi
-
 extensions
 0x80 = byt arithmic
-
 list ring 0
 0xcd = int
 0xf4 = hlt
 0xe4 = in   (byt)
 0xe6 = out  (byt)
-
 list ring 3
 0x00 = add  reg->reg (byt)
 0x01 = add  reg->reg (int)
