@@ -143,7 +143,7 @@ void linkLabels(){
 }
 
 void createBootloader(char* name){
-	asm = calloc(33548800,1);
+	asm = calloc(1474560,1);
 	file = fopen(name,"wb");
 }
 
@@ -171,9 +171,6 @@ void closeBootloader(){
 	FILE *debug = fopen("debug.obj","wb");
 	fwrite(asm,512,1,debug);
 	fclose(debug);
-	FILE *real = fopen("real.iso","wb");
-	fwrite(asm,33548800,1,real);
-	fclose(real);
 }
 
 void createSection(int tsz,int dsz){
@@ -499,7 +496,6 @@ void labelAmm(int amm){
 
 /*
 decode table
-
 small
 0 | 8 = eax 
 1 | 9 = ecx
@@ -509,7 +505,6 @@ small
 5 | d = ebp
 6 | e = esi
 7 | f = edi
-
 big
 c1 = eax
 c2 = ecx
@@ -525,6 +520,9 @@ extensions
 
 list ring 0
 0xcd = int
+0xf4 = hlt
+0xe4 = in   (byt)
+0xe6 = out  (byt)
 
 list ring 3
 0x00 = add  reg->reg (byt)
@@ -535,16 +533,19 @@ list ring 3
 0x07 = pop  es
 0x2d = sub  int->eax
 0x31 = xor  reg->reg
+0x38 = cmp  reg->reg
 0x3b = cmp  reg->mem
 0x3c = cmp  eax->byt
 0x50 = push eax
 0x51 = push ecx
 0x52 = push edx
 0x53 = push ebx
+0x57 = push edi
 0x58 = pop  eax
 0x59 = pop  ecx
 0x5a = pop  edx
 0x5b = pop  ebx
+0x5f = pop  edi
 0x68 = push int
 0x6a = push byt
 0x75 = jmp 	(!=)
@@ -578,15 +579,25 @@ list ring 3
 void main(){
 	createBootloader("epic.img");
 	labelAmm(1);
-	AsmP(0xb1,0x04);
-	createLabel();
-	AsmP(0xb4,0x0e);
+	AsmPD(0xb8,0x0013);
 	AsmP(0xcd,0x10);
-	AsmP(0x04,0x01);
-	AsmP(0xb4,0x86);
-	AsmP(0xcd,0x15);
-	Asm(0xeb);	
+	AsmPD(0x68,0xa000);
+	Asm(0x07);
+	AsmP(0xb0,0x00);
+	AsmP(0xe6,0x70);
+	createLabel();
+	AsmP(0xe4,0x71);
+	AsmP(0x38,0xd8);
+	Asm(0x74);
 	label(0);
+	AsmP(0x88,0xc3);
+	Asm(0x50);
+	AsmP(0xb0,0x01);
+	Asm(0xaa);
+	Asm(0x58);
+	Asm(0xeb);
+	label(0);
+
 	closeBootloader();
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
