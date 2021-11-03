@@ -53,6 +53,12 @@ typedef struct LABEL{
 	int *loc;
 }LABEL;
 
+typedef struct ASMFILE{
+	char *name;
+	char flags;
+	char *file;
+}ASMFILE;
+
 int libsCount;
 int funcCount;
 int linkCount;
@@ -64,6 +70,8 @@ FUNCTION *func;
 FLINKING *link;
 VARIABLE *var;
 LABEL *lbl;
+
+ASMFILE asmfile;
 
 void inline printx(int val){
 	printf("%x",val);
@@ -490,8 +498,85 @@ void label(int id){
 	lbl[id].refC++;
 	asmOffset++;
 }
+
 void labelAmm(int amm){
 	lbl = calloc(sizeof(LABEL) * amm,1);
+}
+
+int exp10(int val,int times){
+	for(int i = 1;i < times;i++){
+		val *= 10;
+	}
+	return val;
+}
+
+int exp16(int val,int times){
+	for(int i = 1;i < times;i++){
+		val *= 16;
+	}
+	return val;
+}
+
+int asciiToInt(int p){
+	int sz = 0;
+	char hex = 0;
+	if(asmfile.file[p] == 'h'){
+		p++;
+		hex = 1;
+	}
+	for(int i = p;;i++){
+		if(asmfile.file[i] == ' ' || asmfile.file[i] == '\n'){
+			sz = i - 1;
+			break;
+		}
+	}
+	int result = 0;
+	if(hex){
+		for(int i = p;i < sz;i++){
+			if(asmfile.file[i] < 0x30 || asmfile.file[i] > 0x39){
+				result += exp16(asmfile.file[i] - 0x57,i - p);
+			}
+			else{
+				result += exp16(asmfile.file[i] - 0x30,i - p);
+			}
+		}
+	}
+	else{
+		for(int i = p;i < sz;i++){
+			result += exp10(asmfile.file[i] - 0x30,i - p);
+		}
+	}
+	return result;	
+}
+
+char decodeReg(char v1,char v2){
+	int result = 0;
+	switch(v1){
+	case 'c':
+		result += 1;
+		break;
+	case 'd':
+		result += 2;
+		break;
+	case 'b':
+		result += 3;
+		break;
+	}
+	switch(v2){
+	case 'a':
+		result += 192;
+		break;
+	case 'c':
+		result += 200;
+		break;
+	case 'd':
+		result += 204;
+		break;
+	case 'b':
+		result += 208;
+		break;
+	}
+	return result;
 }
 
 /*
@@ -574,28 +659,113 @@ list ring 3
 */
 
 void main(){
-	createBootloader("epic.img");
-	labelAmm(1);
-	AsmPD(0xb8,0x0013);
-	AsmP(0xcd,0x10);
-	AsmPD(0x68,0xa000);
-	Asm(0x07);
-	AsmP(0xb0,0x00);
-	AsmP(0xe6,0x70);
-	createLabel();
-	AsmP(0xe4,0x71);
-	AsmP(0x38,0xd8);
-	Asm(0x74);
-	label(0);
-	AsmP(0x88,0xc3);
-	Asm(0x50);
-	AsmP(0xb0,0x01);
-	Asm(0xaa);
-	Asm(0x58);
-	Asm(0xeb);
-	label(0);
-
-	closeBootloader();
+	FILE *f = fopen("file.txt","rb");
+	fseek(f,0,SEEK_END);
+	int size = ftell(f);
+	fseek(f,0,SEEK_SET);
+	asmfile.file = malloc(size + 20);
+	fread(asmfile.file,size,1,f);
+	fclose(f);
+	for(int i = 0;i < size;i++){
+		if(!memcmp(asmfile.file+i,"%bootloader",11)){
+			asmfile.flags |= 0x01;
+		}
+		if(!memcmp(asmfile.file+i,"%name",5)){
+			i+=4;
+			int sz = 0;
+			for(;asmfile.file[i] == ' ';i++){}
+			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\n';sz++){}
+			asmfile.name = malloc(sz);
+			memcpy(asmfile.name,asmfile.file+i,sz);
+		}
+	}
+	if(asmfile.flags & 0x01){
+		createBootloader(asmfile.name);
+	}
+	for(int i = 0;i < size;i++){
+		switch(asmfile.file[i]){
+		case '%':
+			while(asmfile.file[i] != '\n'){
+				i++;
+			}
+			break;
+		case 'a':
+			switch(asmfile.file[i+4]){
+			case 'a':
+				switch(asmfile.file[i+5]){
+					case 'l':
+						AsmP(0x04,asciiToInt(i+7));
+						break;
+					case 'x':
+						AsmPD(0x05,asciiToInt(i+7));
+						break;
+				}
+				break;
+			case 'e':
+				AsmPD(0x05,asciiToInt(i+8));
+				break;
+			}
+			break;
+		case 'h':
+			Asm(0xf4);
+			break;
+		case 'i':
+			AsmP(0xcd,asciiToInt(i+4));
+			break;
+		case 'm':
+			if(asmfile.file[i+6] == ','){
+				if(asmfile.file[i+7] < 0x30 && asmfile.file[i+7] > 0x39){
+					char buf = 0;
+					if(asmfile.file[i+5] == 'h'){
+						buf += 4;
+					}
+					if(asmfile.file[i+8] == 'h'){
+						buf += 32;
+					}
+					AsmP(0x88,decodeReg(asmfile.file[i+4],asmfile.file[i+7]) + buf);
+				}
+				else{
+					char buf = 0xb0;
+					switch(asmfile.file[i+5]){
+					case 'l':
+						break;
+					case 'h':
+						buf += 4;
+						break;
+					default:
+						buf += 8;
+					}
+					switch(asmfile.file[i+4]){
+					case 'c':
+						buf++;
+						break;
+					case 'd':
+						buf+=2;
+						break;
+					case 'b':
+						buf+=3;
+						break;
+					}
+					if(buf >= 8){
+						AsmPD(buf,asciiToInt(i+7));
+					}
+					else{
+						AsmP(buf,asciiToInt(i+7));
+					}
+				}
+			} 
+			break;
+		case 'r':
+			Asm(0xc3);
+			break;
+		case 's':
+			Asm(0xaa);
+			break;
+		}
+	}
+	if(asmfile.flags & 0x01){
+		closeBootloader();
+	}
 	if(optHeader[68] == 3){
 		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
 	}
