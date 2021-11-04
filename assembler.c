@@ -772,7 +772,27 @@ void main(){
 				}
 				break;
 			case 'm':
-
+				i+=4;
+				for(;asmfile.file[i] == ' ';i++){}
+				if(asmfile.file[i] == 'a' && ((asmfile.file[i+3] > 0x29 && asmfile.file[i+3] < 0x40) || asmfile.file[i+3] == 'h')){
+					if(asmfile.file[i+1] == 'l'){
+						AsmP(0x3c,asciiToInt(i+3));
+					}
+					else{
+						AsmPD(0x3d,asciiToInt(i+3));
+					}
+				}
+				else if((asmfile.file[i+3] > 0x29 && asmfile.file[i+3] < 0x40) || asmfile.file[i+3] == 'h'){
+					switch(asmfile.file[i+1]){
+					case 'l':
+						AsmPS(0x80,decodeReg(asmfile.file[i],0) + 0xf8,asciiToInt(i+3));
+						break;
+					case 'x':
+						AsmPSD(0x81,decodeReg(asmfile.file[i],0) + 0xf8,asciiToInt(i+3));
+						break;
+					}
+				}
+				break;
 			}
 			break;
 		case 'h':
@@ -832,25 +852,25 @@ void main(){
 						AsmP(0x8c,decodeReg(asmfile.file[i],asmfile.file[i+2]));
 					}
 					else if(asmfile.file[i+3] == '*'){
-						if(asmfile.file[i] == 'a' && asmfile.file[i+4] > 0x29 && asmfile.file[i+4] < 0x40){
+						if(asmfile.file[i] == 'a' && ((asmfile.file[i+4] > 0x29 && asmfile.file[i+4] < 0x40) || asmfile.file[i+4] == 'h')){
 							if(asmfile.file[i+1] == 'l'){
-								AsmP(0xa0,asciiToInt(asmfile.file[i+4]));
+								AsmPD(0xa0,asciiToInt(i+4));
 							} 
 							else{
-								AsmP(0xa1,asciiToInt(asmfile.file[i+4]));
+								AsmPD(0xa1,asciiToInt(i+4));
 							}
 						}
 						else{
-							AsmP(0x8b,decodeReg(asmfile.file[i+4],asmfile.file[i]) - 192	);
+							AsmP(0x8b,decodeReg(asmfile.file[i+4],asmfile.file[i]) - 192);
 						}
 					}
 					else if(asmfile.file[i] == '*'){
 						if(asmfile.file[i+3] == 'a'){
 							if(asmfile.file[i+4] == 'l'){
-								AsmP(0xa2,asciiToInt(i+1));
+								AsmPD(0xa0,asciiToInt(i+1));
 							}
 							else{
-								AsmP(0xa3,asciiToInt(i+1));
+								AsmPD(0xa1,asciiToInt(i+1));
 							}
 						}
 					}
@@ -895,20 +915,30 @@ void main(){
 					}
 				}
 			} 
-			//moet nog worden gedaan
 			else if(asmfile.file[i] == '*'){
-				
+				int val = asciiToInt(i+1);
+				for(;(asmfile.file[i] > 0x29 && asmfile.file[i] < 0x40) || asmfile.file[i] == 'h' || (asmfile.file[i] > 0x60 && asmfile.file[i] < 0x67);i++){}
+				switch(asmfile.file[i+1]){
+				case 'l':
+					AsmPD(0xa2,val);
+					break;
+				case 'x':
+					AsmPD(0xa3,val);
+					break;
+				}
 			}
 			break;
 		case 'o':
 			i+=4;
 			for(;asmfile.file[i] == ' ';i++){}
-			switch(asmfile.file[i+1]){
+			int val = asciiToInt(i);
+			for(;(asmfile.file[i] > 0x29 && asmfile.file[i] < 0x40) || asmfile.file[i] == 'h';i++){}
+			switch(asmfile.file[i+2]){
 			case 'l':
-				AsmP(0xe6,asciiToInt(i+3));
+				AsmP(0xe6,val);
 				break;
 			case 'x':
-				AsmP(0xe7,asciiToInt(i+3));
+				AsmPD(0xe7,val);
 				break;
 			}
 			break;
@@ -1031,7 +1061,14 @@ void main(){
 			}
 			break;
 		case 's':
-			Asm(0xaa);
+			switch(asmfile.file[i+4]){
+			case 'b':
+				Asm(0xaa);
+				break;
+			case 'w':
+				Asm(0xab);
+				break;
+			}
 			break;
 		case 'x':
 			i+=4;
