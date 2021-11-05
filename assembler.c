@@ -14,6 +14,7 @@ int dataSz;
 int asmOffset;
 int dataOffset;
 int nameOffset;
+int lblamm;
 
 char *asm;
 char *exedata;
@@ -494,7 +495,7 @@ void accesVar8b(int vari){
 }
 
 void createLabel(char *name){
-	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+1));
+	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+2));
 	int nmsz = strlen(name) - 1;
 	lbl[lblCount].nameSz = nmsz;
 	lbl[lblCount].name = malloc(nmsz);
@@ -502,7 +503,6 @@ void createLabel(char *name){
 	lbl[lblCount].pos = asmOffset;
 	lbl[lblCount].refC = 0;
 	lblCount++;
-
 }
 
 void label(int id){
@@ -534,8 +534,8 @@ int asciiToInt(int p){
 		hex = 1;
 	}
 	for(int i = p;;i++){
-		if(asmfile.file[i] == ' ' || asmfile.file[i] == '\n'){
-			sz = i - 1;
+		if(asmfile.file[i] == ' ' || asmfile.file[i] == '\n' || asmfile.file[i] == '\r'){
+			sz = i;
 			break;
 		}
 		if( asmfile.file[i] == ','){
@@ -770,7 +770,6 @@ void main(){
 		createBootloader(asmfile.name);
 	}
 	for(int i = 0;i < size;i++){
-		int lblamm = 0;
 		switch(asmfile.file[i]){
 		case '%':
 			if(!memcmp(asmfile.file+i,"%label",6)){
@@ -928,11 +927,11 @@ void main(){
 			case 'n':
 				switch(asmfile.file[i+2]){
 				case 'b':
-					buf = 0x7c;
+					buf = 0x7b;
 					i+=4;
 					break;
 				case 'e':
-					buf = 0x7e;
+					buf = 0x75;
 					i+=4;
 					break;
 				case 'o':
@@ -973,8 +972,9 @@ void main(){
 			for(;asmfile.file[i] == ' ';i++){}
 			Asm(buf);
 			for(int i2 = 0;i2 < lblCount;i2++){
-				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
+				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz) && asmfile.file[i + lbl[i2].nameSz] > 0x20){
 					label(i2);
+					break;
 				}
 			}
 			break;
@@ -983,10 +983,12 @@ void main(){
 			for(;asmfile.file[i] == ' ';i++){}
 			Asm(0xe2);
 			for(int i2 = 0;i2 < lblCount;i2++){
-				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
+				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz) && asmfile.file[i + lbl[i2].nameSz] > 0x20){
 					label(i2);
+					break;
 				}
 			}
+			break;
 		case 'm':
 			switch(asmfile.file[i+1]){
 			case 'o':
@@ -1241,14 +1243,50 @@ void main(){
 			}
 			break;
 		case 's':
-			switch(asmfile.file[i+4]){
-			case 'b':
-				Asm(0xaa);
+			switch(asmfile.file[i+1]){
+			case 't':
+				switch(asmfile.file[i+4]){
+				case 'b':
+					Asm(0xaa);
+					break;
+				case 'w':
+					Asm(0xab);
+					break;
+				}
 				break;
-			case 'w':
-				Asm(0xab);
+			case 'u':
+				i+=4;
+				while(asmfile.file[i] == ' '){
+					i++;
+				}
+				switch(asmfile.file[i]){
+				case 'a':
+					switch(asmfile.file[i+1]){
+					case 'l':
+						AsmP(0x2c,asciiToInt(i+3));
+						break;
+					case 'x':
+						AsmPD(0x2d,asciiToInt(i+3));
+						break;
+					}
+					break;
+				case 'e':
+					AsmPD(0x2d,asciiToInt(i+4));
+					break;
+				default:
+					switch(asmfile.file[i+1]){
+					case 'l':
+						AsmPS(0x80,decodeReg(asmfile.file[i],0) + 0xe8,asciiToInt(i+3));
+						break;
+					case 'x':
+						AsmPSD(0x81,decodeReg(asmfile.file[i],0) + 0xe8,asciiToInt(i+3));
+						break;
+					}
+					
+				}
 				break;
 			}
+			
 			break;
 		case 'x':
 			i+=4;
