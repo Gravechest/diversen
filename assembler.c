@@ -599,6 +599,61 @@ char decodeReg(char v1,char v2){
 	return result;
 }
 
+char decodeReg2(char v1,char v3,char v4,char v2){
+	int result = 0;
+	switch(v1){
+	case 'b':
+		switch(v3){
+		case 'x':
+			switch(v4){
+			case 'd':
+				result+=1;
+				break;
+			case 's':
+				break;
+			default:
+				result+=7;
+				break;
+			}
+			break;
+		case 'p':
+			case 'd':
+				result += 3;
+				break;
+			case 's':
+				result += 2;
+				break;
+			break;
+		}
+		break;
+	case 's':
+		result += 4;
+		break;
+	case 'd':
+		result += 5;
+		break;
+	}
+	switch(v2){
+	case 'e':
+	case 'c':
+		result += 8;
+		break;
+	case 's':
+	case 'd':
+		result += 16;
+		break;
+	case 'b':
+		result += 24;
+		break;
+	case 'f':
+		result += 32;
+		break;
+	case 'g':
+		result += 40;
+	}
+	return result;
+}
+
 /*
 decode table
 small
@@ -679,6 +734,7 @@ list ring 3
 */
 
 void main(){
+	int buf = 0;
 	FILE *f = fopen("file.txt","rb");
 	fseek(f,0,SEEK_END);
 	int size = ftell(f);
@@ -820,78 +876,100 @@ void main(){
 			}
 			break;
 		case 'j':
-			int buf = 0;
 			switch(asmfile.file[i+1]){
 			case 'a':
 				buf = 0x77;
+				i+=3;
 				break;
 			case 'b':
-				switch(asmfile[i+2]){
+				switch(asmfile.file[i+2]){
 				case ' ':
 					buf = 0x72;
+					i+=3;
 					break;
 				case 'e':
 					buf = 0x76;
+					i+=4;
 					break;
 				}
 				break;
+			case 'c':
+				buf = 0xe3;
+				i+=5;
+				break;
 			case 'e':
 				buf = 0x74;
+				i+=3;
 				break;
 			case 'g':
-				switch(asmfile[i+2]){
+				switch(asmfile.file[i+2]){
 				case ' ':
 					buf = 0x7f;
+					i+=3;
 					break;
 				case 'e':
 					buf = 0x7d;
+					i+=4;
 					break;
 				}
 				break;
 			case 'l':
-				switch(asmfile[i+2]){
+				switch(asmfile.file[i+2]){
 				case ' ':
 					buf = 0x7c;
+					i+=3;
 					break;
 				case 'e':
 					buf = 0x7e;
+					i+=4;
 					break;
 				}
 				break;
 			case 'n':
-				switch(asmfile[i+2]){
+				switch(asmfile.file[i+2]){
 				case 'b':
 					buf = 0x7c;
+					i+=4;
 					break;
 				case 'e':
 					buf = 0x7e;
+					i+=4;
 					break;
 				case 'o':
 					buf = 0x71;
+					i+=4;
 					break;
 				case 's':
 					buf = 0x79;
+					i+=4;
 					break;
 				}
 				break;
+			case 'm':
+				buf = 0xeb;
+				i+=4;
+				break;
 			case 'o':
 				buf = 0x70;
+				i+=3;
 				break;
 			case 'p':
-				switch(asmfile[i+2]){
+				switch(asmfile.file[i+2]){
 				case 'e':
 					buf = 0x7a;
+					i+=4;
 					break;
 				case 'o':
 					buf = 0x7b;
+					i+=4;
 					break;
 				}
 				break;
 			case 's':
 				buf = 0x78;
+				i+=3;
 				break;
 			}
-			i+=4;
 			for(;asmfile.file[i] == ' ';i++){}
 			Asm(buf);
 			for(int i2 = 0;i2 < lblCount;i2++){
@@ -910,94 +988,119 @@ void main(){
 				}
 			}
 		case 'm':
-			i+=4;
-			while(asmfile.file[i] == ' '){
-				i++;
-			}
-			if(asmfile.file[i+2] == ','){
-				if((asmfile.file[i+3] < 0x30 || asmfile.file[i+3] > 0x39) && asmfile.file[i+3] != 'h'){
-					if(asmfile.file[i+1] == 's'){
-						AsmP(0x8e,decodeReg(asmfile.file[i+2],asmfile.file[i]));
-					}
-					else if(asmfile.file[i+4] == 's'){
-						AsmP(0x8c,decodeReg(asmfile.file[i],asmfile.file[i+2]));
-					}
-					else if(asmfile.file[i+3] == '*'){
-						if(asmfile.file[i] == 'a' && ((asmfile.file[i+4] > 0x29 && asmfile.file[i+4] < 0x40) || asmfile.file[i+4] == 'h')){
-							if(asmfile.file[i+1] == 'l'){
-								AsmPD(0xa0,asciiToInt(i+4));
-							} 
+			switch(asmfile.file[i+1]){
+			case 'o':
+				i+=4;
+				while(asmfile.file[i] == ' '){
+					i++;
+				}
+				if(asmfile.file[i+2] == ','){
+					if((asmfile.file[i+3] < 0x30 || asmfile.file[i+3] > 0x39) && asmfile.file[i+3] != 'h'){
+						if(asmfile.file[i+1] == 's'){
+							AsmP(0x8e,decodeReg(asmfile.file[i+3],asmfile.file[i]));
+						}
+						else if(asmfile.file[i+4] == 's'){
+							AsmP(0x8c,decodeReg(asmfile.file[i],asmfile.file[i+3]));
+						}
+						else if(asmfile.file[i+3] == '*'){
+							if(asmfile.file[i] == 'a' && ((asmfile.file[i+4] > 0x29 && asmfile.file[i+4] < 0x40) || asmfile.file[i+4] == 'h')){
+								if(asmfile.file[i+1] == 'l'){
+									AsmPD(0xa0,asciiToInt(i+4));
+								} 
+								else{
+									AsmPD(0xa1,asciiToInt(i+4));
+								}
+							}
 							else{
-								AsmPD(0xa1,asciiToInt(i+4));
+								AsmP(0x8b,decodeReg(asmfile.file[i+4],asmfile.file[i]) - 192);
+							}
+						}
+						else if(asmfile.file[i] == '*'){
+							if(asmfile.file[i+3] == 'a'){
+								if(asmfile.file[i+4] == 'l'){
+									AsmPD(0xa0,asciiToInt(i+1));
+								}
+								else{
+									AsmPD(0xa1,asciiToInt(i+1));
+								}
 							}
 						}
 						else{
-							AsmP(0x8b,decodeReg(asmfile.file[i+4],asmfile.file[i]) - 192);
-						}
-					}
-					else if(asmfile.file[i] == '*'){
-						if(asmfile.file[i+3] == 'a'){
-							if(asmfile.file[i+4] == 'l'){
-								AsmPD(0xa0,asciiToInt(i+1));
+							char buf = 0;
+							if(asmfile.file[i+1] == 'h'){
+								buf += 4;
 							}
-							else{
-								AsmPD(0xa1,asciiToInt(i+1));
+							if(asmfile.file[i+4] == 'h'){
+								buf += 32;
 							}
+							AsmP(0x88,decodeReg(asmfile.file[i],asmfile.file[i+2]) + buf);
 						}
 					}
 					else{
-						char buf = 0;
-						if(asmfile.file[i+1] == 'h'){
+						int buf = 0xb0;
+						switch(asmfile.file[i+1]){
+						case 'l':
+							break;
+						case 'h':
 							buf += 4;
+							break;
+						default:
+							buf += 8;
 						}
-						if(asmfile.file[i+4] == 'h'){
-							buf += 32;
+						switch(asmfile.file[i]){
+						case 'c':
+							buf++;
+							break;
+						case 'd':
+							buf+=2;
+							break;
+						case 'b':
+							buf+=3;
+							break;
 						}
-						AsmP(0x88,decodeReg(asmfile.file[i],asmfile.file[i+2]) + buf);
+						if(buf >= 0xb8){
+							AsmPD(buf,asciiToInt(i+3));
+						}
+						else{
+							AsmP(buf,asciiToInt(i+3));
+						}
 					}
+				}
+				else if(asmfile.file[i] == '*'){
+					if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x40) || asmfile.file[i] == 'h' || (asmfile.file[i] > 0x60 && asmfile.file[i] < 0x67)){
+						int val = asciiToInt(i+1);
+						for(;(asmfile.file[i] > 0x2f && asmfile.file[i] < 0x40) || asmfile.file[i] == 'h' || (asmfile.file[i] > 0x60 && asmfile.file[i] < 0x67);i++){}
+						switch(asmfile.file[i]){
+						case 'l':
+							AsmPD(0xa2,val);
+							break;
+						case 'x':
+							AsmPD(0xa3,val);
+							break;
+						}
+					}
+					else{
+						if(asmfile.file[i+3] == ','){
+							AsmP(0x89,decodeReg2(asmfile.file[i+1],asmfile.file[i+2],0,asmfile.file[i+4]));
+						}
+						else{
+							AsmP(0x89,decodeReg2(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+7]));
+						}
+					}
+				}
+				break;
+			case 'u':
+				i+=4;
+				for(;asmfile.file[i] == ' ';i++){}
+				if(asmfile.file[i+1] == 'x'){
+					AsmP(0xf7,decodeReg(asmfile.file[i],0) + 0xe0);
 				}
 				else{
-					int buf = 0xb0;
-					switch(asmfile.file[i+1]){
-					case 'l':
-						break;
-					case 'h':
-						buf += 4;
-						break;
-					default:
-						buf += 8;
-					}
-					switch(asmfile.file[i]){
-					case 'c':
-						buf++;
-						break;
-					case 'd':
-						buf+=2;
-						break;
-					case 'b':
-						buf+=3;
-						break;
-					}
-					if(buf >= 0xb8){
-						AsmPD(buf,asciiToInt(i+3));
-					}
-					else{
-						AsmP(buf,asciiToInt(i+3));
-					}
+					AsmP(0xf6,decodeReg(asmfile.file[i],0) + 0xe0);
 				}
-			} 
-			else if(asmfile.file[i] == '*'){
-				int val = asciiToInt(i+1);
-				for(;(asmfile.file[i] > 0x29 && asmfile.file[i] < 0x40) || asmfile.file[i] == 'h' || (asmfile.file[i] > 0x60 && asmfile.file[i] < 0x67);i++){}
-				switch(asmfile.file[i+1]){
-				case 'l':
-					AsmPD(0xa2,val);
-					break;
-				case 'x':
-					AsmPD(0xa3,val);
-					break;
-				}
+				break;
 			}
+			
 			break;
 		case 'o':
 			i+=4;
@@ -1086,6 +1189,9 @@ void main(){
 					break;
 				case 'd':
 					switch(asmfile.file[i+1]){
+					case 's':
+						Asm(0x1f);
+						break;
 					case 'x':
 						Asm(0x5a);
 						break;
@@ -1128,7 +1234,10 @@ void main(){
 				break;
 			case 'p':
 				Asm(0xf3);
-				break;
+				i+=4;
+				for(;asmfile.file[i] == ' ';i++){}
+				i--;
+				continue;
 			}
 			break;
 		case 's':
@@ -1177,12 +1286,3 @@ void main(){
 		CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
 	}
 }
-
-
-
-
-
-
-
-
-
