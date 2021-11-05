@@ -820,9 +820,80 @@ void main(){
 			}
 			break;
 		case 'j':
+			int buf = 0;
+			switch(asmfile.file[i+1]){
+			case 'a':
+				buf = 0x77;
+				break;
+			case 'b':
+				switch(asmfile[i+2]){
+				case ' ':
+					buf = 0x72;
+					break;
+				case 'e':
+					buf = 0x76;
+					break;
+				}
+				break;
+			case 'e':
+				buf = 0x74;
+				break;
+			case 'g':
+				switch(asmfile[i+2]){
+				case ' ':
+					buf = 0x7f;
+					break;
+				case 'e':
+					buf = 0x7d;
+					break;
+				}
+				break;
+			case 'l':
+				switch(asmfile[i+2]){
+				case ' ':
+					buf = 0x7c;
+					break;
+				case 'e':
+					buf = 0x7e;
+					break;
+				}
+				break;
+			case 'n':
+				switch(asmfile[i+2]){
+				case 'b':
+					buf = 0x7c;
+					break;
+				case 'e':
+					buf = 0x7e;
+					break;
+				case 'o':
+					buf = 0x71;
+					break;
+				case 's':
+					buf = 0x79;
+					break;
+				}
+				break;
+			case 'o':
+				buf = 0x70;
+				break;
+			case 'p':
+				switch(asmfile[i+2]){
+				case 'e':
+					buf = 0x7a;
+					break;
+				case 'o':
+					buf = 0x7b;
+					break;
+				}
+				break;
+			case 's':
+				buf = 0x78;
+				break;
+			}
 			i+=4;
 			for(;asmfile.file[i] == ' ';i++){}
-			Asm(0xeb);
+			Asm(buf);
 			for(int i2 = 0;i2 < lblCount;i2++){
 				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
 					label(i2);
@@ -1106,3 +1177,12 @@ void main(){
 		CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
 	}
 }
+
+
+
+
+
+
+
+
+
