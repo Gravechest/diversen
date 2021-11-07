@@ -495,7 +495,7 @@ void accesVar8b(int vari){
 }
 
 void createLabel(char *name){
-	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+2));
+	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+1000));
 	int nmsz = strlen(name) - 1;
 	lbl[lblCount].nameSz = nmsz;
 	lbl[lblCount].name = malloc(nmsz);
@@ -829,7 +829,7 @@ void main(){
 			case 'm':
 				i+=4;
 				for(;asmfile.file[i] == ' ';i++){}
-				if(asmfile.file[i] == 'a' && ((asmfile.file[i+3] > 0x29 && asmfile.file[i+3] < 0x40) || asmfile.file[i+3] == 'h')){
+				if(asmfile.file[i] == 'a' && ((asmfile.file[i+3] > 0x2f && asmfile.file[i+3] < 0x3a) || asmfile.file[i+3] == 'h')){
 					if(asmfile.file[i+1] == 'l'){
 						AsmP(0x3c,asciiToInt(i+3));
 					}
@@ -837,7 +837,7 @@ void main(){
 						AsmPD(0x3d,asciiToInt(i+3));
 					}
 				}
-				else if((asmfile.file[i+3] > 0x29 && asmfile.file[i+3] < 0x40) || asmfile.file[i+3] == 'h'){
+				else if((asmfile.file[i+3] > 0x2f && asmfile.file[i+3] < 0x3a) || asmfile.file[i+3] == 'h'){
 					switch(asmfile.file[i+1]){
 					case 'l':
 						AsmPS(0x80,decodeReg(asmfile.file[i],0) + 0xf8,asciiToInt(i+3));
@@ -846,6 +846,16 @@ void main(){
 						AsmPSD(0x81,decodeReg(asmfile.file[i],0) + 0xf8,asciiToInt(i+3));
 						break;
 					}
+				}
+				else{
+					switch(asmfile.file[i+1]){
+					case 'l':
+						AsmP(0x38,decodeReg(asmfile.file[i+3],asmfile.file[i]));
+						break;
+					case 'x':
+						AsmP(0x39,decodeReg(asmfile.file[i+3],asmfile.file[i]));
+						break;
+					}	
 				}
 				break;
 			}
@@ -860,7 +870,7 @@ void main(){
 				for(;asmfile.file[i] == ' ';i++){}
 				AsmP(0xcd,asciiToInt(i));
 				break;	
-			case ' ': 
+			case ' ':
 				i+=3;
 				for(;asmfile.file[i] == ' ';i++){}
 				switch(asmfile.file[i+1]){
@@ -997,7 +1007,7 @@ void main(){
 					i++;
 				}
 				if(asmfile.file[i+2] == ','){
-					if((asmfile.file[i+3] < 0x30 || asmfile.file[i+3] > 0x39) && asmfile.file[i+3] != 'h'){
+					if((asmfile.file[i+3] < 0x2f || asmfile.file[i+3] > 0x3a) && asmfile.file[i+3] != 'h'){
 						if(asmfile.file[i+1] == 's'){
 							AsmP(0x8e,decodeReg(asmfile.file[i+3],asmfile.file[i]));
 						}
@@ -1005,7 +1015,7 @@ void main(){
 							AsmP(0x8c,decodeReg(asmfile.file[i],asmfile.file[i+3]));
 						}
 						else if(asmfile.file[i+3] == '*'){
-							if(asmfile.file[i] == 'a' && ((asmfile.file[i+4] > 0x29 && asmfile.file[i+4] < 0x40) || asmfile.file[i+4] == 'h')){
+							if(asmfile.file[i] == 'a' && ((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h')){
 								if(asmfile.file[i+1] == 'l'){
 									AsmPD(0xa0,asciiToInt(i+4));
 								} 
@@ -1287,6 +1297,27 @@ void main(){
 				break;
 			}
 			
+			break;
+		case 't':
+			i+=5;
+			while(asmfile.file[i] == ' '){
+				i++;
+			}
+			switch(asmfile.file[i]){
+			case 'a':
+				switch(asmfile.file[i+1]){
+					case 'l':
+						AsmP(0xa8,asciiToInt(i+3));
+						break;
+					case 'x':
+						AsmPD(0xa9,asciiToInt(i+3));
+						break;
+				}
+				break;
+			case 'e':
+				AsmPD(0xa9,asciiToInt(i+4));
+				break;
+			}
 			break;
 		case 'x':
 			i+=4;
