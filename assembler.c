@@ -654,6 +654,22 @@ char decodeReg2(char v1,char v3,char v4,char v2){
 	return result;
 }
 
+char decodeReg3(char v1){
+	int result = 0;
+	switch(v1){
+	case 'b':
+		result += 0x1e;
+		break;
+	case 'c':
+		result += 0x0e;
+		break;
+	case 'd':
+		result += 0x16;
+		break;
+	}
+	return result;
+}
+
 /*
 decode table
 small
@@ -1023,6 +1039,14 @@ void main(){
 									AsmPD(0xa1,asciiToInt(i+4));
 								}
 							}
+							else if((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h'){
+								if(asmfile.file[i+1] == 'l'){
+									AsmPSD(0x8a,decodeReg3(asmfile.file[i]),asciiToInt(i+4));
+								} 
+								else{
+									AsmPSD(0x8b,decodeReg3(asmfile.file[i]),asciiToInt(i+4));
+								}
+							}
 							else{
 								AsmP(0x8b,decodeReg(asmfile.file[i+4],asmfile.file[i]) - 192);
 							}
@@ -1038,14 +1062,20 @@ void main(){
 							}
 						}
 						else{
-							char buf = 0;
+							char buf = 0xc0;
 							if(asmfile.file[i+1] == 'h'){
 								buf += 4;
 							}
 							if(asmfile.file[i+4] == 'h'){
 								buf += 32;
 							}
-							AsmP(0x88,decodeReg(asmfile.file[i],asmfile.file[i+2]) + buf);
+							if(asmfile.file[i+1] == 'x' || asmfile.file[i+4] == 'x'){
+								AsmP(0x89,decodeReg(asmfile.file[i],asmfile.file[i+2]) + buf);
+							}
+							else{
+								AsmP(0x88,decodeReg(asmfile.file[i],asmfile.file[i+2]) + buf);
+							}
+							
 						}
 					}
 					else{
@@ -1079,10 +1109,11 @@ void main(){
 					}
 				}
 				else if(asmfile.file[i] == '*'){
-					if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x40) || asmfile.file[i] == 'h' || (asmfile.file[i] > 0x60 && asmfile.file[i] < 0x67)){
-						int val = asciiToInt(i+1);
-						for(;(asmfile.file[i] > 0x2f && asmfile.file[i] < 0x40) || asmfile.file[i] == 'h' || (asmfile.file[i] > 0x60 && asmfile.file[i] < 0x67);i++){}
-						switch(asmfile.file[i]){
+					i++;
+					if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x3a) || asmfile.file[i] == 'h'){
+						int val = asciiToInt(i);
+						for(;(asmfile.file[i] > 0x2f && asmfile.file[i] < 0x3a) || asmfile.file[i] == 'h' || (asmfile.file[i] > 0x60 && asmfile.file[i] < 0x67);i++){}
+						switch(asmfile.file[i+2]){
 						case 'l':
 							AsmPD(0xa2,val);
 							break;
@@ -1337,6 +1368,16 @@ void main(){
 				break;
 			case 'e':
 				AsmPD(0x35,asciiToInt(i+4));
+				break;
+			default:
+				switch(asmfile.file[i+1]){
+					case 'l':
+						AsmP(0x30,decodeReg(asmfile.file[i+3],asmfile.file[i]));
+						break;
+					case 'x':
+						AsmP(0x31,decodeReg(asmfile.file[i+3],asmfile.file[i]));
+						break;
+					}
 				break;
 			}
 			break;
