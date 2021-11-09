@@ -53,6 +53,7 @@ typedef struct LABEL{
 	int *ref;
 	int *loc;
 	int nameSz;
+	char *big;
 	char *name;
 }LABEL;
 
@@ -148,7 +149,9 @@ char linking[] = {
 void linkLabels(){
 	for(int i = 0;i < lblCount;i++){
 		for(int i2 = 0;i2 < lbl[i].refC;i2++){
-			asm[lbl[i].ref[i2]] = lbl[i].pos - lbl[i].ref[i2] - 1;
+			for(int i3 = 0;i3 < lbl[i].big[i2];i3++){
+				asm[lbl[i].ref[i2] + i3] = (lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2]) >> i3 * 8;
+			}
 		}	
 	}
 }
@@ -497,6 +500,7 @@ void accesVar8b(int vari){
 void createLabel(char *name){
 	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+1000));
 	int nmsz = strlen(name);
+	nmsz--;
 	lbl[lblCount].nameSz = nmsz;
 	lbl[lblCount].name = malloc(nmsz);
 	memcpy(lbl[lblCount].name,name,nmsz);
@@ -505,11 +509,13 @@ void createLabel(char *name){
 	lblCount++;
 }
 
-void label(int id){
+void label(int id,int size){
 	lbl[id].ref = realloc(lbl[id].ref,sizeof(int) * (lbl[id].refC + 1));
+	lbl[id].big = realloc(lbl[id].big,sizeof(int) * (lbl[id].refC + 1));
+	lbl[id].big[lbl[id].refC] = size;
 	lbl[id].ref[lbl[id].refC] = asmOffset;
 	lbl[id].refC++;
-	asmOffset++;
+	asmOffset+=size;
 }
 
 int exp10(int val,int times){
@@ -779,8 +785,8 @@ void main(){
 			int sz = 0;
 			for(;asmfile.file[i] == ' ';i++){}
 			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\n';sz++){}
-			sz--;
-			char *name = calloc(sz + 1,1);
+			sz++;
+			char *name = calloc(sz,1);
 			memcpy(name,asmfile.file+i,sz);
 			createLabel(name);
 		}
@@ -821,6 +827,22 @@ void main(){
 					break;
 				}
 			}
+			else if(asmfile.file[i] == '*'){
+				int adres = asciiToInt(i+1);
+				i+=2;
+				for(;asmfile.file[i] != ',';i++){}
+				switch(asmfile.file[i+2]){
+				case 'h':
+					AsmPSD(0x00,decodeReg3(asmfile.file[i+1]) + 0x20,adres);
+					break;
+				case 'l':
+					AsmPSD(0x00,decodeReg3(asmfile.file[i+1]),adres);
+					break;
+				default:
+					AsmPSD(0x01,decodeReg3(asmfile.file[i+1]),adres);
+					break;
+				}
+			}
 			else if(asmfile.file[i+3] == 'h' || (asmfile.file[i+3] > 0x2f && asmfile.file[i+3] < 0x3a)){
 				switch(asmfile.file[i+1]){
 				case 'l':
@@ -831,19 +853,22 @@ void main(){
 					break;
 				}
 			}
-			else{
-				switch(asmfile.file[i+1]){
-				case 'l':
-					AsmP(0x00,decodeReg(asmfile.file[i],asmfile.file[i+3]));
-					break;
-				case 'x':
-					AsmP(0x01,decodeReg(asmfile.file[i],asmfile.file[i+3]));
-					break;
-				}
-			}
 			break;
 		case 'c':
 			switch(asmfile.file[i+1]){
+			case 'a':
+				i+=5;
+				while(asmfile.file[i] == ' '){
+					i++;
+				}
+				Asm(0xe8);
+				for(int i2 = 0;i2 < lblCount;i2++){
+					if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
+						label(i2,2);
+						break;
+					}
+				}
+				break;
 			case 'l':
 				switch(asmfile.file[i+2]){
 				case 'c':
@@ -866,6 +891,22 @@ void main(){
 					}
 					else{
 						AsmPD(0x3d,asciiToInt(i+3));
+					}
+				}
+				else if(asmfile.file[i] == '*'){
+					int adres = asciiToInt(i+1);
+					i+=2;
+					for(;asmfile.file[i] != ',';i++){}
+					switch(asmfile.file[i+2]){
+					case 'h':
+						AsmPSD(0x3a,decodeReg3(asmfile.file[i+1]) + 0x20,adres);
+						break;
+					case 'l':
+						AsmPSD(0x3a,decodeReg3(asmfile.file[i+1]),adres);
+						break;
+					default:
+						AsmPSD(0x3b,decodeReg3(asmfile.file[i+1]),adres);
+						break;
 					}
 				}
 				else if((asmfile.file[i+3] > 0x2f && asmfile.file[i+3] < 0x3a) || asmfile.file[i+3] == 'h'){
@@ -1053,11 +1094,10 @@ void main(){
 				break;
 			}
 			for(;asmfile.file[i] == ' ';i++){}
-			i++;
 			Asm(buf);
 			for(int i2 = 0;i2 < lblCount;i2++){
 				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
-					label(i2);
+					label(i2,1);
 					break;
 				}
 			}
@@ -1067,8 +1107,8 @@ void main(){
 			for(;asmfile.file[i] == ' ';i++){}
 			Asm(0xe2);
 			for(int i2 = 0;i2 < lblCount;i2++){
-				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz) && asmfile.file[i + lbl[i2].nameSz] > 0x20){
-					label(i2);
+				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
+					label(i2,1);
 					break;
 				}
 			}
@@ -1199,7 +1239,13 @@ void main(){
 					}
 					else{
 						if(asmfile.file[i+2] == ','){
-							AsmP(0x89,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+3]));
+							if(asmfile.file[i+4] == 'x'){
+								AsmP(0x89,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+3]));
+							}
+							else{
+								AsmP(0x88,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+3]));
+							}
+							
 						}
 						else{
 							AsmP(0x89,decodeReg2(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+7]));
