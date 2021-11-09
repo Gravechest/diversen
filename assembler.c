@@ -1381,6 +1381,9 @@ void main(){
 					else{
 						int buf = 0xb0;
 						switch(asmfile.file[i+1]){
+						case 'i':
+							buf += 0x0d;
+							break;
 						case 'l':
 							break;
 						case 'h':
@@ -1803,10 +1806,18 @@ void main(){
 				else{
 					switch(asmfile.file[i+1]){
 					case 'l':
-						AsmP(0x30,decodeReg(asmfile.file[i+3],asmfile.file[i]));
+						AsmP(0x30,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]));
 						break;
-					case 'x':
-						AsmP(0x31,decodeReg(asmfile.file[i+3],asmfile.file[i]));
+					case 'h':
+						if(asmfile.file[i+4] == 'h'){
+							AsmP(0x30,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]) + 0x24);
+						}
+						else{
+							AsmP(0x30,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]) + 0x04);
+						}
+						break;
+					default:
+						AsmP(0x31,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]));
 						break;
 					}
 				}
