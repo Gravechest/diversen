@@ -879,11 +879,10 @@ void main(){
 			memcpy(asmfile.name,asmfile.file+i,sz);
 		}
 		else if(!memcmp(asmfile.file+i,"%label",6)){
-			i+=7;
+			i+=6;
 			int sz = 0;
 			for(;asmfile.file[i] == ' ';i++){}
-			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\n';sz++){}
-			sz++;
+			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\r' && asmfile.file[i+sz] != '\n';sz++){}
 			char *name = calloc(sz,1);
 			memcpy(name,asmfile.file+i,sz);
 			createLabel(name);
@@ -1181,7 +1180,7 @@ void main(){
 				i+=3;
 				break;
 			}
-			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}			
+			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}		
 			Asm(buf);
 			for(int i2 = 0;i2 < lblCount;i2++){
 				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
@@ -1583,7 +1582,7 @@ void main(){
 				case 'r':
 					i+=4;
 					for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-					switch(asmfile.file[i+4]){
+					switch(asmfile.file[i+3]){
 					case '\r':
 					case '\n':
 					case ' ':
