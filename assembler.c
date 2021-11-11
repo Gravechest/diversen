@@ -500,8 +500,7 @@ void accesVar8b(int vari){
 void createLabel(char *name){
 	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+1000));
 	int nmsz = strlen(name);
-	nmsz--;
-	lbl[lblCount].nameSz = nmsz;
+	lbl[lblCount].nameSz = nmsz - 1;
 	lbl[lblCount].name = malloc(nmsz);
 	memcpy(lbl[lblCount].name,name,nmsz);
 	lbl[lblCount].pos = asmOffset;
@@ -739,6 +738,13 @@ char decodeRegReg(char v1,char v2,char v3,char v4){
 		}
 	}
 	switch(v3){
+	case 'a':
+		switch(v4){
+		case 'h':
+			result += 4;
+			break;
+		}
+		break;
 	case 'b':
 		switch(v4){
 		case 'x':	
@@ -856,6 +862,53 @@ void commonIns(int i,char op){
 	}
 }
 
+void commonIns2(int i,int op){
+	if(asmfile.file[i+2] == ','){
+		switch(asmfile.file[i+4]){
+		case 'c':
+			switch(asmfile.file[i+1]){
+			case 'l':
+				AsmP(0xd2,decodeRegReg(asmfile.file[i],0,0,0) + 0x20 + op);
+				break;
+			case 'h':
+				AsmP(0xd2,decodeRegReg(asmfile.file[i],0,0,0) + 0x24 + op);
+				break;
+			default:
+				AsmP(0xd3,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x20 + op);
+				break;
+			}
+			break;
+		default:
+			switch(asmfile.file[i+1]){
+			case 'l':
+				AsmPS(0xc0,decodeRegReg(asmfile.file[i],0,0,0) + 0x20 + op,asciiToInt(i+3));
+				break;
+			case 'h':
+				AsmPS(0xc0,decodeRegReg(asmfile.file[i],0,0,0) + 0x24 + op,asciiToInt(i+3));
+				break;
+			default:
+				AsmPS(0xc1,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x20 + op,asciiToInt(i+3));
+				break;
+			}
+			break;
+		}
+	}
+	else{
+		switch(asmfile.file[i+1]){
+		case 'l':
+			AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x20 + op);
+			break;
+		case 'h':
+			AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x24 + op);
+			break;
+		default:
+			AsmP(0xd1,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x20 + op);
+			break;
+		}
+		break;
+	}
+}
+
 void main(){
 	int buf = 0;
 	FILE *f = fopen("file.txt","rb");
@@ -883,9 +936,11 @@ void main(){
 			int sz = 0;
 			for(;asmfile.file[i] == ' ';i++){}
 			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\r' && asmfile.file[i+sz] != '\n';sz++){}
+			sz++;
 			char *name = calloc(sz,1);
 			memcpy(name,asmfile.file+i,sz);
 			createLabel(name);
+			free(name);
 		}
 	}
 	if(asmfile.flags & 0x01){
@@ -1213,7 +1268,6 @@ void main(){
 				}
 				break;
 			}
-			
 			break;
 		case 'm':
 			switch(asmfile.file[i+1]){
@@ -1274,20 +1328,18 @@ void main(){
 							}
 						}
 						else{
-							char buf = 0;
-							if(asmfile.file[i+1] == 'h'){
-								buf += 4;
-							}
-							if(asmfile.file[i+4] == 'h'){
-								buf += 32;
-							}
-							if(asmfile.file[i+1] == 'x' || asmfile.file[i+4] == 'x'){
-								AsmP(0x89,decodeReg(asmfile.file[i],asmfile.file[i+3]) + buf);
-							}
-							else{
-								AsmP(0x88,decodeReg(asmfile.file[i],asmfile.file[i+3]) + buf);
-							}
 							
+							switch(asmfile.file[i+1]){
+							case 'l':
+								AsmP(0x88,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]));
+								break;
+							case 'h':
+								AsmP(0x88,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]) + 0x20);
+								break;
+							default:
+								AsmP(0x89,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]));
+								break;
+							}	
 						}
 					}
 					else{
@@ -1535,98 +1587,12 @@ void main(){
 				case 'l':
 					i+=4;
 					for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-					switch(asmfile.file[i+4]){
-					case '\r':
-					case '\n':
-					case ' ':
-						switch(asmfile.file[i+1]){
-						case 'l':
-							AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x20);
-							break;
-						case 'h':
-							AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x24);
-							break;
-						default:
-							AsmP(0xd1,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x20);
-							break;
-						}
-						break;
-					case 'c':
-						switch(asmfile.file[i+1]){
-						case 'l':
-							AsmP(0xd2,decodeRegReg(asmfile.file[i],0,0,0) + 0x20);
-							break;
-						case 'h':
-							AsmP(0xd2,decodeRegReg(asmfile.file[i],0,0,0) + 0x24);
-							break;
-						default:
-							AsmP(0xd3,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x20);
-							break;
-						}
-						break;
-					default:
-						switch(asmfile.file[i+1]){
-						case 'l':
-							AsmPS(0xc0,decodeRegReg(asmfile.file[i],0,0,0) + 0x20,asciiToInt(i+3));
-							break;
-						case 'h':
-							AsmPS(0xc0,decodeRegReg(asmfile.file[i],0,0,0) + 0x24,asciiToInt(i+3));
-							break;
-						default:
-							AsmPS(0xc1,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x20,asciiToInt(i+3));
-							break;
-						}
-						break;
-					}
+					commonIns(i,0);
 					break;
 				case 'r':
 					i+=4;
 					for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-					switch(asmfile.file[i+3]){
-					case '\r':
-					case '\n':
-					case ' ':
-						switch(asmfile.file[i+1]){
-						case 'l':
-							AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x28);
-							break;
-						case 'h':
-							AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x2c);
-							break;
-						default:
-							AsmP(0xd1,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x28);
-							break;
-						}
-						break;
-					case 'c':
-						switch(asmfile.file[i+1]){
-						case 'l':
-							AsmP(0xd2,decodeRegReg(asmfile.file[i],0,0,0) + 0x28);
-							break;
-						case 'h':
-							AsmP(0xd2,decodeRegReg(asmfile.file[i],0,0,0) + 0x2c);
-							break;
-						default:
-							AsmP(0xd3,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x28);
-							break;
-						}
-						break;
-					default:
-						switch(asmfile.file[i+1]){
-						case 'l':
-							AsmPS(0xc0,decodeRegReg(asmfile.file[i],0,0,0) + 0x28,asciiToInt(i+3));
-							break;
-						case 'h':
-							AsmPS(0xc0,decodeRegReg(asmfile.file[i],0,0,0) + 0x2c,asciiToInt(i+3));
-							break;
-						default:
-							AsmPS(0xc1,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x28,asciiToInt(i+3));
-							break;
-						}
-						break;
-					}
-					i+=4;
-					for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+					commonIns(i,4);
 					break;
 				}
 			case 't':
