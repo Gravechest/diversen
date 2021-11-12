@@ -786,7 +786,7 @@ char decodeRegReg(char v1,char v2,char v3,char v4){
 		case 'i':
 			result += 56;
 			break;
-		case 'x':
+		default:
 			result += 16;
 			break;
 		}
@@ -869,7 +869,7 @@ void commonIns(int i,char op){
 	}
 	else{
 		switch(asmfile.file[i+1]){
-		case 'l':
+		case 'l':			
 			AsmP(op,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]));
 			break;
 		case 'h':
@@ -1317,6 +1317,7 @@ void main(){
 									AsmPD(0xa0,asciiToInt(i+4));
 								} 
 								else if(asmfile.file[i+1] == 'h'){
+
 									AsmPSD(0x8a,0x26,asciiToInt(i+4));
 								}
 								else{
@@ -1326,7 +1327,7 @@ void main(){
 							else if((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h'){
 								switch(asmfile.file[i+1]){
 								case 'l':
-								case 'h':
+								case 'h':									
 									AsmPSD(0x8a,decodeReg3(asmfile.file[i],asmfile.file[i+1]),asciiToInt(i+4));
 									break;
 								default:
@@ -1336,10 +1337,10 @@ void main(){
 							}
 							else{
 								if(asmfile.file[i+1] == 'x'){
-									AsmP(0x8b,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+3]));
+									AsmP(0x8b,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
 								}
 								else{
-									AsmP(0x8a,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+3]));
+									AsmP(0x8a,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
 								}
 							}
 						}
@@ -1434,7 +1435,13 @@ void main(){
 					}
 					else{
 						if(asmfile.file[i+2] == ','){
-							if(asmfile.file[i+4] == 'x'){
+							if(asmfile.file[i+3] == 's' && asmfile.file[i+4] == 's'){
+								AsmP(0x8c,0x17);
+							}
+							else if(asmfile.file[i+3] == 'e' && asmfile.file[i+4] == 's'){
+								AsmP(0x8c,0x07);
+							}
+							else if(asmfile.file[i+4] == 'x'){
 								AsmP(0x89,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+3]));
 							}
 							else{
@@ -1534,8 +1541,9 @@ void main(){
 							break;
 						case 'i':
 							Asm(0x56);
+							break;
 						}
-						Asm(0x54);
+						break;
 					case 'e':
 						Asm(0x06);
 						break;
