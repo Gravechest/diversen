@@ -57,6 +57,7 @@ typedef struct LABEL{
 	int nameSz;
 	char *big;
 	char *name;
+	char *direct;
 }LABEL;
 
 typedef struct ASMFILE{
@@ -153,7 +154,14 @@ void linkLabels(){
 	for(int i = 0;i < lblCount;i++){
 		for(int i2 = 0;i2 < lbl[i].refC;i2++){
 			for(int i3 = 0;i3 < lbl[i].big[i2];i3++){
-				asm[lbl[i].ref[i2] + i3] = (lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2]) >> i3 * 8;
+				if(lbl[i].direct){
+					for(int i4 = 3;i4 >= 0;i4--){
+						asm[lbl[i].ref[i2] + i4] = lbl[i].pos + 0x00400150 >> i4 * 8;
+					}
+				}
+				else{
+					asm[lbl[i].ref[i2] + i3] = (lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2]) >> i3 * 8;
+				}
 			}
 		}	
 	}
@@ -309,6 +317,7 @@ void closeExe(){
 			bufOffset += func[i].namesize + 6;
 		}
 	}
+
 	bufOffset2 += 4;
 	for(int i = 0;i < libsCount;i++){
 		int rel = libs[i].first + funcCount * 4 + libsCount * 4;
@@ -340,6 +349,7 @@ void closeExe(){
 			bufOffset2 += func[i].namesize + 4;
 		}
 	}
+
 	for(int i = 0;i < libsCount;i++){
 		memcpy(exedata + bufOffset2,libs[i].name,libs[i].namesize);
 		if(libs[i].namesize & 1){
@@ -446,7 +456,7 @@ void AsmPQ(char val,int val2){
 
 void callFunction(char *funct){
 	AsmEx(0xff15);
-	link = realloc(link,sizeof(linkCount) * (linkCount + 1));
+	link = realloc(link,sizeof(linkCount) * (linkCount + 100));
 	for(int i = 0;i < funcCount;i++){
 		if(!memcmp(funct,func[i].name,strlen(funct))){
 			link[linkCount].pos = asmOffset;
@@ -489,12 +499,16 @@ void addFunction(char *name,int type){
 	funcCount++;
 }
 
-void createVar(char *name,int size){
+void createVar(char *name,int size,int initval){
 	varCount++;
 	var = realloc(var,sizeof(VARIABLE) * varCount);
 	var[varCount-1].size = size;
 	var[varCount-1].name = calloc(strlen(name) + 1,1);
 	var[varCount-1].count = 0;
+	var[varCount-1].data = malloc(size);
+	for(int i = 0;i < size;i++){
+		var[varCount-1].data[i] = initval << (i * 8);
+	}
 	memcpy(var[varCount-1].name,name,strlen(name));
 }
 
@@ -516,8 +530,8 @@ void createVarS(char *name,char *str){
 		}
 	}
 	var[varCount-1].ref = malloc(1);
-	var[varCount-1].size = sz;
-	var[varCount-1].data = malloc(sz);
+	var[varCount-1].size = sz + 1;
+	var[varCount-1].data = calloc(sz + 1,1);
 	var[varCount-1].flags |= 0x01;
 	var[varCount-1].name = calloc(sz2 + 1,1);
 	var[varCount-1].count = 0;
@@ -528,7 +542,7 @@ void createVarS(char *name,char *str){
 void accesVar(char *name){
 	int sz = 0;
 	for(int i = 0;;i++){
-		if(name[i] == '\t' || name[i] == ' ' || name[i] == '\n' || name[i] == '\r'){
+		if(name[i] == '\t' || name[i] == ' ' || name[i] == '\n' || name[i] == '\r' || name[i] == ','){
 			sz = i;
 			break;
 		}
@@ -540,7 +554,6 @@ void accesVar(char *name){
 			break;
 		}
 	}
-	printf("%i",var[vari].ref);
 	var[vari].ref = realloc(var[vari].ref,sizeof(int) * (var[vari].count + 1));
 	var[vari].ref[var[vari].count] = asmOffset;
 	var[vari].count++;
@@ -576,10 +589,20 @@ void createLabel(char *name){
 void label(int id,int size){
 	lbl[id].ref = realloc(lbl[id].ref,sizeof(int) * (lbl[id].refC + 1));
 	lbl[id].big = realloc(lbl[id].big,sizeof(int) * (lbl[id].refC + 1));
-	lbl[id].big[lbl[id].refC] = size;
-	lbl[id].ref[lbl[id].refC] = asmOffset;
-	lbl[id].refC++;
-	asmOffset+=size;
+	lbl[id].direct = realloc(lbl[id].big,sizeof(int) * (lbl[id].refC + 1));
+	if(!size){
+		lbl[id].big[lbl[id].refC] = 4;
+		lbl[id].ref[lbl[id].refC] = asmOffset;
+		lbl[id].direct[lbl[id].refC] = 1;
+		lbl[id].refC++;
+		asmOffset+=4;
+	}
+	else{
+		lbl[id].big[lbl[id].refC] = size;
+		lbl[id].ref[lbl[id].refC] = asmOffset;
+		lbl[id].refC++;
+		asmOffset+=size;
+	}
 }
 
 int exp10(int val,int times){
@@ -1046,7 +1069,7 @@ void main(){
 				createVarS(nm,asmfile.file+i+1);
 			}
 			else{
-				createVar(nm,asciiToInt(i));
+				createVar(nm,asciiToInt(i),asciiToInt(i+2));
 			}
 		}
 		else if(!memcmp(asmfile.file+i,"%label",6)){
@@ -1610,6 +1633,83 @@ done:
 						Asm(buf);
 						accesVar(asmfile.file+i+5);
 					}
+					else if(asmfile.file[i+4] == '~'){
+						int buf = 0xb0;
+						switch(asmfile.file[i+2]){
+						case 'i':
+							buf += 0x0d;
+							break;
+						case 'l':
+							break;
+						case 'h':
+							buf += 4;
+							break;
+						default:
+							buf += 8;
+						}
+						switch(asmfile.file[i+1]){
+						case 's':
+						case 'c':
+							buf++;
+							break;
+						case 'd':
+							buf+=2;
+							break;
+						case 'b':
+							buf+=3;
+							break;
+						}
+						Asm(buf);
+						i+=5;
+						for(int i2 = 0;i2 < lblCount;i2++){
+							if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
+								label(i2,0);
+								break;
+							}
+						}
+					}
+					else{
+						int buf = 0xb0;
+						switch(asmfile.file[i+2]){
+						case 'i':
+							buf += 0x0d;
+							break;
+						case 'l':
+							break;
+						case 'h':
+							buf += 4;
+							break;
+						default:
+							buf += 8;
+						}
+						switch(asmfile.file[i+1]){
+						case 's':
+						case 'c':
+							buf++;
+							break;
+						case 'd':
+							buf+=2;
+							break;
+						case 'b':
+							buf+=3;
+							break;
+						}
+						AsmPQ(buf,asciiToInt(i+4));
+					}
+				}
+				else if(asmfile.file[i] == '$'){
+					int t = i;
+					for(;asmfile.file[i] != ',';i++){}
+					if(asmfile.file[i+1] == 'e' && asmfile.file[i+3] != ' ' && asmfile.file[i+3] != '\t' && asmfile.file[i+3] != '\n' && asmfile.file[i+3] != '\r'){
+						if(asmfile.file[i+2] == 'a'){
+							Asm(0xa3);
+							accesVar(asmfile.file+t+1);
+						}
+						else{
+							AsmP(0x89,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]));
+							accesVar(asmfile.file+t+1);
+						}
+					}
 				}
 				break;
 			case 'u':
@@ -1660,12 +1760,26 @@ done:
 						AsmP(0x6a,buf);
 					}
 					else{
-						AsmPD(0x68,buf);
+						if(asmfile.flags & 0x08){
+							if(buf < 0x00010000){
+								AsmPSD(0x66,0x68,buf);
+							}
+							else{
+								AsmPQ(0x68,buf);
+							}
+						}
+						else{
+							AsmPD(0x68,buf);
+						}
 					}
+				}
+				else if(asmfile.file[i] == '$'){
+					Asm(0x68);
+					accesVar(asmfile.file+i+1);
 				}
 				else{
 					int sw = 0;
-					if(asmfile.file[i] == 'e' && asmfile.file[i+2] != 'p' && asmfile.file[i+2] != 'i'){
+					if(asmfile.file[i] == 'e' && asmfile.file[i+2] != ' ' && asmfile.file[i+2] != '\t' && asmfile.file[i+2] != '\n' && asmfile.file[i+2] != '\r'){
 						sw = asmfile.file[i+1];
 						if(!asmfile.flags & 0x08){
 							Asm(0x66);
