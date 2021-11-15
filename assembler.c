@@ -17,6 +17,7 @@ int nameOffset;
 int lblamm;
 
 char *asm;
+char *fasm;
 char *exedata;
 
 FILE *file;
@@ -27,6 +28,7 @@ typedef struct VARIABLE{
 	int count;
 	char flags;
 	char *data;
+	char *name;
 }VARIABLE;
 
 typedef struct LIBRARY{
@@ -61,6 +63,7 @@ typedef struct ASMFILE{
 	char *name;
 	char flags;
 	char *file;
+	int csize;
 }ASMFILE;
 
 int libsCount;
@@ -187,9 +190,12 @@ void closeBootloader(){
 }
 
 void createSection(int tsz,int dsz){
+	tsz -= (tsz % 4) - 4;
+	linkLabels();
 	int flags[2] = {0xe0000020,0xc0000040};
 	char name[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-	asm = calloc(tsz,1);
+	fasm = calloc(tsz,1);
+	memcpy(fasm,asm,asmOffset);
 	asmSz = tsz;
 	dataSz = dsz;
 	int size = headerSz + 0x54;
@@ -231,12 +237,19 @@ void createSection(int tsz,int dsz){
 }
 
 void createExe(char *name,int type){
+	for(int i = 0;;i++){
+		if(!asmfile.name[i]){
+			memcpy(asmfile.name+i,".exe",4);
+			break;
+		}
+	}
+	asmfile.flags |= 0x08;
 	file = fopen(name,"wb");
 	optHeader[68] = type;
+	asm = calloc(1474560,1);
 }
 
 void closeExe(){
-	linkLabels();
 	int adresstableSz = funcCount * 4 + libsCount * 4; 
 	int importdirSz = libsCount * 20 + 32;
 	if(libsCount + funcCount){
@@ -339,10 +352,10 @@ void closeExe(){
 	int bob = bufOffset2 + 0x00400000 + dataOffset;
 	for(int i = 0;i < varCount;i++){
 		for(int i2 = 0;i2 < var[i].count;i2++){
-			asm[var[i].ref[i2]] = bob;
-			asm[var[i].ref[i2]+1] = bob >> 8;
-			asm[var[i].ref[i2]+2] = bob >> 16;
-			asm[var[i].ref[i2]+3] = bob >> 24;
+			fasm[var[i].ref[i2]] = bob;
+			fasm[var[i].ref[i2]+1] = bob >> 8;
+			fasm[var[i].ref[i2]+2] = bob >> 16;
+			fasm[var[i].ref[i2]+3] = bob >> 24;
 			if(var[i].flags & 0x01){
 				for(int i3 = 0;i3 < var[i].size;i3++){
 					exedata[bufOffset2] = var[i].data[i3];
@@ -356,17 +369,17 @@ void closeExe(){
 		bob += var[i].size;
 	}
 	for(int i = 0;i < linkCount;i++){
-		asm[link[i].pos] = func[link[i].type].mempos;
-		asm[link[i].pos+1] = func[link[i].type].mempos >> 8;
-		asm[link[i].pos+2] = func[link[i].type].mempos >> 16;
-		asm[link[i].pos+3] = func[link[i].type].mempos >> 24;
+		fasm[link[i].pos] = func[link[i].type].mempos;
+		fasm[link[i].pos+1] = func[link[i].type].mempos >> 8;
+		fasm[link[i].pos+2] = func[link[i].type].mempos >> 16;
+		fasm[link[i].pos+3] = func[link[i].type].mempos >> 24;
 	}
 	fseek(file,0,SEEK_SET);
 	fwrite(header,sizeof(header),1,file);
 	fwrite(optHeader,sizeof(optHeader),1,file);
 	fwrite(linking,sizeof(linking),1,file);
 	fseek(file,0x54,SEEK_CUR);
-	fwrite(asm,asmSz,1,file);
+	fwrite(fasm,asmSz,1,file);
 	fwrite(exedata,exedataSz,1,file);
 	fclose(file);
 	printf("\nasm teveel\n");
@@ -447,49 +460,101 @@ void callFunction(char *funct){
 
 void addLibrary(char *name){
 	libs = realloc(libs,sizeof(libs) * (libsCount + 1));
-	libs[libsCount].name = malloc(strlen(name));
-	libs[libsCount].namesize = strlen(name);
-	memcpy(libs[libsCount].name,name,strlen(name));
+	int size = 0;
+	for(int i = 0;;i++){
+		if(name[i] == ' ' || name[i] == '\r' || name[i] == '\t' || name[i] == '\n'){
+			size = i;
+			break;
+		}
+	}
+	libs[libsCount].name = malloc(size);
+	libs[libsCount].namesize = size;
+	memcpy(libs[libsCount].name,name,size);
 	libsCount++;
 }
 
 void addFunction(char *name,int type){
+	int size = 0;
+	for(int i = 0;;i++){
+		if(name[i] == ' ' || name[i] == '\r' || name[i] == '\t' || name[i] == '\n'){
+			size = i;
+			break;
+		}
+	}
 	func = realloc(func,sizeof(FUNCTION) * (funcCount + 1));
 	func[funcCount].lib = type;
 	func[funcCount].name = calloc(20,1);
-	func[funcCount].namesize = strlen(name);
-	memcpy(func[funcCount].name,name,strlen(name));
+	func[funcCount].namesize = size;
+	memcpy(func[funcCount].name,name,size);
 	funcCount++;
-	for(int i = 0;i < funcCount;i++){
-		printf("%s",func[i].name);
-		printf("\n");
-	}
 }
 
-void createVar(int size){
+void createVar(char *name,int size){
 	varCount++;
 	var = realloc(var,sizeof(VARIABLE) * varCount);
 	var[varCount-1].size = size;
+	var[varCount-1].name = calloc(strlen(name) + 1,1);
+	var[varCount-1].count = 0;
+	memcpy(var[varCount-1].name,name,strlen(name));
 }
 
-void createVarS(char *str){
+void createVarS(char *name,char *str){
 	varCount++;
 	var = realloc(var,sizeof(VARIABLE) * varCount);
-	int sz = strlen(str);
+	int sz2 = 0;
+	for(int i = 0;;i++){
+		if(name[i] == ' '){
+			sz2 = i;
+			break;
+		}
+	}
+	int sz = 0;
+	for(int i = 0;;i++){
+		if(str[i] == '"'){
+			sz = i;
+			break;
+		}
+	}
+	var[varCount-1].ref = malloc(1);
 	var[varCount-1].size = sz;
 	var[varCount-1].data = malloc(sz);
 	var[varCount-1].flags |= 0x01;
+	var[varCount-1].name = calloc(sz2 + 1,1);
+	var[varCount-1].count = 0;
+	memcpy(var[varCount-1].name,name,sz2);
 	memcpy(var[varCount-1].data,str,sz);
 }
 
-void accesVar(int vari){
+void accesVar(char *name){
+	int sz = 0;
+	for(int i = 0;;i++){
+		if(name[i] == '\t' || name[i] == ' ' || name[i] == '\n' || name[i] == '\r'){
+			sz = i;
+			break;
+		}
+	}
+	int vari = 0;
+	for(int i = 0;;i++){
+		if(!memcmp(var[i].name,name,sz)){
+			vari = i;
+			break;
+		}
+	}
+	printf("%i",var[vari].ref);
 	var[vari].ref = realloc(var[vari].ref,sizeof(int) * (var[vari].count + 1));
 	var[vari].ref[var[vari].count] = asmOffset;
 	var[vari].count++;
 	asmOffset+=4;
 }
 
-void accesVar8b(int vari){
+void accesVar8b(char *name){
+	int vari = 0;
+	for(int i = 0;;i++){
+		if(!memcmp(var[i].name,name,strlen(name))){
+			vari = i;
+			break;
+		}
+	}
 	var[vari].ref = realloc(var[vari].ref,sizeof(int) * (var[vari].count + 1));
 	var[vari].ref[var[vari].count] = asmOffset;
 	var[vari].count++;
@@ -941,29 +1006,75 @@ void main(){
 		if(!memcmp(asmfile.file+i,"%bootloader",11)){
 			asmfile.flags |= 0x01;
 		}
+		else if(!memcmp(asmfile.file+i,"%console",8)){
+			asmfile.flags |= 0x02;
+		}
+		else if(!memcmp(asmfile.file+i,"%window",7)){
+			asmfile.flags |= 0x04;
+		}
 		else if(!memcmp(asmfile.file+i,"%name",5)){
 			i+=6;
 			int sz = 0;
 			for(;asmfile.file[i] == ' ';i++){}
 			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\n';sz++){}
 			sz--;
-			asmfile.name = malloc(sz);
+			asmfile.name = calloc(sz+4,1);
 			memcpy(asmfile.name,asmfile.file+i,sz);
+		}
+		else if(!memcmp(asmfile.file+i,"%library",8)){
+			i+=8;
+			for(;asmfile.file[i] == ' ';i++){}
+			addLibrary(asmfile.file+i);
+		}
+		else if(!memcmp(asmfile.file+i,"%function",9)){
+			i+=9;
+			for(;asmfile.file[i] == ' ';i++){}
+			addFunction(asmfile.file+i,libsCount-1);
+		}
+		else if(!memcmp(asmfile.file+i,"%variable",9)){
+			i+=9;
+			for(;asmfile.file[i] == ' ';i++){}
+			int x = i;
+			for(;asmfile.file[i] != ' ';i++){}
+			int sz = i - x;
+			i = x;
+			char *nm = calloc(sz + 1,1);
+			memcpy(nm,asmfile.file + i,sz+1);
+			for(;asmfile.file[i] != ' ';i++){}
+			for(;asmfile.file[i] == ' ';i++){}
+			if(asmfile.file[i] == '"'){
+				createVarS(nm,asmfile.file+i+1);
+			}
+			else{
+				createVar(nm,asciiToInt(i));
+			}
 		}
 		else if(!memcmp(asmfile.file+i,"%label",6)){
 			i+=6;
 			int sz = 0;
 			for(;asmfile.file[i] == ' ';i++){}
 			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\r' && asmfile.file[i+sz] != '\n';sz++){}
-			sz++;
-			char *name = calloc(sz,1);
+			char *name = calloc(sz + 1,1);
 			memcpy(name,asmfile.file+i,sz);
 			createLabel(name);
 			free(name);
 		}
+		for(;asmfile.file[i] != '\n' && i < size;i++){}
 	}
 	if(asmfile.flags & 0x01){
+		for(int i = 0;;i++){
+			if(!asmfile.name[i]){
+				memcpy(asmfile.name+i,".img",4);
+				break;
+			}
+		}
 		createBootloader(asmfile.name);
+	}
+	else if(asmfile.flags & 0x02){
+		createExe(asmfile.name,3);
+	}
+	else if(asmfile.flags & 0x04){
+		createExe(asmfile.name,2);
 	}
 	for(int i = 0;i < size;i++){
 		switch(asmfile.file[i]){
@@ -1023,6 +1134,12 @@ void main(){
 			case 'a':
 				i+=5;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+				for(int i2 = 0;i2 < funcCount;i2++){
+					if(!memcmp(asmfile.file+i,func[i2].name,func[i2].namesize)){
+						callFunction(func[i2].name);
+						goto done;
+					}
+				}
 				Asm(0xe8);
 				for(int i2 = 0;i2 < lblCount;i2++){
 					if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
@@ -1030,6 +1147,7 @@ void main(){
 						break;
 					}
 				}
+done:
 				break;
 			case 'l':
 				switch(asmfile.file[i+2]){
@@ -1255,7 +1373,7 @@ void main(){
 				break;
 			}
 			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}		
-			Asm(buf);
+			Asm(buf);		
 			for(int i2 = 0;i2 < lblCount;i2++){
 				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
 					label(i2,1);
@@ -1454,6 +1572,45 @@ void main(){
 						}
 					}
 				}
+				else if(asmfile.file[i] == 'e'){
+					if(asmfile.file[i+4] == '*'){
+						if(asmfile.file[i+5] == '$'){
+							if(asmfile.file[i+1] == 'a'){
+								Asm(0xa1);
+							}
+							accesVar(asmfile.file+i+5);
+						}
+					}
+					else if(asmfile.file[i+4] == '$'){
+						int buf = 0xb0;
+						switch(asmfile.file[i+2]){
+						case 'i':
+							buf += 0x0d;
+							break;
+						case 'l':
+							break;
+						case 'h':
+							buf += 4;
+							break;
+						default:
+							buf += 8;
+						}
+						switch(asmfile.file[i+1]){
+						case 's':
+						case 'c':
+							buf++;
+							break;
+						case 'd':
+							buf+=2;
+							break;
+						case 'b':
+							buf+=3;
+							break;
+						}
+						Asm(buf);
+						accesVar(asmfile.file+i+5);
+					}
+				}
 				break;
 			case 'u':
 				i+=4;
@@ -1497,7 +1654,7 @@ void main(){
 			case 'u':
 				i+=5;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				if((asmfile.file[i] > 0x30 && asmfile.file[i] < 0x39) || asmfile.file[i] == 'h'){
+				if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x39) || asmfile.file[i] == 'h'){
 					int buf = asciiToInt(i);
 					if(buf < 256){
 						AsmP(0x6a,buf);
@@ -1507,7 +1664,20 @@ void main(){
 					}
 				}
 				else{
-					switch(asmfile.file[i]){
+					int sw = 0;
+					if(asmfile.file[i] == 'e' && asmfile.file[i+2] != 'p' && asmfile.file[i+2] != 'i'){
+						sw = asmfile.file[i+1];
+						if(!asmfile.flags & 0x08){
+							Asm(0x66);
+						}
+					}
+					else{
+						if(asmfile.flags & 0x08){
+							Asm(0x66);
+						}
+						sw = asmfile.file[i];
+					}
+					switch(sw){
 					case 'a':
 						Asm(0x50);
 						break;
@@ -1515,7 +1685,7 @@ void main(){
 						Asm(0x51);
 						break;
 					case 'd':
-						switch(asmfile.file[i+1]){
+						switch(sw+1){
 						case 'x':
 							Asm(0x52);
 							break;
@@ -1525,7 +1695,7 @@ void main(){
 						}
 						break;
 					case 'b':
-						switch(asmfile.file[i+1]){
+						switch(sw+1){
 						case 'x':
 							Asm(0x53);
 							break;
@@ -1535,7 +1705,7 @@ void main(){
 						}
 						break;
 					case 's':
-						switch(asmfile.file[i+1]){
+						switch(sw+1){
 						case 'p':
 							Asm(0x54);
 							break;
@@ -1550,10 +1720,24 @@ void main(){
 					}
 					break;
 				}
+				break;
 			case 'o':
 				i+=4;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				switch(asmfile.file[i]){
+				int sw = 0;
+				if(asmfile.file[i] == 'e' && asmfile.file[i+2] != 'p' && asmfile.file[i+2] != 'i'){
+					sw = asmfile.file[i+1];
+					if(!asmfile.flags & 0x08){
+						Asm(0x66);
+					}
+				}
+				else{
+					if(asmfile.flags & 0x08){
+						Asm(0x66);
+					}
+					sw = asmfile.file[i];
+				}
+				switch(sw){
 				case 'a':
 					Asm(0x58);
 					break;
@@ -1561,7 +1745,7 @@ void main(){
 					Asm(0x59);
 					break;
 				case 'd':
-					switch(asmfile.file[i+1]){
+					switch(sw+1){
 					case 's':
 						Asm(0x1f);
 						break;
@@ -1574,7 +1758,7 @@ void main(){
 					}
 					break;
 				case 'b':
-					switch(asmfile.file[i+1]){
+					switch(sw+1){
 					case 'x':
 						Asm(0x5b);
 						break;
@@ -1584,7 +1768,7 @@ void main(){
 					}
 					break;
 				case 's':
-					switch(asmfile.file[i+1]){
+					switch(sw+1){
 					case 'p':
 						Asm(0x5c);
 						break;
@@ -1714,10 +1898,14 @@ void main(){
 	if(asmfile.flags & 0x01){
 		closeBootloader();
 	}
+	else{
+		createSection(asmOffset,400);
+		closeExe();
+	}
 	if(optHeader[68] == 3){
-		CreateProcessA("gert.exe",0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
+		CreateProcessA(asmfile.name,0,0,0,0,0x00000010,0,0,&startupinfo,&process_info);
 	}
 	else if(optHeader[68] == 2){
-		CreateProcessA("gert.exe",0,0,0,0,0,0,0,&startupinfo,&process_info);
+		CreateProcessA(asmfile.name,0,0,0,0,0,0,0,&startupinfo,&process_info);
 	}
 }
