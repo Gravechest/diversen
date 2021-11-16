@@ -154,7 +154,7 @@ void linkLabels(){
 	for(int i = 0;i < lblCount;i++){
 		for(int i2 = 0;i2 < lbl[i].refC;i2++){
 			for(int i3 = 0;i3 < lbl[i].big[i2];i3++){
-				if(lbl[i].direct){
+				if(lbl[i].direct[i2]){
 					for(int i4 = 3;i4 >= 0;i4--){
 						asm[lbl[i].ref[i2] + i4] = lbl[i].pos + 0x00400150 >> i4 * 8;
 					}
@@ -371,6 +371,7 @@ void closeExe(){
 					exedata[bufOffset2] = var[i].data[i3];
 					bufOffset2++;
 				}
+				var[i].flags ^= 0x01;
 			}
 		}
 		if(var[i].flags & 0x01){
@@ -501,20 +502,27 @@ void addFunction(char *name,int type){
 
 void createVar(char *name,int size,int initval){
 	varCount++;
-	var = realloc(var,sizeof(VARIABLE) * varCount);
+	var = realloc(var,sizeof(VARIABLE) * varCount * 200);
+	int sz2 = 0;
+	for(int i = 0;;i++){
+		if(name[i] == ' '){
+			sz2 = i;
+			break;
+		}
+	}
 	var[varCount-1].size = size;
-	var[varCount-1].name = calloc(strlen(name) + 1,1);
+	var[varCount-1].name = calloc(sz2 + 1,1);
 	var[varCount-1].count = 0;
 	var[varCount-1].data = malloc(size);
 	for(int i = 0;i < size;i++){
 		var[varCount-1].data[i] = initval << (i * 8);
 	}
-	memcpy(var[varCount-1].name,name,strlen(name));
+	memcpy(var[varCount-1].name,name,sz2);
 }
 
 void createVarS(char *name,char *str){
 	varCount++;
-	var = realloc(var,sizeof(VARIABLE) * varCount);
+	var = realloc(var,sizeof(VARIABLE) * varCount * 200);
 	int sz2 = 0;
 	for(int i = 0;;i++){
 		if(name[i] == ' '){
@@ -527,6 +535,19 @@ void createVarS(char *name,char *str){
 		if(str[i] == '"'){
 			sz = i;
 			break;
+		}
+	}
+	for(int i = 0;i < sz;i++){
+		if(str[i] == '\\'){
+			for(int i2 = i;i2 < sz - 1;i2++){
+				str[i2] = str[i2+1];
+			}
+			sz--;
+			switch(str[i]){
+			case 'n':
+				str[i] = 0x0a;
+				break;
+			}
 		}
 	}
 	var[varCount-1].ref = malloc(1);
@@ -576,7 +597,7 @@ void accesVar8b(char *name){
 }
 
 void createLabel(char *name){
-	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+1000));
+	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+10000));
 	int nmsz = strlen(name);
 	lbl[lblCount].nameSz = nmsz - 1;
 	lbl[lblCount].name = malloc(nmsz);
@@ -589,7 +610,7 @@ void createLabel(char *name){
 void label(int id,int size){
 	lbl[id].ref = realloc(lbl[id].ref,sizeof(int) * (lbl[id].refC + 1));
 	lbl[id].big = realloc(lbl[id].big,sizeof(int) * (lbl[id].refC + 1));
-	lbl[id].direct = realloc(lbl[id].big,sizeof(int) * (lbl[id].refC + 1));
+	lbl[id].direct = realloc(lbl[id].direct,sizeof(int) * (lbl[id].refC + 1));
 	if(!size){
 		lbl[id].big[lbl[id].refC] = 4;
 		lbl[id].ref[lbl[id].refC] = asmOffset;
@@ -600,6 +621,7 @@ void label(int id,int size){
 	else{
 		lbl[id].big[lbl[id].refC] = size;
 		lbl[id].ref[lbl[id].refC] = asmOffset;
+		lbl[id].direct[lbl[id].refC] = 0;
 		lbl[id].refC++;
 		asmOffset+=size;
 	}
@@ -1044,18 +1066,18 @@ void main(){
 			asmfile.name = calloc(sz+4,1);
 			memcpy(asmfile.name,asmfile.file+i,sz);
 		}
-		else if(!memcmp(asmfile.file+i,"%library",8)){
-			i+=8;
+		else if(!memcmp(asmfile.file+i,"%lib",4)){
+			i+=4;
 			for(;asmfile.file[i] == ' ';i++){}
 			addLibrary(asmfile.file+i);
 		}
-		else if(!memcmp(asmfile.file+i,"%function",9)){
-			i+=9;
+		else if(!memcmp(asmfile.file+i,"%func",5)){
+			i+=5;
 			for(;asmfile.file[i] == ' ';i++){}
 			addFunction(asmfile.file+i,libsCount-1);
 		}
-		else if(!memcmp(asmfile.file+i,"%variable",9)){
-			i+=9;
+		else if(!memcmp(asmfile.file+i,"%var",4)){
+			i+=4;
 			for(;asmfile.file[i] == ' ';i++){}
 			int x = i;
 			for(;asmfile.file[i] != ' ';i++){}
@@ -1396,7 +1418,7 @@ done:
 				break;
 			}
 			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}		
-			Asm(buf);		
+			Asm(buf);
 			for(int i2 = 0;i2 < lblCount;i2++){
 				if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
 					label(i2,1);
@@ -1601,7 +1623,7 @@ done:
 							if(asmfile.file[i+1] == 'a'){
 								Asm(0xa1);
 							}
-							accesVar(asmfile.file+i+5);
+							accesVar(asmfile.file+i+6);
 						}
 					}
 					else if(asmfile.file[i+4] == '$'){
@@ -1667,6 +1689,9 @@ done:
 								break;
 							}
 						}
+					}
+					else if(asmfile.file[i+4] == 'e'){
+						AsmP(0x89,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+5],asmfile.file[i+6]));
 					}
 					else{
 						int buf = 0xb0;
@@ -1778,18 +1803,21 @@ done:
 					accesVar(asmfile.file+i+1);
 				}
 				else{
-					int sw = 0;
+					char sw = 0;
+					char sw2 = 0;
 					if(asmfile.file[i] == 'e' && asmfile.file[i+2] != ' ' && asmfile.file[i+2] != '\t' && asmfile.file[i+2] != '\n' && asmfile.file[i+2] != '\r'){
-						sw = asmfile.file[i+1];
 						if(!asmfile.flags & 0x08){
 							Asm(0x66);
 						}
+						sw = asmfile.file[i+1];
+						sw2 = asmfile.file[i+2];
 					}
 					else{
 						if(asmfile.flags & 0x08){
 							Asm(0x66);
 						}
 						sw = asmfile.file[i];
+						sw2 = asmfile.file[i+1];
 					}
 					switch(sw){
 					case 'a':
@@ -1799,7 +1827,7 @@ done:
 						Asm(0x51);
 						break;
 					case 'd':
-						switch(sw+1){
+						switch(sw2){
 						case 'x':
 							Asm(0x52);
 							break;
@@ -1809,7 +1837,7 @@ done:
 						}
 						break;
 					case 'b':
-						switch(sw+1){
+						switch(sw2){
 						case 'x':
 							Asm(0x53);
 							break;
@@ -1819,7 +1847,7 @@ done:
 						}
 						break;
 					case 's':
-						switch(sw+1){
+						switch(sw2){
 						case 'p':
 							Asm(0x54);
 							break;
@@ -1838,18 +1866,22 @@ done:
 			case 'o':
 				i+=4;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				int sw = 0;
+				char sw = 0;
+				char sw2 = 0;
 				if(asmfile.file[i] == 'e' && asmfile.file[i+2] != 'p' && asmfile.file[i+2] != 'i'){
-					sw = asmfile.file[i+1];
+				
 					if(!asmfile.flags & 0x08){
 						Asm(0x66);
 					}
+					sw = asmfile.file[i+1];
+					sw2 = asmfile.file[i+2];
 				}
 				else{
 					if(asmfile.flags & 0x08){
 						Asm(0x66);
 					}
 					sw = asmfile.file[i];
+					sw2 = asmfile.file[i+1];
 				}
 				switch(sw){
 				case 'a':
@@ -1859,7 +1891,7 @@ done:
 					Asm(0x59);
 					break;
 				case 'd':
-					switch(sw+1){
+					switch(sw2){
 					case 's':
 						Asm(0x1f);
 						break;
@@ -1872,7 +1904,7 @@ done:
 					}
 					break;
 				case 'b':
-					switch(sw+1){
+					switch(sw2){
 					case 'x':
 						Asm(0x5b);
 						break;
@@ -1882,7 +1914,7 @@ done:
 					}
 					break;
 				case 's':
-					switch(sw+1){
+					switch(sw2){
 					case 'p':
 						Asm(0x5c);
 						break;
