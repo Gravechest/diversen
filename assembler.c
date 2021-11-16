@@ -258,6 +258,7 @@ void createExe(char *name,int type){
 }
 
 void closeExe(){
+	printx(libsCount);
 	int adresstableSz = funcCount * 4 + libsCount * 4; 
 	int importdirSz = libsCount * 20 + 32;
 	if(libsCount + funcCount){
@@ -305,6 +306,7 @@ void closeExe(){
 	libfunct = 0;
 	for(int i = 0;i < funcCount;i++){
 		if(libfunct != func[i].lib){
+			libfunct = func[i].lib;
 			bufOffset2 += 4;
 		}
 		exedata[bufOffset2] = bufOffset;
@@ -317,7 +319,6 @@ void closeExe(){
 			bufOffset += func[i].namesize + 6;
 		}
 	}
-
 	bufOffset2 += 4;
 	for(int i = 0;i < libsCount;i++){
 		int rel = libs[i].first + funcCount * 4 + libsCount * 4;
@@ -446,6 +447,16 @@ void AsmPSD(char val,char val2,short val3){
 	asmOffset+=4; 
 }
 
+void AsmPSQ(char val,char val2,int val3){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val2;
+	asm[asmOffset+2] = val3;
+	asm[asmOffset+3] = val3 >> 8;
+	asm[asmOffset+4] = val3 >> 16;
+	asm[asmOffset+5] = val3 >> 24;
+	asmOffset+=6; 
+}
+
 void AsmPQ(char val,int val2){
 	asm[asmOffset] = val;
 	asm[asmOffset+1] = val2;
@@ -494,7 +505,7 @@ void addFunction(char *name,int type){
 	}
 	func = realloc(func,sizeof(FUNCTION) * (funcCount + 1));
 	func[funcCount].lib = type;
-	func[funcCount].name = calloc(20,1);
+	func[funcCount].name = calloc(40,1);
 	func[funcCount].namesize = size;
 	memcpy(func[funcCount].name,name,size);
 	funcCount++;
@@ -717,9 +728,6 @@ char decodeReg(char v1,char v2){
 char decodeReg2(char v1,char v3,char v4,char v2){
 	int result = 0;
 	switch(v1){
-	case 'a':
-		result += 7;
-		break;
 	case 'b':
 		switch(v3){
 		case 'x':
@@ -914,6 +922,36 @@ char decodeRegReg(char v1,char v2,char v3,char v4){
 	return result;
 }
 
+char decodeReg4(char v1,char v2){
+	switch(v1){
+	case 'a':
+		return 0;
+	case 'b':
+		switch(v2){
+		case 'p':
+			return 5;
+		case 'x':
+			return 3;
+		}
+	case 'c':
+		return 1;
+	case 'd':
+		switch(v2){
+		case 'i':
+			return 7;
+		case 'x':
+			return 2;
+		}
+	case 's':
+		switch(v2){
+		case 'i':
+			return 6;
+		case 'p':
+			return 4;
+		}
+	}
+}
+
 void commonIns(int i,char op){
 	if(asmfile.file[i] == 'a' && (asmfile.file[i+3] == 'h' || (asmfile.file[i+3] > 0x2f && asmfile.file[i+3] < 0x3a))){
 		switch(asmfile.file[i]){
@@ -930,6 +968,40 @@ void commonIns(int i,char op){
 		case 'e':
 			AsmPD(op+5,asciiToInt(i+4));
 			break;
+		}
+	}
+	else if(asmfile.file[i] == 'e' && asmfile.file[i+2] != ','){
+		if(asmfile.file[i+4] == 'h' || (asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a)){
+			
+		}
+		else{
+			int val = asciiToInt(i+4);
+			if(val < 128){
+				switch(asmfile.file[i+2]){
+				case 'i':
+					AsmPS(0x83,decodeI(asmfile.file[i+1]) + 0xc0 + op,asciiToInt(i+4));
+					break;
+				case 'p':
+					AsmPS(0x83,decodeP(asmfile.file[i+1]) + 0xc0 + op,asciiToInt(i+4));
+					break;
+				case 'x':
+					AsmPS(0x83,decodeReg(asmfile.file[i+1],0) + 0xc0 + op,asciiToInt(i+4));
+					break;
+				}
+			}
+			else{
+				switch(asmfile.file[i+2]){
+				case 'i':
+					AsmPSQ(0x81,decodeI(asmfile.file[i+1]) + 0xc0 + op,asciiToInt(i+4));
+					break;
+				case 'p':
+					AsmPSQ(0x81,decodeP(asmfile.file[i+1]) + 0xc0 + op,asciiToInt(i+4));
+					break;
+				case 'x':
+					AsmPSQ(0x81,decodeReg(asmfile.file[i+1],0) + 0xc0 + op,asciiToInt(i+4));
+					break;
+				}
+			}
 		}
 	}
 	else if(asmfile.file[i] == '*'){
@@ -1217,44 +1289,18 @@ done:
 		case 'd':
 			i+=4;
 			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-			switch(asmfile.file[i]){
-			case 'a':
-				Asm(0x48);
-				break;
-			case 'b':
-				switch(asmfile.file[i+1]){
-				case 'p':
-					Asm(0x4d);
-					break;
-				case 'x':
-					Asm(0x4b);
-					break;
+			if(asmfile.file[i] == 'e'){
+					if(!asmfile.flags & 0x08){
+						Asm(0x66);
+					}
+					Asm(decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0x48);
 				}
-				break;
-			case 'c':
-				Asm(0x49);
-				break;
-			case 'd':
-				switch(asmfile.file[i+1]){
-				case 'i':
-					Asm(0x4f);
-					break;
-				case 'x':
-					Asm(0x4a);
-			 		break;
+				else{
+					if(asmfile.flags & 0x08){
+						Asm(0x66);
+					}
+					Asm(decodeReg4(asmfile.file[i],asmfile.file[i+1]) + 0x48);
 				}
-				break;
-			case 's':
-				switch(asmfile.file[i+1]){
-				case 'i':
-					Asm(0x4e);
-					break;
-				case 'p':
-					Asm(0x4c);
-					break;
-				}
-				break;
-			}
 			break;
 		case 'h':
 			Asm(0xf4);
@@ -1264,43 +1310,17 @@ done:
 			case 'c':
 				i+=4;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				switch(asmfile.file[i]){
-				case 'a':
-					Asm(0x40);
-					break;
-				case 'b':
-					switch(asmfile.file[i+1]){
-					case 'p':
-						Asm(0x45);
-						break;
-					case 'x':
-						Asm(0x43);
-						break;
+				if(asmfile.file[i] == 'e'){
+					if(!asmfile.flags & 0x08){
+						Asm(0x66);
 					}
-					break;
-				case 'c':
-					Asm(0x41);
-					break;
-				case 'd':
-					switch(asmfile.file[i+1]){
-					case 'i':
-						Asm(0x47);
-						break;
-					case 'x':
-						Asm(0x42);
-				 		break;
+					Asm(decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0x40);
+				}
+				else{
+					if(asmfile.flags & 0x08){
+						Asm(0x66);
 					}
-					break;
-				case 's':
-					switch(asmfile.file[i+1]){
-					case 'i':
-						Asm(0x46);
-						break;
-					case 'p':
-						Asm(0x44);
-						break;
-					}
-					break;
+					Asm(decodeReg4(asmfile.file[i],asmfile.file[i+1]) + 0x40);
 				}
 				break;
 			case 't':
@@ -1612,6 +1632,21 @@ done:
 							}
 							
 						}
+						else if(asmfile.file[i+3] == ','){
+							if(asmfile.file[i+6] != ' ' && asmfile.file[i+6] != '\t' && asmfile.file[i+6] != '\n' && asmfile.file[i+6] != '\r'){
+								AsmP(0x89,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+5]));
+							}
+							else{
+								switch(asmfile.file[i+5]){
+								case 'l':
+									AsmP(0x88,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+4]));
+									break;
+								case 'h':
+									AsmP(0x88,decodeReg2(asmfile.file[i],asmfile.file[i+1],0,asmfile.file[i+4]) + 0x20);
+									break;
+								}
+							}
+						}
 						else{
 							AsmP(0x89,decodeReg2(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+7]));
 						}
@@ -1748,7 +1783,6 @@ done:
 				}
 				break;
 			}
-			
 			break;
 		case 'o':
 			switch(asmfile.file[i+1]){
@@ -1781,7 +1815,14 @@ done:
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
 				if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x39) || asmfile.file[i] == 'h'){
 					int buf = asciiToInt(i);
-					if(buf < 256){
+					int cmp = 0;
+					if(asmfile.file[i] == 'h'){
+						cmp = 256;
+					}
+					else{
+						cmp = 128;
+					}
+					if(buf < cmp){
 						AsmP(0x6a,buf);
 					}
 					else{
@@ -1992,7 +2033,6 @@ done:
 				commonIns(i,40);
 				break;
 			}
-			
 			break;
 		case 't':
 			i+=5;
