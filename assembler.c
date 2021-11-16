@@ -367,13 +367,10 @@ void closeExe(){
 			fasm[var[i].ref[i2]+1] = bob >> 8;
 			fasm[var[i].ref[i2]+2] = bob >> 16;
 			fasm[var[i].ref[i2]+3] = bob >> 24;
-			if(var[i].flags & 0x01){
-				for(int i3 = 0;i3 < var[i].size;i3++){
-					exedata[bufOffset2] = var[i].data[i3];
-					bufOffset2++;
-				}
-				var[i].flags ^= 0x01;
-			}
+		}
+		for(int i2 = 0;i2 < var[i].size;i2++){
+			exedata[bufOffset2 + 1] = var[i].data[i2];
+			bufOffset2++;
 		}
 		if(var[i].flags & 0x01){
 			bob++;
@@ -521,19 +518,20 @@ void createVar(char *name,int size,int initval){
 			break;
 		}
 	}
+	printf("%i\n",size);
 	var[varCount-1].size = size;
 	var[varCount-1].name = calloc(sz2 + 1,1);
 	var[varCount-1].count = 0;
 	var[varCount-1].data = malloc(size);
 	for(int i = 0;i < size;i++){
-		var[varCount-1].data[i] = initval << (i * 8);
+		var[varCount-1].data[i] = initval >> i * 8;
 	}
 	memcpy(var[varCount-1].name,name,sz2);
 }
 
 void createVarS(char *name,char *str){
 	varCount++;
-	var = realloc(var,sizeof(VARIABLE) * varCount * 200);
+	var = realloc(var,sizeof(VARIABLE) * varCount * 20000);
 	int sz2 = 0;
 	for(int i = 0;;i++){
 		if(name[i] == ' '){
@@ -972,9 +970,6 @@ void commonIns(int i,char op){
 	}
 	else if(asmfile.file[i] == 'e' && asmfile.file[i+2] != ','){
 		if(asmfile.file[i+4] == 'h' || (asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a)){
-			
-		}
-		else{
 			int val = asciiToInt(i+4);
 			if(val < 128){
 				switch(asmfile.file[i+2]){
@@ -1002,6 +997,9 @@ void commonIns(int i,char op){
 					break;
 				}
 			}
+		}
+		else{
+			AsmP(op+1,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]));
 		}
 	}
 	else if(asmfile.file[i] == '*'){
@@ -2070,11 +2068,9 @@ done:
 					else if(asmfile.file[i+3] == 'a'){
 						Asm(decodeReg(asmfile.file[i],0) + 0x90);
 					}
-
 				}
 				break;
 			}
-			
 			break;
 		}
 		while(asmfile.file[i] != '\n' && i < size){
@@ -2085,7 +2081,7 @@ done:
 		closeBootloader();
 	}
 	else{
-		createSection(asmOffset,400);
+		createSection(asmOffset,600);
 		closeExe();
 	}
 	if(optHeader[68] == 3){
