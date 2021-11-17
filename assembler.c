@@ -153,6 +153,7 @@ char linking[] = {
 void linkLabels(){
 	for(int i = 0;i < lblCount;i++){
 		for(int i2 = 0;i2 < lbl[i].refC;i2++){
+			char resize = 0;
 			for(int i3 = 0;i3 < lbl[i].big[i2];i3++){
 				if(lbl[i].direct[i2]){
 					for(int i4 = 3;i4 >= 0;i4--){
@@ -160,6 +161,37 @@ void linkLabels(){
 					}
 				}
 				else{
+					if(lbl[i].pos - lbl[i].ref[i2] > 127 || lbl[i].pos - lbl[i].ref[i2] < -127 && !resize){
+						resize+=3;
+						asmOffset+=3;
+						lbl[i].big[i2]+=3;
+						for(int i4 = 0;i4 < 3;i4++){
+							for(int i5 = asmOffset;i5 > lbl[i].ref[i2] + i3;i5--){
+								printf("yeet\n");
+								asm[i5] = asm[i5-1];
+							}
+						}
+						for(int i4 = 0;i4 < lblCount;i4++){
+							for(int i5 = 0;i5 < lbl[i4].refC;i5++){
+								if(lbl[i4].ref[i5] > lbl[i].ref[i2] + i3){
+									lbl[i4].ref[i5]+=3;
+								}
+							}
+							if(lbl[i4].pos > lbl[i].ref[i2] + i3){
+								lbl[i4].pos+=3;
+							}
+						}
+						for(int i4 = 0;i4 < varCount;i4++){
+							for(int i5 = 0;i5 < var[i4].count;i5++){
+								if(lbl[i4].pos > lbl[i].ref[i2] + i3){
+									var[i4].ref[i5]+=3;
+								}
+							}
+						}
+						if(asm[lbl[i].ref[i2]-1] == 0xffffffeb){
+							asm[lbl[i].ref[i2]-1] = 0xe9;
+						}
+					}
 					asm[lbl[i].ref[i2] + i3] = (lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2]) >> i3 * 8;
 				}
 			}
@@ -173,7 +205,6 @@ void createBootloader(char* name){
 }
 
 void closeBootloader(){
-	linkLabels();
 	int bob = asmOffset;
 	for(int i = 0;i < varCount;i++){
 		for(int i2 = 0;i2 < var[i].count;i2++){
@@ -199,7 +230,6 @@ void closeBootloader(){
 
 void createSection(int tsz,int dsz){
 	tsz -= (tsz % 4) - 4;
-	linkLabels();
 	int flags[2] = {0xe0000020,0xc0000040};
 	char name[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	fasm = calloc(tsz,1);
@@ -350,7 +380,6 @@ void closeExe(){
 			bufOffset2 += func[i].namesize + 4;
 		}
 	}
-
 	for(int i = 0;i < libsCount;i++){
 		memcpy(exedata + bufOffset2,libs[i].name,libs[i].namesize);
 		if(libs[i].namesize & 1){
@@ -361,6 +390,7 @@ void closeExe(){
 		}
 	}
 	int bob = bufOffset2 + 0x00400000 + dataOffset;
+	int fset = 0;
 	for(int i = 0;i < varCount;i++){
 		for(int i2 = 0;i2 < var[i].count;i2++){
 			fasm[var[i].ref[i2]] = bob;
@@ -369,11 +399,12 @@ void closeExe(){
 			fasm[var[i].ref[i2]+3] = bob >> 24;
 		}
 		for(int i2 = 0;i2 < var[i].size;i2++){
-			exedata[bufOffset2 + 1] = var[i].data[i2];
+			exedata[bufOffset2 + fset] = var[i].data[i2];
 			bufOffset2++;
 		}
 		if(var[i].flags & 0x01){
 			bob++;
+			fset++;
 		}
 		bob += var[i].size;
 	}
@@ -518,7 +549,6 @@ void createVar(char *name,int size,int initval){
 			break;
 		}
 	}
-	printf("%i\n",size);
 	var[varCount-1].size = size;
 	var[varCount-1].name = calloc(sz2 + 1,1);
 	var[varCount-1].count = 0;
@@ -999,7 +1029,13 @@ void commonIns(int i,char op){
 			}
 		}
 		else{
-			AsmP(op+1,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]));
+			if(asmfile.file[i+6] == ' ' || asmfile.file[i+6] == '\n' || asmfile.file[i+6] == '\r' || asmfile.file[i+6] == '\t'){
+				AsmP(op+1,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]));
+			}
+			else{
+				AsmP(op+1,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+5],asmfile.file[i+6]));
+			}
+			
 		}
 	}
 	else if(asmfile.file[i] == '*'){
@@ -1036,15 +1072,20 @@ void commonIns(int i,char op){
 		}
 	}
 	else if(asmfile.file[i+3] == '*'){
-		int adres = asciiToInt(i+4);
-		switch(asmfile.file[i+1]){
-		case 'l':
-		case 'h':
-			AsmPSD(op+2,decodeReg3(asmfile.file[i],asmfile.file[i+1]),adres);
-			break;
-		default:
-			AsmPSD(op+3,decodeReg3(asmfile.file[i],asmfile.file[i+1]),adres);
-			break;
+		if(asmfile.file[i+4] == 'h' || (asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a)){
+			int adres = asciiToInt(i+4);
+			switch(asmfile.file[i+1]){
+			case 'l':
+			case 'h':
+				AsmPSD(op+2,decodeReg3(asmfile.file[i],asmfile.file[i+1]),adres);
+				break;
+			default:
+				AsmPSD(op+3,decodeReg3(asmfile.file[i],asmfile.file[i+1]),adres);
+				break;
+			}
+		}
+		else{
+			AsmP(op+2,decodeRegReg(asmfile.file[i+5],asmfile.file[i+6],asmfile.file[i],asmfile.file[i+1]) - 0xc0);
 		}
 	}
 	else{
@@ -1258,7 +1299,12 @@ void main(){
 				Asm(0xe8);
 				for(int i2 = 0;i2 < lblCount;i2++){
 					if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
-						label(i2,2);
+						if(asmfile.flags & 0x08){
+							label(i2,4);
+						}
+						else{
+							label(i2,2);
+						}
 						break;
 					}
 				}
@@ -1614,6 +1660,9 @@ done:
 							}
 						}
 					}
+					else if(asmfile.file[i] == 'e' && asmfile.file[i+3] == ','){
+						
+					}
 					else{
 						if(asmfile.file[i+2] == ','){
 							if(asmfile.file[i+3] == 's' && asmfile.file[i+4] == 's'){
@@ -1656,7 +1705,13 @@ done:
 							if(asmfile.file[i+1] == 'a'){
 								Asm(0xa1);
 							}
+							else{
+								AsmP(0x8b,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]) - 1);
+							}
 							accesVar(asmfile.file+i+6);
+						}
+						else{
+							AsmP(0x8b,decodeRegReg(asmfile.file[i+5],asmfile.file[i+6],asmfile.file[i+1],asmfile.file[i+2]) - 0xc0);
 						}
 					}
 					else if(asmfile.file[i+4] == '$'){
@@ -1764,7 +1819,7 @@ done:
 							accesVar(asmfile.file+t+1);
 						}
 						else{
-							AsmP(0x89,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]));
+							AsmP(0x89,decodeReg3(asmfile.file[i+2],asmfile.file[i+3]) - 1);
 							accesVar(asmfile.file+t+1);
 						}
 					}
@@ -1781,6 +1836,9 @@ done:
 				}
 				break;
 			}
+			break;
+		case 'n':
+			Asm(0x90);
 			break;
 		case 'o':
 			switch(asmfile.file[i+1]){
@@ -1825,12 +1883,7 @@ done:
 					}
 					else{
 						if(asmfile.flags & 0x08){
-							if(buf < 0x00010000){
-								AsmPSD(0x66,0x68,buf);
-							}
-							else{
-								AsmPQ(0x68,buf);
-							}
+							AsmPQ(0x68,buf);
 						}
 						else{
 							AsmPD(0x68,buf);
@@ -1974,6 +2027,11 @@ done:
 			case 't':
 				Asm(0xc3);
 				break;
+			case 'r':
+				i+=6;
+				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+				AsmPS(0x0f,0xc7,decodeReg(asmfile.file[i+1],asmfile.file[i+2])+0xf0);
+				break;
 			case 'p':
 				Asm(0xf3);
 				i+=4;
@@ -2077,6 +2135,7 @@ done:
 			i++;
 		}
 	}
+	linkLabels();
 	if(asmfile.flags & 0x01){
 		closeBootloader();
 	}
