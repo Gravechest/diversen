@@ -167,7 +167,6 @@ void linkLabels(){
 						lbl[i].big[i2]+=3;
 						for(int i4 = 0;i4 < 3;i4++){
 							for(int i5 = asmOffset;i5 > lbl[i].ref[i2] + i3;i5--){
-								printf("yeet\n");
 								asm[i5] = asm[i5-1];
 							}
 						}
@@ -179,6 +178,11 @@ void linkLabels(){
 							}
 							if(lbl[i4].pos > lbl[i].ref[i2] + i3){
 								lbl[i4].pos+=3;
+							}
+						}
+						for(int i4 = 0;i4 < linkCount;i4++){
+							if(link[i4].pos > lbl[i].ref[i2] + i3){
+								link[i4].pos+=3;
 							}
 						}
 						for(int i4 = 0;i4 < varCount;i4++){
@@ -1661,7 +1665,12 @@ done:
 						}
 					}
 					else if(asmfile.file[i] == 'e' && asmfile.file[i+3] == ','){
-						
+						if(asmfile.file[i+6] == ' ' || asmfile.file[i+6] == '\n' || asmfile.file[i+6] == '\r' || asmfile.file[i+6] == '\t'){
+							AsmP(0x88,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]) - 0xc0);
+						}
+						else{
+							AsmP(0x89,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+5],asmfile.file[i+6]) - 0xc0);
+						}
 					}
 					else{
 						if(asmfile.file[i+2] == ','){
