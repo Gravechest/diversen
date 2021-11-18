@@ -161,11 +161,23 @@ void linkLabels(){
 					}
 				}
 				else{
-					if(lbl[i].pos - lbl[i].ref[i2] > 127 || lbl[i].pos - lbl[i].ref[i2] < -127 && !resize){
-						resize+=3;
-						asmOffset+=3;
-						lbl[i].big[i2]+=3;
-						for(int i4 = 0;i4 < 3;i4++){
+					if(lbl[i].big[i2] == 1 && lbl[i].pos - lbl[i].ref[i2] > 127 || lbl[i].pos - lbl[i].ref[i2] < -127 && !resize){
+						int b = 0;
+						if(asm[lbl[i].ref[i2]-1] == 0xffffffeb){
+							b = 3;
+							asm[lbl[i].ref[i2]-1] = 0xe9;
+							lbl[i].big[i2]+=3;
+						}
+						else{
+							asm[lbl[i].ref[i2]] = asm[lbl[i].ref[i2]-1] + 0x10;
+							asm[lbl[i].ref[i2]-1] = 0x0f;
+							lbl[i].big[i2]+=4;
+							i3++;
+							b = 4;
+						}
+						resize+=b;
+						asmOffset+=b;
+						for(int i4 = 0;i4 < b;i4++){
 							for(int i5 = asmOffset;i5 > lbl[i].ref[i2] + i3;i5--){
 								asm[i5] = asm[i5-1];
 							}
@@ -173,30 +185,34 @@ void linkLabels(){
 						for(int i4 = 0;i4 < lblCount;i4++){
 							for(int i5 = 0;i5 < lbl[i4].refC;i5++){
 								if(lbl[i4].ref[i5] > lbl[i].ref[i2] + i3){
-									lbl[i4].ref[i5]+=3;
+									lbl[i4].ref[i5]+=b;
 								}
 							}
 							if(lbl[i4].pos > lbl[i].ref[i2] + i3){
-								lbl[i4].pos+=3;
+								lbl[i4].pos+=b;
 							}
 						}
 						for(int i4 = 0;i4 < linkCount;i4++){
 							if(link[i4].pos > lbl[i].ref[i2] + i3){
-								link[i4].pos+=3;
+								link[i4].pos+=b;
 							}
 						}
 						for(int i4 = 0;i4 < varCount;i4++){
 							for(int i5 = 0;i5 < var[i4].count;i5++){
 								if(lbl[i4].pos > lbl[i].ref[i2] + i3){
-									var[i4].ref[i5]+=3;
+									var[i4].ref[i5]+=b;
 								}
 							}
 						}
-						if(asm[lbl[i].ref[i2]-1] == 0xffffffeb){
-							asm[lbl[i].ref[i2]-1] = 0xe9;
-						}
 					}
-					asm[lbl[i].ref[i2] + i3] = (lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2]) >> i3 * 8;
+					if(resize && lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] < 0){
+						int val = lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] >> (5 - i3) * 8;
+						asm[lbl[i].ref[i2] + i3] = val;
+					}
+					else{
+						asm[lbl[i].ref[i2] + i3] = lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] << i3 * 8;
+					}
+					
 				}
 			}
 		}	
@@ -557,7 +573,7 @@ void createVar(char *name,int size,int initval){
 	var[varCount-1].name = calloc(sz2 + 1,1);
 	var[varCount-1].count = 0;
 	var[varCount-1].data = malloc(size);
-	for(int i = 0;i < size;i++){
+	for(int i = 0;i < size && i < 4;i++){
 		var[varCount-1].data[i] = initval >> i * 8;
 	}
 	memcpy(var[varCount-1].name,name,sz2);
@@ -642,7 +658,7 @@ void accesVar8b(char *name){
 void createLabel(char *name){
 	lbl = realloc(lbl,sizeof(LABEL) * (lblCount+10000));
 	int nmsz = strlen(name);
-	lbl[lblCount].nameSz = nmsz - 1;
+	lbl[lblCount].nameSz = nmsz;
 	lbl[lblCount].name = malloc(nmsz);
 	memcpy(lbl[lblCount].name,name,nmsz);
 	lbl[lblCount].pos = asmOffset;
@@ -1043,17 +1059,29 @@ void commonIns(int i,char op){
 		}
 	}
 	else if(asmfile.file[i] == '*'){
-		int adres = asciiToInt(i+1);
-		i+=2;
-		for(;asmfile.file[i] != ',';i++){}
-		switch(asmfile.file[i+2]){
-		case 'h':
-		case 'l':
-			AsmPSD(op,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]),adres);
-			break;
-		default:
-			AsmPSD(op+1,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]),adres);
-			break;
+		if(asmfile.file[i] == 'h' || (asmfile.file[i] > 0x2f && asmfile.file[i] < 0x3a)){
+			int adres = asciiToInt(i+1);
+			i+=2;
+			for(;asmfile.file[i] != ',';i++){}
+			switch(asmfile.file[i+2]){
+			case 'h':
+			case 'l':
+				AsmPSD(op,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]),adres);
+				break;
+			default:
+				AsmPSD(op+1,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]),adres);
+				break;
+			}
+		}
+		else{
+			if(asmfile.file[i+4] == ','){
+				if(asmfile.file[i+7] == ' ' || asmfile.file[i+7] == '\t' || asmfile.file[i+7] == '\n' || asmfile.file[i+7] == '\r'){
+					AsmP(0x38,decodeRegReg(asmfile.file[i+2],asmfile.file[i+3],asmfile.file[i+5],asmfile.file[i+6]) - 0xc0);
+				}
+				else{
+					AsmP(0x39,decodeRegReg(asmfile.file[i+2],asmfile.file[i+3],asmfile.file[i+6],asmfile.file[i+7]) - 0xc0);
+				}
+			}
 		}
 	}
 	else if(asmfile.file[i+3] == 'h' || (asmfile.file[i+3] > 0x2f && asmfile.file[i+3] < 0x3a)){
@@ -1206,7 +1234,11 @@ void main(){
 				createVarS(nm,asmfile.file+i+1);
 			}
 			else{
-				createVar(nm,asciiToInt(i),asciiToInt(i+2));
+				int vl = asciiToInt(i);
+				for(;asmfile.file[i] > 0x2f && asmfile.file[i] < 0x3a;i++){}
+				for(;asmfile.file[i] < 0x2f || asmfile.file[i] > 0x3a;i++){}
+				int vl2 = asciiToInt(i);
+				createVar(nm,vl,vl2);
 			}
 		}
 		else if(!memcmp(asmfile.file+i,"%label",6)){
@@ -1302,7 +1334,7 @@ void main(){
 				}
 				Asm(0xe8);
 				for(int i2 = 0;i2 < lblCount;i2++){
-					if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz)){
+					if(!memcmp(asmfile.file+i,lbl[i2].name,lbl[i2].nameSz - 1)){
 						if(asmfile.flags & 0x08){
 							label(i2,4);
 						}
@@ -1543,37 +1575,51 @@ done:
 							}
 						}
 						else if(asmfile.file[i+3] == '*'){
-							if(asmfile.file[i] == 'a' && ((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h')){
-								if(asmfile.file[i+1] == 'l'){
-									AsmPD(0xa0,asciiToInt(i+4));
-								} 
-								else if(asmfile.file[i+1] == 'h'){
-
-									AsmPSD(0x8a,0x26,asciiToInt(i+4));
-								}
-								else{
-									AsmPD(0xa1,asciiToInt(i+4));
-								}
-							}
-							else if((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h'){
+							if(asmfile.file[i+4] == '$'){
 								switch(asmfile.file[i+1]){
 								case 'l':
-								case 'h':									
-									AsmPSD(0x8a,decodeReg3(asmfile.file[i],asmfile.file[i+1]),asciiToInt(i+4));
+								case 'h':
+									AsmP(0x8a,decodeReg3(asmfile.file[i],asmfile.file[i+1]) - 1);
 									break;
 								default:
-									AsmPSD(0x8b,decodeReg3(asmfile.file[i],asmfile.file[i+1]),asciiToInt(i+4));
+									AsmP(0x8b,decodeReg3(asmfile.file[i],asmfile.file[i+1]) - 1);
 									break;
 								}
+								accesVar(asmfile.file+i+5);
 							}
 							else{
-								if(asmfile.file[i+1] == 'x'){
-									AsmP(0x8b,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+								if(asmfile.file[i] == 'a' && ((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h')){
+									if(asmfile.file[i+1] == 'l'){
+										AsmPD(0xa0,asciiToInt(i+4));
+									} 
+									else if(asmfile.file[i+1] == 'h'){
+										AsmPSD(0x8a,0x26,asciiToInt(i+4));
+									}
+									else{
+										AsmPD(0xa1,asciiToInt(i+4));
+									}
+								}
+								else if((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h'){
+									switch(asmfile.file[i+1]){
+									case 'l':
+									case 'h':									
+										AsmPSD(0x8a,decodeReg3(asmfile.file[i],asmfile.file[i+1]),asciiToInt(i+4));
+										break;
+									default:
+										AsmPSD(0x8b,decodeReg3(asmfile.file[i],asmfile.file[i+1]),asciiToInt(i+4));
+										break;
+									}
 								}
 								else{
-									AsmP(0x8a,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+									if(asmfile.file[i+1] == 'x'){
+										AsmP(0x8b,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+									}
+									else{
+										AsmP(0x8a,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+									}
 								}
 							}
+							
 						}
 						else if(asmfile.file[i] == '*'){
 							if(asmfile.file[i+3] == 'a'){
@@ -1829,6 +1875,16 @@ done:
 						}
 						else{
 							AsmP(0x89,decodeReg3(asmfile.file[i+2],asmfile.file[i+3]) - 1);
+							accesVar(asmfile.file+t+1);
+						}
+					}
+					else{
+						if(asmfile.file[i+2] == 'a'){
+							Asm(0xa2);
+							accesVar(asmfile.file+t+1);
+						}
+						else{
+							AsmP(0x88,decodeReg3(asmfile.file[i+1],asmfile.file[i+2]) - 1);
 							accesVar(asmfile.file+t+1);
 						}
 					}
