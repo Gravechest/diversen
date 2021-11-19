@@ -151,74 +151,86 @@ char linking[] = {
 };
 
 void linkLabels(){
+	char *resize[lblCount];
+	for(int i = 0;i < lblCount;i++){
+		resize[i] = calloc(lbl[i].refC,1);
+		for(int i2 = 0;i2 < lbl[i].refC;i2++){
+			if(lbl[i].big[i2] == 1 && (lbl[i].pos - lbl[i].ref[i2] > 127 || lbl[i].pos - lbl[i].ref[i2] < -127)){
+				char b = 0;
+				if(asm[lbl[i].ref[i2]-1] == 0xffffffeb){
+					b = 3;
+					asm[lbl[i].ref[i2]-1] = 0xe9;
+					lbl[i].big[i2]+=3;
+					resize[i][i2] = 4;
+				}
+				else{
+					asm[lbl[i].ref[i2]] = asm[lbl[i].ref[i2]-1] + 0x10;
+					asm[lbl[i].ref[i2]-1] = 0x0f;
+					lbl[i].big[i2]+=4;
+					b = 4;
+					resize[i][i2] = 5;
+				}
+				asmOffset+=b;
+				for(int i4 = 0;i4 < b;i4++){
+					for(int i5 = asmOffset;i5 > lbl[i].ref[i2];i5--){	
+						asm[i5] = asm[i5-1];	
+					}
+					
+				}
+				for(int i4 = 0;i4 < lblCount;i4++){
+					for(int i5 = 0;i5 < lbl[i4].refC;i5++){
+						if(lbl[i4].ref[i5] > lbl[i].ref[i2]){
+							lbl[i4].ref[i5]+=b;
+						}
+					}
+					if(lbl[i4].pos > lbl[i].ref[i2]){
+						lbl[i4].pos+=b;
+					}
+				}
+				for(int i4 = 0;i4 < linkCount;i4++){
+					if(link[i4].pos > lbl[i].ref[i2]){
+						link[i4].pos+=b;
+					}
+				}
+				for(int i4 = 0;i4 < varCount;i4++){
+					for(int i5 = 0;i5 < var[i4].count;i5++){
+						if(var[i4].ref[i5] > lbl[i].ref[i2]){
+							var[i4].ref[i5]+=b;
+						}
+					}
+				}
+			}
+		}	
+	}
 	for(int i = 0;i < lblCount;i++){
 		for(int i2 = 0;i2 < lbl[i].refC;i2++){
-			char resize = 0;
+			char hlt = 0;
 			for(int i3 = 0;i3 < lbl[i].big[i2];i3++){
+				if(resize[i][i2] == 5 && !hlt){
+					i3++;
+					hlt = 1;
+				}
 				if(lbl[i].direct[i2]){
 					for(int i4 = 3;i4 >= 0;i4--){
 						asm[lbl[i].ref[i2] + i4] = lbl[i].pos + 0x00400150 >> i4 * 8;
 					}
 				}
 				else{
-					if(lbl[i].big[i2] == 1 && lbl[i].pos - lbl[i].ref[i2] > 127 || lbl[i].pos - lbl[i].ref[i2] < -127 && !resize){
-						int b = 0;
-						if(asm[lbl[i].ref[i2]-1] == 0xffffffeb){
-							b = 3;
-							asm[lbl[i].ref[i2]-1] = 0xe9;
-							lbl[i].big[i2]+=3;
-						}
-						else{
-							asm[lbl[i].ref[i2]] = asm[lbl[i].ref[i2]-1] + 0x10;
-							asm[lbl[i].ref[i2]-1] = 0x0f;
-							lbl[i].big[i2]+=4;
-							i3++;
-							b = 4;
-						}
-						resize+=b;
-						asmOffset+=b;
-						for(int i4 = 0;i4 < b;i4++){
-							for(int i5 = asmOffset;i5 > lbl[i].ref[i2] + i3;i5--){
-								asm[i5] = asm[i5-1];
-							}
-						}
-						for(int i4 = 0;i4 < lblCount;i4++){
-							for(int i5 = 0;i5 < lbl[i4].refC;i5++){
-								if(lbl[i4].ref[i5] > lbl[i].ref[i2] + i3){
-									lbl[i4].ref[i5]+=b;
-								}
-							}
-							if(lbl[i4].pos > lbl[i].ref[i2] + i3){
-								lbl[i4].pos+=b;
-							}
-						}
-						for(int i4 = 0;i4 < linkCount;i4++){
-							if(link[i4].pos > lbl[i].ref[i2] + i3){
-								link[i4].pos+=b;
-							}
-						}
-						for(int i4 = 0;i4 < varCount;i4++){
-							for(int i5 = 0;i5 < var[i4].count;i5++){
-								if(lbl[i4].pos > lbl[i].ref[i2] + i3){
-									var[i4].ref[i5]+=b;
-								}
-							}
-						}
-					}
-					if(resize && lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] < 0){
-						int val = lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] >> (5 - i3) * 8;
+					if(resize[i][i2] && lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] < 0){
+						int val = lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] >> (i3 - resize[i][i2]) * 8;
 						asm[lbl[i].ref[i2] + i3] = val;
 					}
 					else{
-						asm[lbl[i].ref[i2] + i3] = lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] << i3 * 8;
+						asm[lbl[i].ref[i2] + i3] = lbl[i].pos - lbl[i].ref[i2] - lbl[i].big[i2] >> i3 * 8;
 					}
-					
 				}
+				
 			}
-		}	
+		}
 	}
 }
 
+					
 void createBootloader(char* name){
 	asm = calloc(1474560,1);
 	file = fopen(name,"wb");
@@ -1344,7 +1356,7 @@ void main(){
 						break;
 					}
 				}
-done:
+			done:	
 				break;
 			case 'l':
 				switch(asmfile.file[i+2]){
@@ -1600,6 +1612,7 @@ done:
 									}
 								}
 								else if((asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a) || asmfile.file[i+4] == 'h'){
+	
 									switch(asmfile.file[i+1]){
 									case 'l':
 									case 'h':									
@@ -1611,15 +1624,24 @@ done:
 									}
 								}
 								else{
-									if(asmfile.file[i+1] == 'x'){
-										AsmP(0x8b,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+									if(asmfile.file[i+6] != ' ' && asmfile.file[i+6] != '\t' && asmfile.file[i+6] != '\r' && asmfile.file[i+6] != '\n'){
+										if(asmfile.file[i+1] == 'x'){
+											AsmP(0x8b,decodeRegReg(asmfile.file[i+5],asmfile.file[i+6],asmfile.file[i],asmfile.file[i+1]) - 0xc0);
+										}
+										else{
+											AsmP(0x8a,decodeRegReg(asmfile.file[i+5],asmfile.file[i+6],asmfile.file[i],asmfile.file[i+1]) - 0xc0);
+										}
 									}
 									else{
-										AsmP(0x8a,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+										if(asmfile.file[i+1] == 'x'){
+											AsmP(0x8b,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+										}
+										else{
+											AsmP(0x8a,decodeReg2(asmfile.file[i+4],asmfile.file[i+5],0,asmfile.file[i]));
+										}
 									}
 								}
 							}
-							
 						}
 						else if(asmfile.file[i] == '*'){
 							if(asmfile.file[i+3] == 'a'){
