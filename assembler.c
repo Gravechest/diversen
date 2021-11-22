@@ -15,6 +15,7 @@ int asmOffset;
 int dataOffset;
 int nameOffset;
 int lblamm;
+int dataGrote = 45;
 
 char *asm;
 char *fasm;
@@ -261,7 +262,9 @@ void closeBootloader(){
 }
 
 void createSection(int tsz,int dsz){
-	tsz -= (tsz % 4) - 4;
+	if(tsz % 4){
+		tsz -= (tsz % 4) - 4;
+	}
 	int flags[2] = {0xe0000020,0xc0000040};
 	char name[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 	fasm = calloc(tsz,1);
@@ -431,6 +434,7 @@ void closeExe(){
 			fasm[var[i].ref[i2]+3] = bob >> 24;
 		}
 		for(int i2 = 0;i2 < var[i].size;i2++){
+			printx(var[i].flags);
 			exedata[bufOffset2 + fset] = var[i].data[i2];
 			bufOffset2++;
 		}
@@ -552,10 +556,17 @@ void addLibrary(char *name){
 	libs[libsCount].name = malloc(size);
 	libs[libsCount].namesize = size;
 	memcpy(libs[libsCount].name,name,size);
+	if(size & 1){
+		dataGrote += 21 + size;
+	}
+	else{
+		dataGrote += 22 + size;
+	}
 	libsCount++;
 }
 
 void addFunction(char *name,int type){
+	dataGrote += 4;
 	int size = 0;
 	for(int i = 0;;i++){
 		if(name[i] == ' ' || name[i] == '\r' || name[i] == '\t' || name[i] == '\n'){
@@ -569,6 +580,12 @@ void addFunction(char *name,int type){
 	func[funcCount].namesize = size;
 	memcpy(func[funcCount].name,name,size);
 	funcCount++;
+	if(size & 1){
+		dataGrote += 10 + size;
+	}
+	else{
+		dataGrote += 11 + size;
+	}
 }
 
 void createVar(char *name,int size,int initval){
@@ -589,6 +606,7 @@ void createVar(char *name,int size,int initval){
 		var[varCount-1].data[i] = initval >> i * 8;
 	}
 	memcpy(var[varCount-1].name,name,sz2);
+	dataGrote += size;
 }
 
 void createVarS(char *name,char *str){
@@ -629,6 +647,7 @@ void createVarS(char *name,char *str){
 	var[varCount-1].count = 0;
 	memcpy(var[varCount-1].name,name,sz2);
 	memcpy(var[varCount-1].data,str,sz);
+	dataGrote += sz;
 }
 
 void accesVar(char *name){
@@ -1193,6 +1212,18 @@ void commonIns2(int i,int op){
 	}
 }
 
+void commonIns3(int i,int op){
+	if(asmfile.file[i+1] == 'x'){
+		AsmP(0xf7,decodeReg(asmfile.file[i],0) + 0xe0 + op);
+	}
+	else if(asmfile.file[i+2] != '\t' && asmfile.file[i+2] != '\r' && asmfile.file[i+2] != '\n' && asmfile.file[i+2] != ' '){
+		AsmP(0xf7,decodeReg(asmfile.file[i+1],0) + 0xe0 + op);
+	}
+	else{
+		AsmP(0xf6,decodeReg(asmfile.file[i],0) + 0xe0 + op);
+	}
+}
+
 void main(){
 	int buf = 0;
 	FILE *f = fopen("file.txt","rb");
@@ -1379,9 +1410,11 @@ void main(){
 			}
 			break;
 		case 'd':
-			i+=4;
-			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-			if(asmfile.file[i] == 'e'){
+			switch(asmfile.file[i + 1]){
+			case 'e':
+				i+=4;
+				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+				if(asmfile.file[i] == 'e'){
 					if(!asmfile.flags & 0x08){
 						Asm(0x66);
 					}
@@ -1393,6 +1426,13 @@ void main(){
 					}
 					Asm(decodeReg4(asmfile.file[i],asmfile.file[i+1]) + 0x48);
 				}
+				break;
+			case 'i':
+				i+=4;
+				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+				commonIns3(i,0x10);
+				break;
+			} 
 			break;
 		case 'h':
 			Asm(0xf4);
@@ -1414,6 +1454,11 @@ void main(){
 					}
 					Asm(decodeReg4(asmfile.file[i],asmfile.file[i+1]) + 0x40);
 				}
+				break;
+			case 'd':
+				i+=5;
+				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+				commonIns3(i,0x18);
 				break;
 			case 't':
 				i+=4;
@@ -1915,12 +1960,7 @@ void main(){
 			case 'u':
 				i+=4;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				if(asmfile.file[i+1] == 'x'){
-					AsmP(0xf7,decodeReg(asmfile.file[i],0) + 0xe0);
-				}
-				else{
-					AsmP(0xf6,decodeReg(asmfile.file[i],0) + 0xe0);
-				}
+				commonIns(i,0);
 				break;
 			}
 			break;
@@ -2227,7 +2267,7 @@ void main(){
 		closeBootloader();
 	}
 	else{
-		createSection(asmOffset,600);
+		createSection(asmOffset,dataGrote);
 		closeExe();
 	}
 	if(optHeader[68] == 3){
