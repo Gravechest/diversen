@@ -436,7 +436,6 @@ void closeExe(){
 	int fset = 0;
 	for(int i = 0;i < varCount;i++){
 		for(int i2 = 0;i2 < var[i].count;i2++){
-			printx(bob);
 			fasm[var[i].ref[i2]] = bob;
 			fasm[var[i].ref[i2]+1] = bob >> 8;
 			fasm[var[i].ref[i2]+2] = bob >> 16;
@@ -553,7 +552,12 @@ void callFunction(char *funct){
 }
 
 void addLibrary(char *name){
-	libs = realloc(libs,sizeof(libs) * (libsCount + 1));
+	if(!libsCount){
+		libs = malloc(sizeof(LIBRARY));
+	}
+	else{
+		libs = realloc(libs,sizeof(LIBRARY) * (libsCount + 1));
+	}
 	int size = 0;
 	for(int i = 0;;i++){
 		if(name[i] == ' ' || name[i] == '\r' || name[i] == '\t' || name[i] == '\n'){
@@ -1388,7 +1392,7 @@ void main(){
 				case 'a':
 					Asm(0x37);
 					break;
-				case 's':'
+				case 's':
 					Asm(0x3f);
 					break;
 				}
@@ -2022,7 +2026,7 @@ void main(){
 					}
 					break;
 				}
-				
+				break;
 			case 'u':
 				i+=4;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
