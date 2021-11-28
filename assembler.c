@@ -155,7 +155,6 @@ char linking[] = {
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,		//delay import descriptors
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,		//com runtime discriptor
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00      	//reserverd
-	
 };
 
 void linkLabels(){
@@ -1026,31 +1025,35 @@ char decodeRegReg(char v1,char v2,char v3,char v4){
 }
 
 char decodeReg4(char v1,char v2){
+	int mod = 0;
+	if(v2 == 'h'){
+		mod += 4;
+	}
 	switch(v1){
 	case 'a':
-		return 0;
+		return 0 + mod;
 	case 'b':
 		switch(v2){
 		case 'p':
-			return 5;
+			return 5 + mod;
 		case 'x':
-			return 3;
+			return 3 + mod;
 		}
 	case 'c':
-		return 1;
+		return 1 + mod;
 	case 'd':
 		switch(v2){
 		case 'i':
-			return 7;
+			return 7 + mod;
 		case 'x':
-			return 2;
+			return 2 + mod;
 		}
 	case 's':
 		switch(v2){
 		case 'i':
-			return 6;
+			return 6 + mod;
 		case 'p':
-			return 4;
+			return 4 + mod;
 		}
 	}
 }
@@ -1673,6 +1676,14 @@ void main(){
 						if(asmfile.file[i+4] == '*'){
 							
 						}
+						else{
+							if(asmfile.file[i+5] == 'l' || asmfile.file[i+5] == 'h'){
+								AsmPS(0x0f,0xb6,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]));
+							}
+							else{
+
+							}
+						}
 					}
 					break;
 				default:
@@ -2035,7 +2046,35 @@ void main(){
 			}
 			break;
 		case 'n':
-			Asm(0x90);
+			switch(asmfile.file[i+1]){
+			case 'e':
+				i+=4;
+				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+				if(asmfile.file[i+2] == ' ' || asmfile.file[i+2] == '\t' || asmfile.file[i+2] == '\r' || asmfile.file[i+2] == '\n'){
+					AsmP(0xf6,decodeReg4(asmfile.file[i],asmfile.file[i+1]) + 0xd8);
+				}
+				else{
+					AsmP(0xf7,decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0xd8);
+				}
+				break;
+			case 'o':
+				switch(asmfile.file[i+2]){
+				case 'p':
+					Asm(0x90);
+					break;
+				case 't':
+					i+=4;
+					for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+					if(asmfile.file[i+2] == ' ' || asmfile.file[i+2] == '\t' || asmfile.file[i+2] == '\r' || asmfile.file[i+2] == '\n'){
+						AsmP(0xf6,decodeReg4(asmfile.file[i],asmfile.file[i+1]) + 0xd0);
+					}
+					else{
+						AsmP(0xf7,decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0xd0);
+					}
+					break;
+				}
+				break;
+			}
 			break;
 		case 'o':
 			switch(asmfile.file[i+1]){
