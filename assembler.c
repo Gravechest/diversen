@@ -947,6 +947,9 @@ char decodeP(char v1){
 
 char decodeRegReg(char v1,char v2,char v3,char v4){
 	int result = 0xc0;
+	if(v2 == 'h'){
+		result+=4;
+	}
 	switch(v1){
 	case 'b':
 		switch(v2){
@@ -1678,7 +1681,7 @@ void main(){
 						}
 						else{
 							if(asmfile.file[i+5] == 'l' || asmfile.file[i+5] == 'h'){
-								AsmPS(0x0f,0xb6,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]));
+								AsmPS(0x0f,0xb6,decodeRegReg(asmfile.file[i+4],asmfile.file[i+5],asmfile.file[i+1],asmfile.file[i+2]));
 							}
 							else{
 
@@ -2271,7 +2274,14 @@ void main(){
 		case 'r':
 			switch(asmfile.file[i+2]){
 			case 't':
-				Asm(0xc3);
+				switch(asmfile.file[i+3]){
+				case 's':
+					AsmP(0x0f,0x31);
+					break;
+				default:
+					Asm(0xc3);
+					break;
+				}
 				break;
 			case 'r':
 				i+=6;
