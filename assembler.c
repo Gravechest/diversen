@@ -1358,6 +1358,7 @@ void main(){
 		createExe(asmfile.name,2);
 	}
 	for(int i = 0;i < size;i++){
+		printf("%c\n",asmfile.file[i]);
 		switch(asmfile.file[i]){
 		case '%':
 			if(!memcmp(asmfile.file+i,"%label",6)){
@@ -1444,6 +1445,14 @@ void main(){
 				}
 			done:
 				break;
+			case 'b':
+				if(asmfile.flags & 0x08){
+					AsmP(0x66,0x98);
+				}
+				else{
+					Asm(0x98);
+				}
+				break;
 			case 'l':
 				switch(asmfile.file[i+2]){
 				case 'c':
@@ -1462,6 +1471,13 @@ void main(){
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
 				commonIns(i,56);
 				break;
+			case 'w':
+				if(asmfile.flags & 0x08){
+					Asm(0x98);
+				}
+				else{
+					AsmP(0x66,0x98);
+				}
 			}
 			break;
 		case 'd':
@@ -2346,12 +2362,12 @@ void main(){
 			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
 			if(asmfile.file[i+2] == ','){
 				switch(asmfile.file[i+1]){
-					case 'l':
-						AsmP(0xa8,asciiToInt(i+3));
-						break;
-					case 'x':
-						AsmPD(0xa9,asciiToInt(i+3));
-						break;
+				case 'l':
+					AsmP(0xa8,asciiToInt(i+3));
+					break;
+				case 'x':
+					AsmPD(0xa9,asciiToInt(i+3));
+					break;
 				}
 			}
 			else{
