@@ -1228,16 +1228,11 @@ void commonIns2(int i,int op){
 		}
 	}
 	else{
-		switch(asmfile.file[i+1]){
-		case 'l':
-			AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x20 + op);
-			break;
-		case 'h':
-			AsmP(0xd0,decodeRegReg(asmfile.file[i],0,0,0) + 0x24 + op);
-			break;
-		default:
+		if(asmfile.file[i+4] > 0x2f && asmfile.file[i+4] < 0x3a){
+			AsmPS(0xc1,decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0xe8 + op,asciiToInt(i+4));
+		}
+		else{
 			AsmP(0xd1,decodeRegReg(asmfile.file[i],asmfile.file[i+1],0,0) + 0x20 + op);
-			break;
 		}
 	}
 }
@@ -2349,8 +2344,7 @@ void main(){
 		case 't':
 			i+=5;
 			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-			switch(asmfile.file[i]){
-			case 'a':
+			if(asmfile.file[i+2] == ','){
 				switch(asmfile.file[i+1]){
 					case 'l':
 						AsmP(0xa8,asciiToInt(i+3));
@@ -2359,10 +2353,9 @@ void main(){
 						AsmPD(0xa9,asciiToInt(i+3));
 						break;
 				}
-				break;
-			case 'e':
-				AsmPD(0xa9,asciiToInt(i+4));
-				break;
+			}
+			else{
+				AsmPQ(0xa9,asciiToInt(i+4));
 			}
 			break;
 		case 'x':
@@ -2391,6 +2384,7 @@ void main(){
 			i++;
 		}
 	}
+	linkLabels();
 	for(int i = 0;i < varafCount;i++){
 		for(int i2 = 0;i2 < varCount;i2++){
 			if(!memcmp(varaf[i].name2,var[i2].name,var[i2].size)){
@@ -2408,7 +2402,6 @@ void main(){
 			}
 		}
 	}
-	linkLabels();
 	if(asmfile.flags & 0x01){
 		closeBootloader();
 	}
