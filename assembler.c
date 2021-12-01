@@ -25,6 +25,7 @@ FILE *file;
 
 typedef struct VARIABLE{
 	int size;
+	int nmsize;
 	int *ref;
 	int count;
 	char flags;
@@ -78,6 +79,7 @@ int funcCount;
 int linkCount;
 int varCount;
 int varafCount;
+int varaf2Count;
 int lblCount;
 
 LIBRARY *libs;
@@ -85,6 +87,7 @@ FUNCTION *func;
 FLINKING *link;
 VARIABLE *var;
 VARAF *varaf;
+VARAF *varaf2;
 LABEL *lbl;
 
 ASMFILE asmfile;
@@ -434,6 +437,19 @@ void closeExe(){
 	int bob = bufOffset2 + 0x00400000 + dataOffset;
 	int fset = 0;
 	for(int i = 0;i < varCount;i++){
+		for(int i2 = 0;i2 < varaf2Count;i2++){
+			if(!memcmp(varaf2[i2].name,var[i].name,var[i].nmsize)){
+				for(int i3 = 0;i3 < varCount;i3++){
+					if(!memcmp(varaf2[i2].name2,var[i3].name,var[i3].nmsize)){
+						var[i3].data[0] = bob;
+						var[i3].data[1] = bob >> 8;
+						var[i3].data[2] = bob >> 16;
+						var[i3].data[3] = bob >> 24;
+						break;
+					}
+				}
+			}
+		}
 		for(int i2 = 0;i2 < var[i].count;i2++){
 			fasm[var[i].ref[i2]] = bob;
 			fasm[var[i].ref[i2]+1] = bob >> 8;
@@ -443,7 +459,7 @@ void closeExe(){
 		for(int i2 = 0;i2 < var[i].size;i2++){
 			exedata[bufOffset2 + fset] = var[i].data[i2];
 			bufOffset2++;
-		}
+		} 
 		if(var[i].flags & 0x01){
 			bob++;
 			fset++;
@@ -611,6 +627,7 @@ void createVar(char *name,int size,int initval){
 	}
 	var[varCount-1].size = size;
 	var[varCount-1].name = calloc(sz2 + 1,1);
+	var[varCount-1].nmsize = sz2 + 1;
 	var[varCount-1].count = 0;
 	var[varCount-1].data = malloc(size);
 	for(int i = 0;i < size && i < 4;i++){
@@ -655,6 +672,7 @@ void createVarS(char *name,char *str){
 	var[varCount-1].data = calloc(sz + 1,1);
 	var[varCount-1].flags |= 0x01;
 	var[varCount-1].name = calloc(sz2 + 1,1);
+	var[varCount-1].nmsize = sz2 + 1;
 	var[varCount-1].count = 0;
 	memcpy(var[varCount-1].name,name,sz2);
 	memcpy(var[varCount-1].data,str,sz);
@@ -1250,7 +1268,6 @@ void commonIns3(int i,int op){
 }
 
 void main(){
-	printf("%i\n",sizeof(WNDCLASSEX));
 	int buf = 0;
 	FILE *f = fopen("file.txt","rb");
 	fseek(f,0,SEEK_END);
@@ -1305,7 +1322,7 @@ void main(){
 			else{
 				int vl = asciiToInt(i);
 				for(;asmfile.file[i] > 0x2f && asmfile.file[i] < 0x3a;i++){}
-				for(;(asmfile.file[i] < 0x2f || asmfile.file[i] > 0x3a) && asmfile.file[i] != '~';i++){}
+				for(;(asmfile.file[i] < 0x2f || asmfile.file[i] > 0x3a) && asmfile.file[i] != '~' && asmfile.file[i] != '$';i++){}
 				int vl2 = 0;
 				if(asmfile.file[i] == '~'){
 					i++;
@@ -1318,11 +1335,28 @@ void main(){
 					int sz2 = i;
 					for(;asmfile.file[sz2] != ' ' && asmfile.file[sz2] != '\n' && asmfile.file[sz2] != '\r' && asmfile.file[sz2] != '\t';sz2++){}
 					sz2 -= i;
-					varaf[varafCount].name = calloc(sz2+1,1);
-					varaf[varafCount].name2 = calloc(sz+1,1);
+					varaf[varafCount].name = calloc(sz2+40,1);
+					varaf[varafCount].name2 = calloc(sz+40,1);
 					memcpy(varaf[varafCount].name,asmfile.file+i,sz2);
 					memcpy(varaf[varafCount].name2,nm,sz);
 					varafCount++;
+				}
+				else if(asmfile.file[i] == '$'){
+					i++;
+					if(!varaf2Count){
+						varaf2 = malloc(sizeof(VARAF));
+					}
+					else{
+						varaf2 = realloc(varaf2,sizeof(VARAF) * (varaf2Count + 1));
+					}
+					int sz2 = i;
+					for(;asmfile.file[sz2] != ' ' && asmfile.file[sz2] != '\n' && asmfile.file[sz2] != '\r' && asmfile.file[sz2] != '\t';sz2++){}
+					sz2 -= i;
+					varaf2[varaf2Count].name = calloc(sz2+40,1);
+					varaf2[varaf2Count].name2 = calloc(sz+40,1);
+					memcpy(varaf2[varaf2Count].name,asmfile.file+i,sz2);
+					memcpy(varaf2[varaf2Count].name2,nm,sz);
+					varaf2Count++;
 				}
 				else{
 					vl2 = asciiToInt(i);
@@ -1358,7 +1392,6 @@ void main(){
 		createExe(asmfile.name,2);
 	}
 	for(int i = 0;i < size;i++){
-		printf("%c\n",asmfile.file[i]);
 		switch(asmfile.file[i]){
 		case '%':
 			if(!memcmp(asmfile.file+i,"%label",6)){
@@ -2152,6 +2185,10 @@ void main(){
 						else{
 							AsmP(0xff,decodeReg4(asmfile.file[i+2],asmfile.file[i+3]) + 0x30);
 						}
+					}
+					else if(asmfile.file[i+1] == '$'){
+						AsmP(0xff,0x35);
+						accesVar(asmfile.file+i+2);
 					}
 				}
 				else{
