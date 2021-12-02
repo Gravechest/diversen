@@ -64,8 +64,8 @@ typedef struct LABEL{
 
 typedef struct ASMFILE{
 	char *name;
-	char flags;
 	char *file;
+	char flags;
 	int csize;
 }ASMFILE;
 
@@ -74,6 +74,12 @@ typedef struct VARAF{
 	char *name2;
 }VARAF;
 
+typedef struct DEFINE{
+	char *name;
+	int namesz;
+	int val;
+}DEFINE;
+
 int libsCount;
 int funcCount;
 int linkCount;
@@ -81,6 +87,7 @@ int varCount;
 int varafCount;
 int varaf2Count;
 int lblCount;
+int defCount;
 
 LIBRARY *libs;
 FUNCTION *func;
@@ -89,6 +96,7 @@ VARIABLE *var;
 VARAF *varaf;
 VARAF *varaf2;
 LABEL *lbl;
+DEFINE *define;
 
 ASMFILE asmfile;
 
@@ -779,6 +787,13 @@ int asciiToInt(int p){
 		p++;
 		hex = 1;
 	}
+	else if(asmfile.file[p] == '!'){
+		for(int i = 0;i < defCount;i++){
+			if(!memcmp(asmfile.file+p+1,define[i].name,define[i].namesz)){
+				return define[i].val;
+			}
+		}
+	}
 	for(int i = p;;i++){
 		if(asmfile.file[i] == ' ' || asmfile.file[i] == '\n' || asmfile.file[i] == '\r'){
 			sz = i;
@@ -1322,7 +1337,7 @@ void main(){
 			else{
 				int vl = asciiToInt(i);
 				for(;asmfile.file[i] > 0x2f && asmfile.file[i] < 0x3a;i++){}
-				for(;(asmfile.file[i] < 0x2f || asmfile.file[i] > 0x3a) && asmfile.file[i] != '~' && asmfile.file[i] != '$';i++){}
+				for(;(asmfile.file[i] < 0x2f || asmfile.file[i] > 0x3a) && asmfile.file[i] != '~' && asmfile.file[i] != '$' && asmfile.file[i] != '!';i++){}
 				int vl2 = 0;
 				if(asmfile.file[i] == '~'){
 					i++;
@@ -1367,12 +1382,31 @@ void main(){
 		else if(!memcmp(asmfile.file+i,"%label",6)){
 			i+=6;
 			int sz = 0;
-			for(;asmfile.file[i] == ' ';i++){}
+			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
 			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\r' && asmfile.file[i+sz] != '\n';sz++){}
 			char *name = calloc(sz + 1,1);
 			memcpy(name,asmfile.file+i,sz);
 			createLabel(name);
 			free(name);
+		}
+		else if(!memcmp(asmfile.file+i,"%def",4)){
+			if(!defCount){
+				define = malloc(sizeof(DEFINE));
+			}
+			else{
+				define = realloc(define,sizeof(DEFINE) * (defCount + 1));
+			}
+			i+=4;
+			int sz = 0;
+			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+			for(;asmfile.file[i+sz] != ' ' && asmfile.file[i+sz] != '\t';sz++){}
+			define[defCount].name = calloc(sz+1,1);
+			memcpy(define[defCount].name,asmfile.file+i,sz);
+			i+=sz;
+			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+			define[defCount].val = asciiToInt(i);
+			define[defCount].namesz = sz;
+			defCount++;
 		}
 		for(;asmfile.file[i] != '\n' && i < size;i++){}
 	}
@@ -1939,6 +1973,18 @@ void main(){
 									}
 								}
 							}
+							else if(asmfile.file[i+3] == '+'){
+								int val = asciiToInt(i+4);
+								int srch = i + 5;
+								while(asmfile.file[srch] != ','){srch++;}
+								if(asmfile.file[srch+3] == ' ' || asmfile.file[srch+3] == '\t' || asmfile.file[srch+3] == '\n' || asmfile.file[srch+3] == '\r'){
+									AsmPS(0x88,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[srch+1],asmfile.file[srch+2])-0x80,val);
+								}
+								else{
+									AsmPS(0x89,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[srch+2],asmfile.file[srch+3])-0x80,val);
+								}
+								
+							}
 							else{
 								AsmP(0x89,decodeReg2(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+7]));
 							}
@@ -1956,7 +2002,7 @@ void main(){
 								accesVar(asmfile.file+i+6);
 							}
 							else{
-								AsmP(0x8b,decodeRegReg(asmfile.file[i+5],asmfile.file[i+6],asmfile.file[i+1],asmfile.file[i+2]) - 0xc0);
+								AsmP(0x8b,decodeRegReg(asmfile.file[i+6],asmfile.file[i+7],asmfile.file[i+1],asmfile.file[i+2]) - 0xc0);
 							}
 						}
 						else if(asmfile.file[i+4] == '$'){
@@ -2152,7 +2198,7 @@ void main(){
 			case 'u':
 				i+=5;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x39) || asmfile.file[i] == 'h'){
+				if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x39) || asmfile.file[i] == 'h' || asmfile.file[i] == '!'){
 					int buf = asciiToInt(i);
 					int cmp = 0;
 					if(asmfile.file[i] == 'h'){
