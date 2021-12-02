@@ -1859,7 +1859,6 @@ void main(){
 								}
 							}
 							else{
-								
 								switch(asmfile.file[i+1]){
 								case 'l':
 									AsmP(0x88,decodeRegReg(asmfile.file[i],asmfile.file[i+1],asmfile.file[i+3],asmfile.file[i+4]));
@@ -1874,6 +1873,9 @@ void main(){
 							}
 						}
 						else{
+							if(asmfile.file[i+1] == 'x' && asmfile.flags & 0x08){
+								Asm(0x66);
+							}
 							int buf = 0xb0;
 							switch(asmfile.file[i+1]){
 							case 'i':
@@ -1935,7 +1937,10 @@ void main(){
 							}
 						}
 						else if(asmfile.file[i] == 'e' && asmfile.file[i+3] == ','){
-							if(asmfile.file[i+6] == ' ' || asmfile.file[i+6] == '\n' || asmfile.file[i+6] == '\r' || asmfile.file[i+6] == '\t'){
+							if(asmfile.file[i+5] == 'x'){
+								AsmPS(0x66,0x89,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]) - 0xc0);
+							}
+							else if(asmfile.file[i+6] == ' ' || asmfile.file[i+6] == '\n' || asmfile.file[i+6] == '\r' || asmfile.file[i+6] == '\t'){
 								AsmP(0x88,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+4],asmfile.file[i+5]) - 0xc0);
 							}
 							else{
@@ -2235,6 +2240,15 @@ void main(){
 					else if(asmfile.file[i+1] == '$'){
 						AsmP(0xff,0x35);
 						accesVar(asmfile.file+i+2);
+					}
+				}
+				else if(asmfile.file[i] == '~'){
+					for(int i2 = 0;i2 < lblCount;i2++){
+						if(!memcmp(asmfile.file+i+1,lbl[i2].name,lbl[i2].nameSz)){
+							Asm(0x68);
+							label(i2,0);
+							break;
+						}	
 					}
 				}
 				else{
