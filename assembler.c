@@ -1280,13 +1280,16 @@ void commonIns2(int i,int op){
 
 void commonIns3(int i,int op){
 	if(asmfile.file[i+1] == 'x'){
-		AsmP(0xf7,decodeReg(asmfile.file[i],0) + 0xe0 + op);
+		if(asmfile.flags & 0x08){
+			Asm(0x66);
+		}
+		AsmP(0xf7,decodeReg(asmfile.file[i],0) + 0xc0 + op);
 	}
-	else if(asmfile.file[i+2] != '\t' && asmfile.file[i+2] != '\r' && asmfile.file[i+2] != '\n' && asmfile.file[i+2] != ' '){
-		AsmP(0xf7,decodeReg(asmfile.file[i+1],0) + 0xe0 + op);
+	else if(asmfile.file[i+2] == 'x'){
+		AsmP(0xf7,decodeReg(asmfile.file[i+1],0) + 0xc0 + op);
 	}
 	else{
-		AsmP(0xf6,decodeReg(asmfile.file[i],0) + 0xe0 + op);
+		AsmP(0xf6,decodeReg(asmfile.file[i],0) + 0xc0 + op);
 	}
 }
 
@@ -1496,16 +1499,21 @@ void main(){
 			
 			break;
 		case 'b':
-			i+=3;
-			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-			if(asmfile.file[i+3] == ','){
-				if(asmfile.file[i+4] == 'e'){
-					AsmPS(0x0f,0xa3,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+5],asmfile.file[i+6]));
+			switch(asmfile.file[i+2]){
+			default:
+				i+=3;
+				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+				if(asmfile.file[i+3] == ','){
+					if(asmfile.file[i+4] == 'e'){
+						AsmPS(0x0f,0xa3,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+5],asmfile.file[i+6]));
+					}
+					else{
+						AsmPSS(0x0f,0xba,decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0xe0,asciiToInt(i+4));
+					}
 				}
-				else{
-					AsmPSS(0x0f,0xba,decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0xe0,asciiToInt(i+4));
-				}
+				break;
 			}
+
 			break;
 		case 'c':
 			switch(asmfile.file[i+1]){
@@ -2182,7 +2190,7 @@ void main(){
 			case 'u':
 				i+=4;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				commonIns(i,0);
+				commonIns3(i,0x20);
 				break;
 			}
 			break;
@@ -2412,8 +2420,8 @@ void main(){
 						break;
 					case 'i':
 						Asm(0x5e);
+						break;
 					}
-					Asm(0x54);
 					break;
 				case 'e':
 					Asm(0x07);
