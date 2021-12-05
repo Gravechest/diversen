@@ -551,6 +551,14 @@ void AsmPSQ(char val,char val2,int val3){
 	asmOffset+=6; 
 }
 
+void AsmPSS(char val,char val2,char val3,char val4){
+	asm[asmOffset] = val;
+	asm[asmOffset+1] = val2;
+	asm[asmOffset+2] = val3;
+	asm[asmOffset+3] = val4;
+	asmOffset+=4;
+}
+
 void AsmPQ(char val,int val2){
 	asm[asmOffset] = val;
 	asm[asmOffset+1] = val2;
@@ -780,7 +788,7 @@ int exp16(int val,int times){
 	return val;
 }
 
-int asciiToInt(int p){
+unsigned int asciiToInt(int p){
 	int sz = 0;
 	char hex = 0;
 	if(asmfile.file[p] == 'h'){
@@ -804,7 +812,7 @@ int asciiToInt(int p){
 			break;
 		}
 	}
-	int result = 0;
+	unsigned int result = 0;
 	if(hex){
 		for(int i = p;i < sz;i++){
 			if(asmfile.file[i] < 0x30 || asmfile.file[i] > 0x39){
@@ -1487,6 +1495,18 @@ void main(){
 			}
 			
 			break;
+		case 'b':
+			i+=3;
+			for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+			if(asmfile.file[i+3] == ','){
+				if(asmfile.file[i+4] == 'e'){
+					AsmPS(0x0f,0xa3,decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+5],asmfile.file[i+6]));
+				}
+				else{
+					AsmPSS(0x0f,0xba,decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0xe0,asciiToInt(i+4));
+				}
+			}
+			break;
 		case 'c':
 			switch(asmfile.file[i+1]){
 			case 'a':
@@ -1534,9 +1554,32 @@ void main(){
 				}
 				break;
 			case 'm':
-				i+=4;
-				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
-				commonIns(i,56);
+				switch(asmfile.file[i+2]){
+				case 'o':
+					Asm(0x0f);
+					switch(asmfile.file[i+4]){
+					case 'e':
+						Asm(0x44);
+						i+=5;
+						break;
+					}
+					for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+					if(asmfile.file[i+3] == ','){
+						if(asmfile.file[i+4] == '$'){
+							Asm(decodeReg4(asmfile.file[i+1],asmfile.file[i+2]));
+							accesVar(asmfile.file+i+5);
+						}
+						else{
+							Asm(decodeRegReg(asmfile.file[i+1],asmfile.file[i+2],asmfile.file[i+5],asmfile.file[i+6]));
+						}
+					}
+					break;
+				case 'p': 
+					i+=4;
+					for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
+					commonIns(i,56);
+					break;			
+				}
 				break;
 			case 'w':
 				if(asmfile.flags & 0x08){
@@ -2204,8 +2247,8 @@ void main(){
 				i+=5;
 				for(;asmfile.file[i] == ' ' || asmfile.file[i] == '\t';i++){}
 				if((asmfile.file[i] > 0x2f && asmfile.file[i] < 0x39) || asmfile.file[i] == 'h' || asmfile.file[i] == '!'){
-					int buf = asciiToInt(i);
-					int cmp = 0;
+					unsigned int buf = asciiToInt(i);
+					unsigned int cmp = 0;
 					if(asmfile.file[i] == 'h'){
 						cmp = 256;
 					}
@@ -2468,7 +2511,12 @@ void main(){
 				}
 			}
 			else{
-				AsmPQ(0xa9,asciiToInt(i+4));
+				if(asmfile.file[i+1] == 'a'){
+					AsmPQ(0xa9,asciiToInt(i+4));
+				}
+				else{
+					AsmPSQ(0xf7,decodeReg4(asmfile.file[i+1],asmfile.file[i+2]) + 0xc0,asciiToInt(i+4));
+				}
 			}
 			break;
 		case 'x':
