@@ -3,26 +3,34 @@
 #include <immintrin.h>
 #include <intrin.h>
 
-#define resX 256
-#define resY 256
+#define resX 512
+#define resY 512
 
-#define cellC 3*1000000
+#define Bound 0x3ffff
 
 unsigned char *heap;
 unsigned char *map;
+unsigned char *gui;
+
+char selected;
 
 const char name[] = "meuk2";
 HWND window;
 HDC dc;
 MSG Msg;
-BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),resX,resY,1,32,BI_RGB };
+BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),resY,resX,1,32,BI_RGB };
+BITMAPINFO bmi2 = { sizeof(BITMAPINFOHEADER),128,resX*2,1,32,BI_RGB };
 
 long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
+	switch(msg){
+	case WM_CLOSE:
+		exit(0);
+	}
 	return DefWindowProc(hwnd,msg,wParam,lParam);
 }
 
 WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
-unsigned int t = 0;
+unsigned short t = 0;
 
 inline int mabs(int val){
 	if(val < 0){
@@ -52,19 +60,7 @@ inline void fill(int i,int r,int g,int b){
 	}
 }
 
-inline char collision(int x,int y){
-	if(map[(x >> 7 & 0xffe0) + (y >> 12)]){
-		if((x & 0x5f) > (y & 0x5f)){
-			return 1;
-		}
-		else{
-			return 2;
-		}
-	}
-	return 0;
-}
-
-void light(unsigned char cx,unsigned char cy,char r,char g,char b){
+void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 	int ins = r + g + b << 4;
 	int x = 0;
     int y = 0;
@@ -85,37 +81,40 @@ void light(unsigned char cx,unsigned char cy,char r,char g,char b){
 		for(;;){
 			rx += x;
 			ry += y;
-			if(rx > 0x1ffff || ry > 0x1ffff || rx < 0 || ry < 0){
+			if(rx > Bound || ry > Bound || rx < 0 || ry < 0){
 				break;
 			}
-			switch(collision(rx,ry)){
-			case 1:
-				x = -x;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;	
-				if(rt + gt + bt == 0){
-					goto end1;
+			char val = map[(rx >> 6 & 0xffc0) + (ry >> 12)];
+			if(val){
+				if(val & 1){
+					if((rx & 0xfff) < (ry & 0xfff)){
+						x = -x;
+					}
+					else{
+						y = -y;			
+					}
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 4 - (val >> 5 & 3);
+					gt >>= 4 - (val >> 3 & 3);
+					bt >>= 4 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			case 2:
-				y = -y;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;
-				if(rt + gt + bt == 0){
-					goto end1;
+				else{
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 1 - (val >> 5 & 3);
+					gt >>= 1 - (val >> 3 & 3);
+					bt >>= 1 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			default:
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt,gt,rt);
-				break;
+			}
+			else{
+				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt,gt,rt);
 			}
 		}
-		end1:
-			continue;
 	}
 	for(;i < 1024;i++){
 		char rt = r;
@@ -133,37 +132,40 @@ void light(unsigned char cx,unsigned char cy,char r,char g,char b){
 		for(;;){
 			rx += x;
 			ry += y;
-			if(rx > 0x1ffff|| ry < 0 || rx < 0 || ry > 0x1ffff){
+			if(rx > Bound || ry > Bound || rx < 0 || ry < 0){
 				break;
 			}
-			switch(collision(rx,ry)){
-			case 1:
-				x = -x;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;
-				if(rt + gt + bt == 0){
-					goto end2;
+			char val = map[(rx >> 6 & 0xffc0) + (ry >> 12)];
+			if(val){
+				if(val & 1){
+					if((rx & 0xfff) < (ry & 0xfff)){
+						x = -x;
+					}
+					else{
+						y = -y;			
+					}
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 4 - (val >> 5 & 3);
+					gt >>= 4 - (val >> 3 & 3);
+					bt >>= 4 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			case 2:
-				y = -y;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;
-				if(rt + gt + bt == 0){
-					goto end2;
+				else{
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 1 - (val >> 5 & 3);
+					gt >>= 1 - (val >> 3 & 3);
+					bt >>= 1 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			default:
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt,gt,rt);
-				break;
+			}
+			else{
+				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt,gt,rt);
 			}
 		}
-	end2:
-		continue;
 	}
 	for(;i < 1536;i++){
 		char rt = r;
@@ -181,37 +183,40 @@ void light(unsigned char cx,unsigned char cy,char r,char g,char b){
 		for(;;){
 			rx += x;
 			ry += y;
-			if(rx < 0 || ry < 0 || rx > 0x1ffff || ry > 0x1ffff){
+			if(rx > Bound || ry > Bound || rx < 0 || ry < 0){
 				break;
 			}
-			switch(collision(rx,ry)){
-			case 1:
-				x = -x;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;
-				if(rt + gt + bt == 0){
-					goto end3;
+			char val = map[(rx >> 6 & 0xffc0) + (ry >> 12)];
+			if(val){
+				if(val & 1){
+					if((rx & 0xfff) < (ry & 0xfff)){
+						x = -x;
+					}
+					else{
+						y = -y;			
+					}
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 4 - (val >> 5 & 3);
+					gt >>= 4 - (val >> 3 & 3);
+					bt >>= 4 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			case 2:
-				y = -y;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;
-				if(rt + gt + bt == 0){
-					goto end3;
+				else{
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 1 - (val >> 5 & 3);
+					gt >>= 1 - (val >> 3 & 3);
+					bt >>= 1 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			default:
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt,gt,rt);
-				break;
+			}
+			else{
+				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt,gt,rt);
 			}
 		}
-	end3:
-		continue;
 	}
 	for(;i < 2048;i++){
 		char rt = r;
@@ -229,68 +234,123 @@ void light(unsigned char cx,unsigned char cy,char r,char g,char b){
 		for(;;){
 			rx += x;
 			ry += y;
-			if(rx < 0 || ry > 0x1ff00 || rx > 0x1ffff|| ry < 0){
+			if(rx > Bound || ry > Bound || rx < 0 || ry < 0){
 				break;
 			}
-			switch(collision(rx,ry)){
-			case 1:
-				x = -x;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;
-				if(rt + gt + bt == 0){
-					goto end4;
+			char val = map[(rx >> 6 & 0xffc0) + (ry >> 12)];
+			if(val){
+				if(val & 1){
+					if((rx & 0xfff) < (ry & 0xfff)){
+						x = -x;
+					}
+					else{
+						y = -y;			
+					}
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 4 - (val >> 5 & 3);
+					gt >>= 4 - (val >> 3 & 3);
+					bt >>= 4 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			case 2:
-				y = -y;
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt << 3,gt << 3,rt << 3);
-				rt >>= 1;
-				gt >>= 1;
-				bt >>= 1;
-				if(rt + gt + bt == 0){
-					goto end4;
+				else{
+					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
+					rt >>= 1 - (val >> 5 & 3);
+					gt >>= 1 - (val >> 3 & 3);
+					bt >>= 1 - (val >> 1 & 3);
+					if(rt + gt + bt == 0){
+						break;
+					}
 				}
-				break;
-			default:
-				fill(((rx >> 1 & 0xff00) + (ry >> 9)) << 2,bt,gt,rt);
-				break;
+			}
+			else{
+				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt,gt,rt);
+			}
+		}		
+	}
+}
+
+inline void square(int x,int y,int s,char r,char g,char b){
+	x <<= 9;
+	y <<= 2;
+	for(int i = x;i < x + (s << 9);i += 512){
+		for(int i2 = y;i2 < y + (s << 2);i2+=4){
+			gui[i+i2] = r;
+			gui[i+i2+1] = g;
+			gui[i+i2+2] = b;
+		}
+	}
+}
+
+void lightE(){
+	for(int i = 0;i < resX*512;i+=512){
+		gui[i] = 80;
+		gui[i+1] = 80;
+		gui[i+2] = 80;
+	}
+	for(;;){
+		light(204,200,1,2,4);
+		light(354,220,3,1,3);
+		light(34 ,150,5,1,1);
+		light(12 ,45 ,2,3,2);
+		light(452,12 ,1,1,6);
+		t++;
+		Sleep(13);
+		if(GetKeyState(VK_LBUTTON) < 0){
+			POINT point;
+			GetCursorPos(&point);
+			ScreenToClient(window,&point);
+			point.y = resY * 2 - point.y;
+			map[(point.x >> 4) + (point.y << 2 & 0x3ffc0)] = selected;
+		}
+		for(int i = 0;i < 9;i++){
+			if(GetAsyncKeyState(i+0x30) & 0x0001){
+				selected ^= 1 << i;
+				char col = (selected & 1) << 5;
+				square(0,1,32,col,col,col);
+				square(32,1,32,(selected & 0x06) << 5,0,0);
+				square(64,1,32,0,(selected & 0x18) << 3,0);
+				square(92,1,32,0,0,(selected & 0x60) << 1);
 			}
 		}
-	end4:
-		continue;		
+		if(GetAsyncKeyState(VK_BACK) & 0x0001){
+			selected = 0;
+			square(0,1,32,0,0,0);
+			square(32,1,32,0,0,0);
+			square(64,1,32,0,0,0);
+			square(92,1,32,0,0,0);
+		}
+		if(GetAsyncKeyState(VK_SPACE) & 0x0001){
+			selected = 0xff;
+			char col = (selected & 1) << 5;
+			square(0,1,32,col,col,col);
+			square(32,1,32,(selected & 0x06) << 5,0,0);
+			square(64,1,32,0,(selected & 0x18) << 3,0);
+			square(92,1,32,0,0,(selected & 0x60) << 1);
+		}	
+		StretchDIBits(dc,0,0,resX * 2,resY * 2,0,0,resX,resY,heap,&bmi,0,SRCCOPY);
+		StretchDIBits(dc,resX * 2,0,resX * 2 + 128,resY*2,0,0,resX,512,gui,&bmi2,0,SRCCOPY);
+		memset(heap,0,resX*resY*4);
 	}
 }
 
 void main(){
 	timeBeginPeriod(1);
-	heap = HeapAlloc(GetProcessHeap(),8,resX*resY*4+32*32);
+	heap = HeapAlloc(GetProcessHeap(),8,resX*resY*4+64*64+256*resX*4);
 	map = heap+resX*resY*4;
+	gui = map+64*64;
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
-	window = CreateWindowEx(0,name,name,0x90080000,0,0,resX * 4,resY * 4,0,0,wndclass.hInstance,0);
+	window = CreateWindowEx(0,name,name,0x10080000,0,0,resX * 2 + 256,resY * 2 + 39,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
+	CreateThread(0,0,lightE,0,0,0);
 	for(;;){
-		light(40,150,1,3,5);
-		light(50,160,2,3,4);
-		light(60,170,3,3,3);
-		light(70,180,4,3,2);
-		light(80,190,5,3,1);
-		if(GetKeyState(VK_LBUTTON) < 0){
-			POINT point;
-			GetCursorPos(&point);
-			ScreenToClient(window,&point);
-			point.y = resX * 4 - point.y;
-			map[(point.x >> 5) + (point.y & 0xffe0)] = 1;
-		}
-		StretchDIBits(dc,0,0,resX * 4,resY * 4,0,0,resX,resY,heap,&bmi,0,SRCCOPY);
 		if(PeekMessage(&Msg,window,0,0,0)){
 			GetMessage(&Msg,window,0,0);
 			TranslateMessage(&Msg);
 			DispatchMessageW(&Msg);
 		}
-		Sleep(17);
-		memset(heap,0,resX*resY*4);
+		Sleep(10);
 	}
 }
