@@ -88,10 +88,20 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			if(val){
 				if(val & 1){
 					if((rx & 0xfff) < (ry & 0xfff)){
-						x = -x;
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							x = -x;
+						}
+						else{
+							y = -y;	
+						}
 					}
 					else{
-						y = -y;			
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							y = -y;
+						}
+						else{
+							x = -x;
+						}		
 					}
 					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
 					rt >>= 4 - (val >> 5 & 3);
@@ -139,10 +149,20 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			if(val){
 				if(val & 1){
 					if((rx & 0xfff) < (ry & 0xfff)){
-						x = -x;
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							x = -x;
+						}
+						else{
+							y = -y;	
+						}
 					}
 					else{
-						y = -y;			
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							y = -y;
+						}
+						else{
+							x = -x;
+						}		
 					}
 					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
 					rt >>= 4 - (val >> 5 & 3);
@@ -190,10 +210,20 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			if(val){
 				if(val & 1){
 					if((rx & 0xfff) < (ry & 0xfff)){
-						x = -x;
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							x = -x;
+						}
+						else{
+							y = -y;	
+						}
 					}
 					else{
-						y = -y;			
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							y = -y;
+						}
+						else{
+							x = -x;
+						}		
 					}
 					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
 					rt >>= 4 - (val >> 5 & 3);
@@ -241,10 +271,20 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			if(val){
 				if(val & 1){
 					if((rx & 0xfff) < (ry & 0xfff)){
-						x = -x;
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							x = -x;
+						}
+						else{
+							y = -y;	
+						}
 					}
 					else{
-						y = -y;			
+						if((rx & 0xfff) + (ry & 0xfff) < 0xfff){
+							y = -y;
+						}
+						else{
+							x = -x;
+						}		
 					}
 					fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
 					rt >>= 4 - (val >> 5 & 3);
@@ -290,13 +330,12 @@ void lightE(){
 		gui[i+2] = 80;
 	}
 	for(;;){
-		light(204,200,1,2,4);
-		light(354,220,3,1,3);
-		light(34 ,150,5,1,1);
-		light(12 ,45 ,2,3,2);
-		light(452,12 ,1,1,6);
+		light(30,100,1,1,1);
+		light(90,100,2,2,2);
+		light(150,100,3,3,3);
+		light(210,100,4,4,4);
+		light(270,100,5,5,5);
 		t++;
-		Sleep(13);
 		if(GetKeyState(VK_LBUTTON) < 0){
 			POINT point;
 			GetCursorPos(&point);
