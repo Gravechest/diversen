@@ -182,19 +182,45 @@ inline void square(int x,int y,int s,char r,char g,char b){
 	}
 }
 
+void spawnLight(short x,short y,short vx,short vy,int prop){
+	entities[lightentC+blockentC].prop = prop;
+	entities[lightentC+blockentC].x    = x;
+	entities[lightentC+blockentC].y    = y;
+	entities[lightentC+blockentC].vx   = vx;
+	entities[lightentC+blockentC].vy   = vy;
+	lightentC++;
+}
+
+void deleteLight(char id){
+	for(int i = lightentC+blockentC;i > id+blockentC;i--){
+		entities[i] = entities[i+1];
+	}
+	lightentC--;
+}
+
+void spawnBlock(short x,short y,short vx,short vy,int prop){
+	for(int i = blockentC+lightentC;i > blockentC;i--){
+		entities[i] = entities[i+1];
+	}
+	entities[blockentC].prop = prop;
+	entities[blockentC].x    = x;
+	entities[blockentC].y    = y;
+	entities[blockentC].vx   = vx;
+	entities[blockentC].vy   = vy;
+	blockentC++;
+}
+
+void deleteBlock(char id){
+	for(int i = lightentC+blockentC;i > id;i--){
+		entities[i] = entities[i+1];
+	}
+	blockentC--;
+}
+
 void lightE(){
-	blockentC = 2;
-	lightentC = 1;
-	entities[0].prop = blockprop(1,3,3,3,63,16);
-	entities[0].x = ampInt(252);
-	entities[0].y = ampInt(495);
-	entities[1].prop = blockprop(1,3,3,3,63,16);
-	entities[1].x = ampInt(252);
-	entities[1].y = ampInt(1);
-	entities[2].prop = lightprop(2,2,5);
-	entities[2].x = ampInt(256);
-	entities[2].y = ampInt(400);
-	entities[2].vy = 250;
+	spawnLight(ampInt(256),ampInt(400),0,250,lightprop(2,2,5));
+	spawnBlock(ampInt(252),ampInt(495),0,0,blockprop(1,3,3,3,63,16));
+	spawnBlock(ampInt(252),ampInt(1),0,0,blockprop(1,3,3,3,63,16));
 	for(int i = 0;i < 512;i++){
 		map[i] = 1;
 	}
