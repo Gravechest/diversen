@@ -7,11 +7,28 @@
 #define resX 512
 #define resY 512
 
+#define ampInt(x) (x<<7)
+#define lightprop(r,g,b) (((r&15)<<1)+((g&15)<<5)+((b&15)<<9)+1)
+#define blockprop(t,r,g,b,x,y) (((t&1)<<1)+((r&3)<<2)+((g&3)<<4)+((b&3)<<6)+((x&63)<<8)+((y&63)<<14))
+
 #define Bound 0x3ffff
 
 unsigned char *heap;
 unsigned char *map;
 unsigned char *gui;
+
+unsigned char lightentC;
+unsigned char blockentC;
+
+typedef struct ENTITY{
+	unsigned short x;
+	unsigned short y;
+	unsigned int prop;
+	short vx;
+	short vy;
+}ENTITY;
+
+ENTITY *entities;
 
 char selected;
 
@@ -22,7 +39,9 @@ MSG Msg;
 BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),resY,resX,1,32,BI_RGB };
 BITMAPINFO bmi2 = { sizeof(BITMAPINFOHEADER),128,resX*2,1,32,BI_RGB };
 
+
 long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
+	
 	switch(msg){
 	case WM_CLOSE:
 		exit(0);
@@ -34,10 +53,7 @@ WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
 unsigned short t = 0;
 
 inline int mabs(int val){
-	if(val < 0){
-		return -val;
-	}
-	return val;
+	return val < 0 ? -val : val;
 }
 
 inline void fill(int i,int r,int g,int b){
@@ -67,7 +83,7 @@ inline void lightAlgo(int rx,int ry,int x,int y,char rt,char gt,char bt){
 		ry += y;
 		if(map[(rx & 0x3fe00) + (ry >> 9)]){
 			char val = map[(rx & 0x3fe00) + (ry >> 9)];
-			if(val & 1){
+			if(val & 2){
 				int tx = rx << 9;
 				int ty = ry << 9;
 				while(map[(tx >> 9 & 0x3fe00) + (ty >> 18)]){
@@ -81,22 +97,22 @@ inline void lightAlgo(int rx,int ry,int x,int y,char rt,char gt,char bt){
 				else{
 					y = -y;
 				}
-				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
-				rt >>= 4 - (val >> 5 & 3);
-				gt >>= 4 - (val >> 3 & 3);
-				bt >>= 4 - (val >> 1 & 3);
+				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 2 & 3),gt << (val >> 4 & 3),rt << (val >> 6 & 3));
+				rt >>= 4 - (val >> 6 & 3);
+				gt >>= 4 - (val >> 4 & 3);
+				bt >>= 4 - (val >> 2 & 3);
 				if(rt + gt + bt == 0){
 					break;
 				}
 			}
-			else if(val & 0x80){
+			else if(val & 1){
 				break;
 			}
 			else{
-				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 1 & 3),gt << (val >> 3 & 3),rt << (val >> 5 & 3));
-				rt >>= 1 - (val >> 5 & 3);
-				gt >>= 1 - (val >> 3 & 3);
-				bt >>= 1 - (val >> 1 & 3);
+				fill(((rx & 0x3fe00) + (ry >> 9)) << 2,bt << (val >> 2 & 3),gt << (val >> 4 & 3),rt << (val >> 6 & 3));
+				rt >>= 1 - (val >> 6 & 3);
+				gt >>= 1 - (val >> 4 & 3);
+				bt >>= 1 - (val >> 2 & 3);
 				if(rt + gt + bt == 0){
 					break;
 				}
@@ -166,79 +182,110 @@ inline void square(int x,int y,int s,char r,char g,char b){
 	}
 }
 
-void updateScreen(){
-
-}
-
 void lightE(){
+	blockentC = 2;
+	lightentC = 1;
+	entities[0].prop = blockprop(1,3,3,3,63,16);
+	entities[0].x = ampInt(252);
+	entities[0].y = ampInt(495);
+	entities[1].prop = blockprop(1,3,3,3,63,16);
+	entities[1].x = ampInt(252);
+	entities[1].y = ampInt(1);
+	entities[2].prop = lightprop(2,2,5);
+	entities[2].x = ampInt(256);
+	entities[2].y = ampInt(400);
+	entities[2].vy = 250;
 	for(int i = 0;i < 512;i++){
-		map[i] = 0x80;
+		map[i] = 1;
 	}
 	for(int i = 261632;i < 262144;i++){
-		map[i] = 0x80;
+		map[i] = 1;
 	}
 	for(int i = 512;i < 261632;i+=512){
-		map[i] = 0x80;
+		map[i] = 1;
 	}
 	for(int i = 511;i < 261632;i+=512){
-		map[i] = 0x80;
+		map[i] = 1;
 	}
 	for(int i = 0;i < resX*512;i+=512){
 		gui[i] = 80;
 		gui[i+1] = 80;
 		gui[i+2] = 80;
 	}
-	updateScreen();
 	for(;;){
 		t++;
-		if(GetKeyState(VK_LBUTTON) < 0){
-			POINT point;
-			GetCursorPos(&point);
-			ScreenToClient(window,&point);
-			point.y = resY * 2 - point.y;
-			for(int i = point.y << 8 & 0x3fe00;i < (point.y << 8) + 4096;i+=512){
-				for(int i2 = point.x >> 1 & 0x1ff;i2 < (point.x >> 1 & 0x1ff) + 8;i2++){
-					map[i + i2] = selected;
+		if(GetKeyState(VK_UP) < 0){
+			entities[0].vx = 240;
+		}
+		else if(GetKeyState(VK_DOWN) < 0){
+			entities[0].vx = -240;
+		}
+		else{
+			entities[0].vx = 0;
+		}
+		if(GetKeyState(0x57) < 0){
+			entities[1].vx = 240;
+		}
+		else if(GetKeyState(0x53) < 0){
+			entities[1].vx = -240;
+		}
+		else{
+			entities[1].vx = 0;
+		}
+		for(int i = 0;i < blockentC;i++){
+			for(int i2 = entities[i].x<<2&0xffe00;i2 < (entities[i].x<<2&0xffe00) + ((entities[i].prop >> 8 & 63) << 9);i2+=512){
+				for(int i3 = entities[i].y>>7;i3 < (entities[i].y>>7) + (entities[i].prop >> 14 & 63);i3++){
+					map[i2+i3] = 0;
 				}
 			}
-		}
-		for(int i = 0;i < 9;i++){
-			if(GetAsyncKeyState(i+0x30) & 0x0001){
-				selected ^= 1 << i;
-				char col = (selected & 1) << 5;
-				square(0,1,32,col,col,col);
-				square(32,1,32,(selected & 0x06) << 5,0,0);
-				square(64,1,32,0,(selected & 0x18) << 3,0);
-				square(92,1,32,0,0,(selected & 0x60) << 1);
+			entities[i].x += entities[i].vx;
+			entities[i].y += entities[i].vy;
+			for(int i2 = entities[i].x<<2&0xffe00;i2 < (entities[i].x<<2&0xffe00) + ((entities[i].prop >> 8 & 63) << 9);i2+=512){
+				for(int i3 = entities[i].y>>7;i3 < (entities[i].y>>7) + (entities[i].prop >> 14 & 63);i3++){
+					map[i2+i3] = entities[i].prop & 63;
+				} 
 			}
 		}
-		if(GetAsyncKeyState(VK_BACK) & 0x0001){
-			selected = 0;
-			square(0,1,32,0,0,0);
-			square(32,1,32,0,0,0);
-			square(64,1,32,0,0,0);
-			square(92,1,32,0,0,0);
+		for(int i = blockentC;i < lightentC+blockentC;i++){
+			entities[i].x += entities[i].vx;
+			entities[i].y += entities[i].vy;
+			if(map[(entities[i].x << 2&0xffe00) + (entities[i].y >> 7)]){
+				for(int i2 = 0;i2 < blockentC;i2++){
+					if(entities[i].x > entities[i2].x && entities[i].y > entities[i2].y 
+					&& entities[i].x < entities[i2].x + ((entities[i2].prop >> 8 & 63) << 7)
+					&& entities[i].y < entities[i2].y + ((entities[i2].prop >> 14) << 7)){
+						entities[i].vy = -entities[i].vy + 23;
+						entities[i].vx += (entities[i].x >> 6) - (entities[i2].x >> 6) - (entities[i2].prop >> 8 & 63);
+						entities[i].x += entities[i].vx;
+						entities[i].y += entities[i].vy;
+						goto end;
+					}
+				}
+				if(!entities[i].y & ampInt(511) || !~entities[i].y & ampInt(511)){
+					exit(0);
+				}
+				else{
+					entities[i].vx = -entities[i].vx;
+					entities[i].x += entities[i].vx;
+					entities[i].y += entities[i].vy;
+				}
+			}
+		end:
+			light(entities[i].x >> 7,entities[i].y >> 7,entities[i].prop >> 1 & 15,entities[i].prop >> 5 & 15,entities[i].prop >> 9 & 15);
 		}
-		if(GetAsyncKeyState(VK_SPACE) & 0x0001){
-			selected = 0xff;
-			char col = (selected & 1) << 5;
-			square(0,1,32,col,col,col);
-			square(32,1,32,(selected & 0x06) << 5,0,0);
-			square(64,1,32,0,(selected & 0x18) << 3,0);
-			square(92,1,32,0,0,(selected & 0x60) << 1);
-		}
-		light(256,256,6,6,6);
 		StretchDIBits(dc,0,0,resX * 2,resY * 2,0,0,resX,resY,heap,&bmi,0,SRCCOPY);
 		memset(heap,0,resX*resY*4);
 		StretchDIBits(dc,resX * 2,0,resX * 2 + 128,resY*2,0,0,resX,512,gui,&bmi2,0,SRCCOPY);
+		Sleep(10);
 	}
 }
 
 void main(){
 	timeBeginPeriod(1);
-	heap = HeapAlloc(GetProcessHeap(),8,resX*resY*4+512*512+256*resX*4);
+	heap = HeapAlloc(GetProcessHeap(),8,resX*resY*4 + 512*512 + 256*resX*4 + 256*10);
 	map = heap+resX*resY*4;
 	gui = map+512*512;
+	entities = (ENTITY*)(gui+256*resX*4);
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
 	window = CreateWindowEx(0,name,name,0x10080000,0,0,resX * 2 + 256,resY * 2 + 39,0,0,wndclass.hInstance,0);
