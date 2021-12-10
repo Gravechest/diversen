@@ -192,15 +192,15 @@ void spawnLight(short x,short y,short vx,short vy,int prop){
 }
 
 void deleteLight(char id){
-	for(int i = lightentC+blockentC;i > id+blockentC;i--){
-		entities[i] = entities[i+1];
+	for(int i = blockentC+lightentC;i > blockentC;i--){
+		entities[i] = entities[i-1];
 	}
 	lightentC--;
 }
 
 void spawnBlock(short x,short y,short vx,short vy,int prop){
 	for(int i = blockentC+lightentC;i > blockentC;i--){
-		entities[i] = entities[i+1];
+		entities[i] = entities[i-1];
 	}
 	entities[blockentC].prop = prop;
 	entities[blockentC].x    = x;
