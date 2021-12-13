@@ -2,14 +2,36 @@
 #include <stdio.h>
 #include <immintrin.h>
 #include <intrin.h>
-#include <time.h>
 
 #define resX 512
 #define resY 512
 
 #define ampInt(x) (x<<7)
-#define lightprop(r,g,b) (((r&15)<<1)+((g&15)<<5)+((b&15)<<9)+1)
-#define blockprop(t,r,g,b,x,y) (((t&1)<<1)+((r&3)<<2)+((g&3)<<4)+((b&3)<<6)+((x&63)<<8)+((y&63)<<14))
+
+/*prop
+bit 0     reserved
+bit 1-4   red
+bit 5-8   green
+bit 9-12  blue
+bit 13-16 type
+bit 17-31 reserved
+*/
+
+#define lightprop(r,g,b,t) (((r&15)<<1)+((g&15)<<5)+((b&15)<<9)+((t&15)<<13)+1)
+
+/*prop
+bit 0     reserved
+bit 1     solid or not
+bit 2-3	  red
+bit 4-5   green
+bit 6-7   blue
+bit 8-13  height
+bit 14-19 widht
+bit 20-27 type
+bit 28-31 reserved
+*/
+
+#define blockprop(t1,r,g,b,x,y,t2) (((t1&1)<<1)+((r&3)<<2)+((g&3)<<4)+((b&3)<<6)+((x&63)<<8)+((y&63)<<14)+((t2&255)<<20))
 
 #define Bound 0x3ffff
 
@@ -20,6 +42,8 @@ unsigned char *gui;
 unsigned char lightentC;
 unsigned char blockentC;
 
+unsigned long long timer1,timer2;
+
 typedef struct ENTITY{
 	unsigned short x;
 	unsigned short y;
@@ -28,17 +52,26 @@ typedef struct ENTITY{
 	short vy;
 }ENTITY;
 
+typedef struct LIGHTDATA{
+	unsigned short cx;
+	unsigned short cy;
+	char r;
+	char g;
+	char b;
+}LIGHTDATA;
+
+LIGHTDATA lightdata;
+
 ENTITY *entities;
 
 char selected;
 
-const char name[] = "meuk2";
+const char name[] = "Epic lightengine by Gravechest";
 HWND window;
 HDC dc;
 MSG Msg;
 BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),resY,resX,1,32,BI_RGB };
 BITMAPINFO bmi2 = { sizeof(BITMAPINFOHEADER),128,resX*2,1,32,BI_RGB };
-
 
 long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	
@@ -84,14 +117,7 @@ inline void lightAlgo(int rx,int ry,int x,int y,char rt,char gt,char bt){
 		if(map[(rx & 0x3fe00) + (ry >> 9)]){
 			char val = map[(rx & 0x3fe00) + (ry >> 9)];
 			if(val & 2){
-				int tx = rx << 9;
-				int ty = ry << 9;
-				while(map[(tx >> 9 & 0x3fe00) + (ty >> 18)]){
-					tx -= x;
-					ty -= y;
-				}
-				tx += x;
-				if(map[(tx >> 9 & 0x3fe00) + (ty >> 18)]){
+				if((rx & 0x1ff) * x > (ry & 0x1ff) * y){
 					x = -x;
 				}
 				else{
@@ -124,7 +150,13 @@ inline void lightAlgo(int rx,int ry,int x,int y,char rt,char gt,char bt){
 	}
 }
 
-void light(unsigned short cx,unsigned short cy,char r,char g,char b){
+void light(LIGHTDATA *lightdata){
+	unsigned int cx = lightdata->cx << 9;
+	unsigned int cy = lightdata->cy << 9;
+	char r = lightdata->r;
+	char g = lightdata->g;
+	char b = lightdata->b;
+	memset(lightdata,0,sizeof(LIGHTDATA));
 	int x = 0;
     int y = 0;
 	int i = 0;
@@ -136,7 +168,7 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			x++;
 			y++;
 		}
-		lightAlgo(cx << 9,cy << 9,x,y,r,g,b);
+		lightAlgo(cx,cy,x,y,r,g,b);
 	}
 	for(;i < 1024;i++){
 		x = 512 - i;	
@@ -146,7 +178,7 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			x--;
 			y++;
 		}
-		lightAlgo(cx << 9,cy << 9,x,y,r,g,b);
+		lightAlgo(cx,cy,x,y,r,g,b);
 	}
 	for(;i < 1536;i++){
 		x = i - 1536;
@@ -156,7 +188,7 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			x--;
 			y--;
 		}
-		lightAlgo(cx << 9,cy << 9,x,y,r,g,b);
+		lightAlgo(cx,cy,x,y,r,g,b);
 	}
 	for(;i < 2048;i++){
 		x = i - 1536;
@@ -166,7 +198,7 @@ void light(unsigned short cx,unsigned short cy,char r,char g,char b){
 			x++;
 			y--;
 		}
-		lightAlgo(cx << 9,cy << 9,x,y,r,g,b);	
+		lightAlgo(cx,cy,x,y,r,g,b);
 	}
 }
 
@@ -178,6 +210,15 @@ inline void square(int x,int y,int s,char r,char g,char b){
 			gui[i+i2] = r;
 			gui[i+i2+1] = g;
 			gui[i+i2+2] = b;
+		}
+	}
+}
+
+inline void squareBlock(int x,int y,int s,char t){
+	x <<= 9;
+	for(int i = x;i < x + (s << 9);i += 512){
+		for(int i2 = y;i2 < y + s;i2++){
+			map[i+i2] = t;
 		}
 	}
 }
@@ -218,9 +259,23 @@ void deleteBlock(char id){
 }
 
 void lightE(){
-	spawnLight(ampInt(256),ampInt(400),0,250,lightprop(2,2,5));
-	spawnBlock(ampInt(252),ampInt(495),0,0,blockprop(1,3,3,3,63,16));
-	spawnBlock(ampInt(252),ampInt(1),0,0,blockprop(1,3,3,3,63,16));
+	spawnLight(ampInt(260),ampInt(400),0,170,lightprop(1,3,1,0));
+	spawnLight(ampInt(300),ampInt(300),0,150,lightprop(1,1,3,0));
+	spawnLight(ampInt(280),ampInt(200),0,130,lightprop(3,1,1,0));
+	spawnBlock(ampInt(1),ampInt(495),0,0,blockprop(1,3,3,3,63,16,0));
+	spawnBlock(ampInt(1),ampInt(1),0,0,blockprop(1,3,3,3,63,16,1));
+	spawnBlock(ampInt(64),ampInt(495),0,0,blockprop(1,3,3,3,63,16,0));
+	spawnBlock(ampInt(64),ampInt(1),0,0,blockprop(1,3,3,3,63,16,1));
+	spawnBlock(ampInt(128),ampInt(495),0,0,blockprop(1,3,3,3,63,16,0));
+	spawnBlock(ampInt(128),ampInt(1),0,0,blockprop(1,3,3,3,63,16,1));
+	spawnBlock(ampInt(192),ampInt(495),0,0,blockprop(1,3,3,3,63,16,0));
+	spawnBlock(ampInt(192),ampInt(1),0,0,blockprop(1,3,3,3,63,16,1));
+	spawnBlock(ampInt(256),ampInt(495),0,0,blockprop(1,3,3,3,63,16,0));
+	spawnBlock(ampInt(256),ampInt(1),0,0,blockprop(1,3,3,3,63,16,1));
+	spawnBlock(ampInt(320),ampInt(495),0,0,blockprop(1,3,3,3,63,16,0));
+	spawnBlock(ampInt(320),ampInt(1),0,0,blockprop(1,3,3,3,63,16,1));
+	spawnBlock(ampInt(384),ampInt(495),0,0,blockprop(1,3,3,3,63,16,0));
+	spawnBlock(ampInt(384),ampInt(1),0,0,blockprop(1,3,3,3,63,16,1));
 	for(int i = 0;i < 512;i++){
 		map[i] = 1;
 	}
@@ -287,22 +342,30 @@ void lightE(){
 						goto end;
 					}
 				}
-				if(!entities[i].y & ampInt(511) || !~entities[i].y & ampInt(511)){
-					exit(0);
+				int tval = (entities[i].x << 2&0xffe00) + (entities[i].y >> 7);
+				if(map[tval-1] && map[tval+1]){
+					entities[i].vx = -entities[i].vx;
 				}
 				else{
-					entities[i].vx = -entities[i].vx;
-					entities[i].x += entities[i].vx;
-					entities[i].y += entities[i].vy;
+					entities[i].vy = -entities[i].vy;
 				}
+				entities[i].x += entities[i].vx;
+				entities[i].y += entities[i].vy;
 			}
+
 		end:
-			light(entities[i].x >> 7,entities[i].y >> 7,entities[i].prop >> 1 & 15,entities[i].prop >> 5 & 15,entities[i].prop >> 9 & 15);
+			while(lightdata.r && lightdata.g && lightdata.b){}
+			lightdata.cx = entities[i].x >> 7;
+			lightdata.cy = entities[i].y >> 7;
+			lightdata.r  = entities[i].prop >> 1 & 15;
+			lightdata.g  = entities[i].prop >> 5 & 15;
+			lightdata.b  = entities[i].prop >> 9 & 15;
+			CreateThread(0,0,light,&lightdata,0,0);
 		}
+		Sleep(16);
 		StretchDIBits(dc,0,0,resX * 2,resY * 2,0,0,resX,resY,heap,&bmi,0,SRCCOPY);
 		memset(heap,0,resX*resY*4);
 		StretchDIBits(dc,resX * 2,0,resX * 2 + 128,resY*2,0,0,resX,512,gui,&bmi2,0,SRCCOPY);
-		Sleep(10);
 	}
 }
 
@@ -314,7 +377,7 @@ void main(){
 	entities = (ENTITY*)(gui+256*resX*4);
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
-	window = CreateWindowEx(0,name,name,0x10080000,0,0,resX * 2 + 256,resY * 2 + 39,0,0,wndclass.hInstance,0);
+	window = CreateWindowEx(0,name,name,0x10080000,0,0,resX * 2 + 256,resY * 2,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
 	CreateThread(0,0,lightE,0,0,0);
 	for(;;){
