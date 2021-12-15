@@ -1,17 +1,20 @@
-kernel void add(global unsigned char *data,global char *map,global unsigned  short *prop,int count){
-	for(int i = 0;i < count;i++){
-		char r = prop[i*3+2] >> 0 & 15;
-		char g = prop[i*3+2] >> 4 & 15;
-		char b = prop[i*3+2] >> 8 & 15;
+kernel void add(global unsigned char *data,global char *map,global unsigned int *prop,int count,int par){
+	for(int i = 0;i < (count+par-1)/par;i++){
 		int id = get_global_id(0);
-		float x  = (float)prop[i*3+0];
-		float y  = (float)prop[i*3+1];
+		char r = prop[(i + id / 2048)*3+2] >> 0 & 15;
+		char g = prop[(i + id / 2048)*3+2] >> 4 & 15;
+		char b = prop[(i + id / 2048)*3+2] >> 8 & 15;
+		float x  = (float)prop[(i + id / 2048) *3];
+		float y  = (float)prop[(i + id / 2048) *3+1];
 		float vx = cos((float)id / 1.1330 );
 		float vy = sin((float)id / 1.1330 );
 		while(x > 0 && y > 0 && x < 1024 && y < 1024){
 			x += vx;
 			y += vy;
 			int val = (((int)x * 1024) + (int)y) * 4;
+			if(map[val >> 2]){
+			    y = -y;
+			}
 			if(data[val] < 240){
 				data[val]+=b;
 			}
