@@ -12,6 +12,8 @@
 
 #define dataC res*res*4
 
+#define par 3
+
 cl_platform_id platformid[20];
 cl_command_queue commandqueue;
 cl_device_id deviceid;
@@ -29,7 +31,8 @@ int err;
 int fsize;
 int lightC;
 
-const int count = 4096;
+const int parralel = 1 << par;
+const int count = 2048 << par;
 const int count2 = 1;
 
 char *source;
@@ -37,9 +40,9 @@ char *data;
 char *map;
 
 typedef struct FLIGHTPROP{
-	short x;
-	short y;
-	short prop;
+	int x;
+	int y;
+	int prop;
 }FLIGHTPROP;
 
 typedef struct LIGHTPROP{
@@ -94,7 +97,7 @@ void main(){
 	lightprop  = HeapAlloc(GetProcessHeap(),8,sizeof(LIGHTPROP) * 128);
 
 	clGetPlatformIDs(20,platformid,&platformC);
-	clGetDeviceIDs(platformid[1],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
+	clGetDeviceIDs(platformid[0],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
 	context = clCreateContext(0,1,&deviceid,0,0,0);
 	commandqueue = clCreateCommandQueue(context,deviceid,0,0);
 	program = clCreateProgramWithSource(context,1,(const char**)&source,0,0);
@@ -112,6 +115,7 @@ void main(){
 	clSetKernelArg(kernel,1,sizeof(memmap),(void*)&memmap);
 	clSetKernelArg(kernel,2,sizeof(memprop),(void*)&memprop);
 	clSetKernelArg(kernel,3,4,&lightC);
+	clSetKernelArg(kernel,4,4,&parralel);
 
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
@@ -119,17 +123,34 @@ void main(){
 	dc = GetDC(window);
 
 	clEnqueueWriteBuffer(commandqueue,memmap, 1,0,res*res,map,0,0,0);
-	
-	spawnLight(512,512,1,0,rgb(2,1,1));
-
+	for(int i = 0;i < 32;i++){
+		spawnLight(200,200,0,0,rgb(2,2,1));
+	}
 	for(;;){
+		for(int i = 0;i < res*res;i++){
+			if(map[i]){
+				data[i*4] = 255;
+			}
+		}
 		for(int i = 0;i < lightC;i++){
 			flightprop[i].x = (short)lightprop[i].x;
 			flightprop[i].y = (short)lightprop[i].y;
 			lightprop[i].x += lightprop[i].vx;
 			lightprop[i].y += lightprop[i].vy;
 		}
+		if(GetKeyState(VK_LBUTTON) & 0x80){
+			POINT p;
+			GetCursorPos(&p);
+			ScreenToClient(window,&p);
+			p.y = res - p.y;
+			if(p.y < res && p.x < res && p.y > 0 && p.x > 0){
+				map[(p.y << 10) + p.x] = 1;
+				clEnqueueWriteBuffer(commandqueue,memmap, 1,0,res*res,map,0,0,0);
+			}
+		}
+		long long timer = _rdtsc();
 		renderLight();
+		printf("%i\n",(_rdtsc() - timer) >> 22);
 		StretchDIBits(dc,0,0,resx,resy,0,0,res,res,data,&bmi,0,SRCCOPY);
 		memset(data,0,dataC);
 		if(PeekMessage(&Msg,window,0,0,0)){
@@ -137,7 +158,7 @@ void main(){
 			TranslateMessage(&Msg);
 			DispatchMessageW(&Msg);
 		}
-		Sleep(17);
+		Sleep(13);
 	}
 }
 
