@@ -8,11 +8,13 @@
 #define resx 1024
 #define resy 1024
 
-#define res 1024
+#define res 512
 
 #define dataC res*res*4
-
-#define par 3
+	
+#define gpu 1
+ 
+#define LIGHTRES 2048
 
 cl_platform_id platformid[20];
 cl_command_queue commandqueue;
@@ -24,6 +26,9 @@ cl_mem mem;
 cl_mem memmap;
 cl_mem memprop;
 
+char renderThreadProp;
+char mouseProp;
+
 int platformC;
 int deviceC;
 int result;
@@ -31,18 +36,20 @@ int err;
 int fsize;
 int lightC;
 
-const int parralel = 1 << par;
-const int count = 2048 << par;
 const int count2 = 1;
+
+int rayC;
+int rayres     = LIGHTRES;
+int resolution = res;
 
 char *source;
 char *data;
 char *map;
 
 typedef struct FLIGHTPROP{
-	int x;
-	int y;
-	int prop;
+	short x;
+	short y;
+	short prop;
 }FLIGHTPROP;
 
 typedef struct LIGHTPROP{
@@ -63,16 +70,27 @@ HDC dc;
 MSG Msg;
 
 long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
-	return DefWindowProc(hwnd,msg,wParam,lParam);
+	switch(msg){
+	case WM_LBUTTONDOWN:
+		mouseProp |= 0x01;
+		break;
+	case WM_LBUTTONUP:
+		mouseProp &= ~0x01;
+		break;
+	default:
+		return DefWindowProc(hwnd,msg,wParam,lParam);
+	}
+
 }
 
 WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
 
 void renderLight(){
-	clEnqueueWriteBuffer  (commandqueue,mem,    1,0,dataC  ,data                       ,0,0,0);
-	clEnqueueWriteBuffer  (commandqueue,memprop,1,0,sizeof(FLIGHTPROP) * 128,flightprop,0,0,0);
-	clEnqueueNDRangeKernel(commandqueue,kernel, 1,0,&count ,&count2                    ,0,0,0);
-	clEnqueueReadBuffer   (commandqueue,mem,    1,0,dataC  ,data                       ,0,0,0);
+	clEnqueueWriteBuffer  (commandqueue,mem,    1,0,dataC  ,data                          ,0,0,0);
+	clEnqueueWriteBuffer  (commandqueue,memprop,1,0,sizeof(FLIGHTPROP) * lightC,flightprop,0,0,0);
+	clEnqueueNDRangeKernel(commandqueue,kernel, 1,0,&rayC  ,&count2                       ,0,0,0);
+	clEnqueueReadBuffer   (commandqueue,mem,    1,0,dataC  ,data                          ,0,0,0);
+	renderThreadProp = 0;
 }
 
 void spawnLight(float x,float y,float vx,float vy,short prop){
@@ -82,10 +100,29 @@ void spawnLight(float x,float y,float vx,float vy,short prop){
 	lightprop[lightC].vy    = vy;
 	flightprop[lightC].prop = prop;
 	lightC++;
-	clSetKernelArg(kernel,3,4,&lightC);
+	rayC+=LIGHTRES;
+}
+
+void gameloop(){
+	for(;;){
+		for(int i = 0;i < lightC;i++){
+			flightprop[i].x = (short)lightprop[i].x;
+			flightprop[i].y = (short)lightprop[i].y;
+			lightprop[i].x += lightprop[i].vx;
+			lightprop[i].y += lightprop[i].vy;
+		}
+		renderThreadProp = 1;
+		CreateThread(0,0,renderLight,0,0,0);
+		Sleep(16);
+		while(renderThreadProp){}
+		StretchDIBits(dc,0,0,resx,resy,0,0,res,res,data,&bmi,0,SRCCOPY);
+		memset(data,0,dataC);
+	}
 }
 
 void main(){
+	timeBeginPeriod(1);
+
 	HANDLE h = CreateFile("source.cl",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 	fsize = GetFileSize(h,0);
 	source = HeapAlloc(GetProcessHeap(),8,fsize);
@@ -97,7 +134,7 @@ void main(){
 	lightprop  = HeapAlloc(GetProcessHeap(),8,sizeof(LIGHTPROP) * 128);
 
 	clGetPlatformIDs(20,platformid,&platformC);
-	clGetDeviceIDs(platformid[0],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
+	clGetDeviceIDs(platformid[gpu],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
 	context = clCreateContext(0,1,&deviceid,0,0,0);
 	commandqueue = clCreateCommandQueue(context,deviceid,0,0);
 	program = clCreateProgramWithSource(context,1,(const char**)&source,0,0);
@@ -114,54 +151,50 @@ void main(){
 	clSetKernelArg(kernel,0,sizeof(mem),(void*)&mem);
 	clSetKernelArg(kernel,1,sizeof(memmap),(void*)&memmap);
 	clSetKernelArg(kernel,2,sizeof(memprop),(void*)&memprop);
-	clSetKernelArg(kernel,3,4,&lightC);
-	clSetKernelArg(kernel,4,4,&parralel);
+	clSetKernelArg(kernel,3,sizeof(int),&resolution);
+	clSetKernelArg(kernel,4,sizeof(int),&rayres);
 
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
-	window = CreateWindowEx(0,name,name,0x10080000,0,0,resy + 16,resx + 32,0,0,wndclass.hInstance,0);
+	window = CreateWindowEx(0,name,name,0x10080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
 
-	clEnqueueWriteBuffer(commandqueue,memmap, 1,0,res*res,map,0,0,0);
-	for(int i = 0;i < 32;i++){
-		spawnLight(200,200,0,0,rgb(2,2,1));
+	for(int i = 0;i < res;i++){
+		map[i] = 1;
 	}
+	for(int i = res*res - res;i < res*res;i++){
+		map[i] = 1;
+	}
+	for(int i = 0;i < res*res;i+=res){
+		map[i] = 1;
+	}
+	for(int i = res-1;i < res*res;i+=res){
+		map[i] = 1;
+	}
+	clEnqueueWriteBuffer(commandqueue,memmap, 1,0,res*res,map,0,0,0);
+	spawnLight(200,200,0,0,rgb(2,2,1));
+	CreateThread(0,0,gameloop,0,0,0);
 	for(;;){
-		for(int i = 0;i < res*res;i++){
-			if(map[i]){
-				data[i*4] = 255;
-			}
-		}
-		for(int i = 0;i < lightC;i++){
-			flightprop[i].x = (short)lightprop[i].x;
-			flightprop[i].y = (short)lightprop[i].y;
-			lightprop[i].x += lightprop[i].vx;
-			lightprop[i].y += lightprop[i].vy;
-		}
-		if(GetKeyState(VK_LBUTTON) & 0x80){
+		if(mouseProp & 0x01){
 			POINT p;
 			GetCursorPos(&p);
 			ScreenToClient(window,&p);
-			p.y = res - p.y;
+			p.y = resy - p.y;
+			p.y /= resy / res;
+			p.x /= resx / res;
 			if(p.y < res && p.x < res && p.y > 0 && p.x > 0){
-				map[(p.y << 10) + p.x] = 1;
+				map[(p.y * res) + p.x] = 2;
 				clEnqueueWriteBuffer(commandqueue,memmap, 1,0,res*res,map,0,0,0);
 			}
 		}
-		long long timer = _rdtsc();
-		renderLight();
-		printf("%i\n",(_rdtsc() - timer) >> 22);
-		StretchDIBits(dc,0,0,resx,resy,0,0,res,res,data,&bmi,0,SRCCOPY);
-		memset(data,0,dataC);
 		if(PeekMessage(&Msg,window,0,0,0)){
 			GetMessage(&Msg,window,0,0);
 			TranslateMessage(&Msg);
 			DispatchMessageW(&Msg);
 		}
-		Sleep(13);
+		Sleep(10);
 	}
 }
-
 
 
 
