@@ -7,6 +7,8 @@
 
 #define res 512
 
+#define VRAM res*res*4
+
 #define gpu 0
 
 cl_platform_id platformid[20];
@@ -22,7 +24,7 @@ int deviceC;
 int result;
 int err;
 int fsize;
-int count = dataC;
+int count = VRAM;
 int count2 = 1;
 char *source;
 char *data;
@@ -41,9 +43,9 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
 
 void openCL(){
-	clEnqueueWriteBuffer(commandqueue,mem,1,0,dataC,data,0,0,0);
+	clEnqueueWriteBuffer(commandqueue,mem,1,0,VRAM,data,0,0,0);
 	clEnqueueNDRangeKernel(commandqueue,kernel,1,0,&count,&count2,0,0,0);
-	clEnqueueReadBuffer(commandqueue,mem,1,0,dataC,data,0,0,0);
+	clEnqueueReadBuffer(commandqueue,mem,1,0,VRAM,data,0,0,0);
 }
 
 void main(){
@@ -52,14 +54,14 @@ void main(){
 	source = HeapAlloc(GetProcessHeap(),8,fsize);
 	ReadFile(h,source,fsize,0,0);
 
-	data = HeapAlloc(GetProcessHeap(),8,res*res*4);
+	data = HeapAlloc(GetProcessHeap(),8,VRAM);
 
 	clGetPlatformIDs(20,platformid,&platformC);
 	clGetDeviceIDs(platformid[gpu],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
 	context = clCreateContext(0,1,&deviceid,0,0,0);
 	commandqueue = clCreateCommandQueue(context,deviceid,0,0);
-	mem = clCreateBuffer(context,0,dataC,0,&err);
-	clEnqueueWriteBuffer(commandqueue,mem,CL_FALSE,0,dataC,data,0,0,0);
+	mem = clCreateBuffer(context,0,VRAM,0,0);
+	clEnqueueWriteBuffer(commandqueue,mem,CL_FALSE,0,VRAM,data,0,0,0);
 	program = clCreateProgramWithSource(context,1,(const char**)&source,0,0);
 	clBuildProgram(program,0,0,0,0,0);
 	kernel = clCreateKernel(program,"add",0);
@@ -70,7 +72,7 @@ void main(){
 
 	clSetKernelArg(kernel,0,sizeof(mem),(void*)&mem);
 	clEnqueueNDRangeKernel(commandqueue,kernel,1,0,&count,&count2,0,0,0);
-	clEnqueueReadBuffer(commandqueue,mem,1,0,dataC,data,0,0,0);
+	clEnqueueReadBuffer(commandqueue,mem,1,0,VRAM,data,0,0,0);
 
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
