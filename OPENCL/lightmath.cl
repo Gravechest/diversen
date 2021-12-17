@@ -33,21 +33,99 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 	float vx = cos((float)id / 1.1);
 	float vy = sin((float)id / 1.1);
 	for(;;){
-		x += vx;
-		y += vy;
+		float dx = (int)x + 1 - x;
+		float dy = (int)y + 1 - y;
+		if(dy / vy < dx / vx){			
+			y += dy;
+			x += vx * (dy / vy);
+		}
+		else{
+			x += dx;
+			y += vy * (dx / vx);
+		}
 		int val = (((int)x * reso) + (int)y) * 4;
 		if(map[val >> 2]){
 			switch(map[val >> 2]){
 			case 1:
 				return;
 			case 2:{
-					float nmx = x - (int)x;
-					float nmy = y - (int)y;
-					if(absf(nmx) - vx < absf(nmy) - vy){
-						vx = -vx;
+                    float nmx = vy / vx;
+					float nmy = 0;
+					if(vx > 0 && vy > 0){
+                    	nmy = (y - (int)y) / (x - (int)x);
+						if(nmy < nmx){
+							if(map[val-reso]){
+								vx = -vx;
+							}
+							else{
+								vy = -vy;
+							}
+                    	}
+                    	else{
+							if(map[val-1]){
+								vy = -vy;
+							}
+							else{
+								vx = -vx;
+							}
+                    	}
+					}
+					else if(vx < 0 && vy > 0){
+                    	nmy = (y - (int)y) / (x - (int)x + 1);
+						if(nmy < nmx){
+							if(map[val+1]){
+								vy = -vy;
+							}
+							else{
+								vx = -vx;
+							}
+                    	}
+                    	else{
+							if(map[val-reso]){
+								vx = -vx;
+							}
+							else{
+								vy = -vy;
+							}
+                    	}
+					}
+					else if(vx > 0 && vy < 0){
+                    	nmy = (y - (int)y + 1) / (x - (int)x);
+						if(nmy < nmx){
+							if(map[val-1]){
+								vy = -vy;
+							}
+							else{
+								vx = -vx;
+							}
+                    	}
+                    	else{
+							if(map[val+reso]){
+								vx = -vx;
+							}
+							else{
+								vy = -vy;
+							}
+                    	}
 					}
 					else{
-						vy = -vy;
+                    	nmy = (y - (int)y + 1) / (x - (int)x + 1);
+						if(nmy < nmx){
+							if(map[val+reso]){
+								vx = -vx;
+							}
+							else{
+								vy = -vy;
+							}
+                    	}
+                    	else{
+							if(map[val+1]){
+								vy = -vy;
+							}
+							else{
+								vx = -vx;
+							}
+                    	}
 					}
 					fill(data,val,r << 3,g << 3,b << 3);
 					r >>= 1;
@@ -63,9 +141,3 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 		fill(data,val,r,g,b);
 	}
 }
-
-
-
-
-
-
