@@ -52,15 +52,15 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vy = -vy;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val-1]){
 								vy = -vy;
 							}
 							else{
 								vx = -vx;
 							}
-                    	}
+                    				}
 					}
 					else if(vx > 0 && vy < 0){
                     	nmy = (y - (int)y) / (x - (int)x + 1);
@@ -71,18 +71,18 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vx = -vx;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val-reso]){
 								vx = -vx;
 							}
 							else{
 								vy = -vy;
 							}
-                    	}
+                    				}
 					}
 					else if(vx < 0 && vy > 0){
-                    	nmy = (y - (int)y + 1) / (x - (int)x);
+                    				nmy = (y - (int)y + 1) / (x - (int)x);
 						if(nmy < nmx){
 							if(map[val-1]){
 								vy = -vy;
@@ -90,18 +90,18 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vx = -vx;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val+reso]){
 								vx = -vx;
 							}
 							else{
 								vy = -vy;
 							}
-                    	}
+                    				}
 					}
 					else{
-                    	nmy = (y - (int)y + 1) / (x - (int)x + 1);
+                    				nmy = (y - (int)y + 1) / (x - (int)x + 1);
 						if(nmy < nmx){
 							if(map[val-reso]){
 								vx = -vx;
@@ -109,15 +109,15 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vy = -vy;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val-1]){
 								vy = -vy;
 							}
 							else{
 								vx = -vx;
 							}
-                    	}
+                    				}
 					}
 					fill(data,val,r << 3,g << 3,b << 3);
 					r >>= 1;
