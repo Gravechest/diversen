@@ -63,7 +63,7 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
                     				}
 					}
 					else if(vx > 0 && vy < 0){
-                    	nmy = (y - (int)y) / (x - (int)x + 1);
+                    				nmy = (y - (int)y) / (x - (int)x + 1);
 						if(nmy < nmx){
 							if(map[val-1]){
 								vy = -vy;
