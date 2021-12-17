@@ -41,9 +41,9 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 			case 1:
 				return;
 			case 2:{
-                    float nmy = (y - (int)y) / (x - (int)x);
-                    float nmx = vy / vx;
-					if(vx > 0 && vy > 0){
+                                float nmy = (y - (int)y) / (x - (int)x);
+                    		float nmx = vy / vx;
+			                 if(vx > 0 && vy > 0){
 						if(nmy < nmx){
 							if(map[val-reso]){
 								vx = -vx;
@@ -51,15 +51,15 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vy = -vy;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val-1]){
 								vy = -vy;
 							}
 							else{
 								vx = -vx;
 							}
-                    	}
+                    				}
 					}
 					else if(vx > 0 && vy < 0){
 						if(nmy < nmx){
@@ -69,15 +69,15 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vx = -vx;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val-reso]){
 								vx = -vx;
 							}
 							else{
 								vy = -vy;
 							}
-                    	}
+                    				}
 					}
 					else if(vx < 0 && vy > 0){
 						if(nmy < nmx){
@@ -87,15 +87,15 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vx = -vx;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val+reso]){
 								vx = -vx;
 							}
 							else{
 								vy = -vy;
 							}
-                    	}
+                    				}
 					}
 					else{
 						if(nmy < nmx){
@@ -105,15 +105,15 @@ kernel void add(global unsigned char *data,global unsigned  char *map,global uns
 							else{
 								vy = -vy;
 							}
-                    	}
-                    	else{
+                    				}
+                    				else{
 							if(map[val-reso]){
 								vy = -vy;
 							}
 							else{
 								vx = -vx;
 							}
-                    	}
+                    				}
 					}
 					fill(data,val,r << 3,g << 3,b << 3);
 					r >>= 1;
