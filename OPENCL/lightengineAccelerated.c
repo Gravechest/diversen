@@ -8,7 +8,7 @@
 #define resx 1024
 #define resy 1024
 
-#define res 512
+#define res 128
 
 #define dataC res*res*4
 	
@@ -172,8 +172,9 @@ void main(){
 		map[i] = 1;
 	}
 	clEnqueueWriteBuffer(commandqueue,memmap, 1,0,res*res,map,0,0,0);
-	spawnLight(200,200,0,0,rgb(2,2,1));
-	CreateThread(0,0,gameloop,0,0,0);
+	spawnLight(res/2,res/2,0,0,rgb(1,2,2));
+	spawnLight(res/2 + 30,res/2,0,0,rgb(2,1,2));
+	CreateThread(0,0,gameloop,0,0,0);	
 	for(;;){
 		if(mouseProp & 0x01){
 			POINT p;
@@ -187,12 +188,11 @@ void main(){
 				clEnqueueWriteBuffer(commandqueue,memmap, 1,0,res*res,map,0,0,0);
 			}
 		}
-		if(PeekMessage(&Msg,window,0,0,0)){
+		while(PeekMessage(&Msg,window,0,0,0)){
 			GetMessage(&Msg,window,0,0);
 			TranslateMessage(&Msg);
 			DispatchMessageW(&Msg);
 		}
-		Sleep(10);
 	}
 }
 
