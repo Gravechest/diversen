@@ -4,14 +4,14 @@
 #include <stdio.h>
 #include <cl/cl.h>
 
-#define resx 256
-#define resy 256
+#define resx 1080
+#define resy 1920
 
-#define res 256
+#define res 128
 
 #define RENDERDISTANCE 32
 
-#define MAPSZ 256
+#define MAPSZ 32
 #define MAPRAM MAPSZ*MAPSZ*MAPSZ
 
 #define VRAM res*res*4
@@ -79,17 +79,50 @@ char *data;
 char *map;
 
 char settings;
-
+char touchStatus;
 char threadStatus;
 
-BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),res,res,1,32,BI_RGB };
+BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),res,res,1,32,BI_RGB };	
 
 const char name[] = "window";
 HWND window;
 HDC dc;
 MSG Msg;
 
+char hitbox(float x,float y,float z){
+	if(x < 0){
+		touchStatus |= 0x01;
+	}
+	if(y < 0){
+		touchStatus |= 0x02;
+	}
+	if(z < 0){
+		touchStatus |= 0x04;
+	}
+	int m = (int)x + (int)y * properties->lvlSz + (int)z * properties->lvlSz * properties->lvlSz;
+	if(map[m]){
+		x -= player->xvel;
+		m = (int)x + (int)y * properties->lvlSz + (int)z * properties->lvlSz * properties->lvlSz;
+		if(!map[m]){
+			touchStatus |= 0x08;
+		}
+		x += player->xvel;
+		y -= player->yvel;
+		m = (int)x + (int)y * properties->lvlSz + (int)z * properties->lvlSz * properties->lvlSz;
+		if(!map[m]){
+			touchStatus |= 0x10;
+		}	
+		y += player->yvel;		
+		z -= player->zvel;
+		m = (int)x + (int)y * properties->lvlSz + (int)z * properties->lvlSz * properties->lvlSz;
+		if(!map[m]){
+			touchStatus |= 0x20;
+		}
+		z += player->zvel;
+	}
+}
 
+//functie die ervoor zorgt dat een ray 1 stap vooruit gaat
 
 void rayItterate(RAY *ray){
 	float dx,dy,dz;
@@ -144,6 +177,8 @@ void rayItterate(RAY *ray){
 	}
 }
 
+//windows messages kunnen hier worden behandeld
+
 long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch(msg){
 	case WM_KEYDOWN:
@@ -159,8 +194,8 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		if(settings & 1){
 			POINT curp;
 			GetCursorPos(&curp);
-			player->xpitch += (float)(curp.x - 50) / 100;
-			player->ypitch -= (float)(curp.y - 50) / 100;
+			player->xpitch += (float)(curp.x - 50) / 130;
+			player->ypitch -= (float)(curp.y - 50) / 130;
 			if(player->ypitch < -2){
 				player->ypitch = -2;
 			}
@@ -175,17 +210,31 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			ray.vz = sin((float)(res/2) / res / player->yfov + player->ypitch);
 			ray.vx = cos((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
 			ray.vy = sin((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
-			for(int i = 0;i < 8;i++){
+			for(int i = 0;i < 12;i++){
 				rayItterate(&ray);
-				if(map[(int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz]){
+				int block = (int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz;
+				if(map[block]){
 					if(ray.z - (int)ray.z == 0){
-						map[(int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz - properties->lvlSz * properties->lvlSz] = 1;
+						map[block - properties->lvlSz * properties->lvlSz] = 1;
 					}
 					else if(ray.y - (int)ray.y == 0){
-						map[(int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz - properties->lvlSz] = 1;
+						map[block - properties->lvlSz] = 1;
 					}
 					else{
-						map[(int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz - 1] = 1;
+						map[block - 1] = 1;
+					}
+					break;
+				}
+				block = (int)(ray.x - 0.00001) + (int)(ray.y - 0.00001) * properties->lvlSz + (int)(ray.z - 0.00001) * properties->lvlSz * properties->lvlSz;
+				if(map[block]){
+					if(ray.z - (int)ray.z == 0){
+						map[block + properties->lvlSz * properties->lvlSz] = 1;
+					}
+					else if(ray.y - (int)ray.y == 0){
+						map[block + properties->lvlSz] = 1;
+					}
+					else{
+						map[block + 1] = 1;
 					}
 					break;
 				}
@@ -200,10 +249,11 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			ray.vz = sin((float)(res/2) / res / player->yfov + player->ypitch);
 			ray.vx = cos((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
 			ray.vy = sin((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
-			for(int i = 0;i < 8;i++){
+			for(int i = 0;i < 12;i++){
 				rayItterate(&ray);
-				if(map[(int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz]){
-					map[(int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz] = 0;
+				int block = (int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz;
+				if(map[block]){
+					map[block] = 0;
 					break;
 				}
 			}
@@ -214,6 +264,8 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 }
 
 WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
+
+//de gpu code word hier uitgevoert
 
 void openCL(){
 	long long t = _rdtsc();	
@@ -226,6 +278,7 @@ void openCL(){
 }
 
 void main(){
+	//om de Sleep functie accurater te maken
 	timeBeginPeriod(1);
 
 	HANDLE h = CreateFile("source.cl",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
@@ -233,10 +286,14 @@ void main(){
 	source = HeapAlloc(GetProcessHeap(),8,fsize);
 	ReadFile(h,source,fsize,0,0);
 
+	//hier word memory gealloceerd
+
 	data       = HeapAlloc(GetProcessHeap(),8,VRAM);
 	map        = HeapAlloc(GetProcessHeap(),8,MAPRAM);
 	player     = HeapAlloc(GetProcessHeap(),8,sizeof(PLAYERDATA));
 	properties = HeapAlloc(GetProcessHeap(),8,sizeof(PROPERTIES));
+
+	//opencl standaard code 
 
 	clGetPlatformIDs(20,platformid,&platformC);
 	clGetDeviceIDs(platformid[gpu],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
@@ -260,19 +317,20 @@ void main(){
 	clSetKernelArg(kernel,2,sizeof(player_mem),(void*)&player_mem);
 	clSetKernelArg(kernel,3,sizeof(prop_mem),(void*)&prop_mem);
 
+	// hier word de window gemaakt
+
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
 	window = CreateWindowEx(0,name,name,0x90080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
 
-	for(int i = 0;i < VRAM;i+=20){
-		map[i] = 1;
-	}	
 	clEnqueueWriteBuffer(commandqueue,map_mem,1,0,MAPRAM,map,0,0,0);
+
+	//initializatie
 
 	player->xfov = 0.5;
 	player->yfov = 1;
-	player->zpos = 4.5;
+	player->zpos = 14;
 	player->xpos = 6;
 	player->ypos = 6;
 
@@ -283,7 +341,12 @@ void main(){
 	settings = 1;
 	ShowCursor(0);
 
+	//mapgencode kan hier
+	
+	map[0] = 1;
+
 	for(;;){
+		//movement
 		if(GetKeyState(0x57) & 0x80){
 			player->xvel += cosf(player->xpitch + 0.50 / player->xfov) / 120;
 			player->yvel += sinf(player->xpitch + 0.50 / player->xfov) / 120;
@@ -314,56 +377,81 @@ void main(){
 				player->xpitch += 0.03;
 			}
 		}
-		if(player->zpos > 1.2){
-			player->zvel -= 0.02;
-		}
-		else{
-			player->zvel = 0;
-			if(GetKeyState(VK_SPACE) & 0x80){
-				player->zvel = 0.4;	
-			}
-		}
+
+		player->zvel -= 0.02;
+
 		player->xpos += player->xvel;
 		player->ypos += player->yvel;
 		player->zpos += player->zvel;
-		if(map[(int)player->xpos + (int)player->ypos*MAPSZ + (int)player->zpos*MAPSZ*MAPSZ]
-		|| map[(int)player->xpos + (int)player->ypos*MAPSZ + (int)player->zpos*MAPSZ*MAPSZ + 64]){
+
+		//collision code 
+
+		hitbox(player->xpos + 0.2,player->ypos + 0.2,player->zpos - 1.8);
+		hitbox(player->xpos + 0.2,player->ypos + 0.2,player->zpos + 0.2);
+		hitbox(player->xpos + 0.2,player->ypos - 0.2,player->zpos - 1.8);
+		hitbox(player->xpos + 0.2,player->ypos - 0.2,player->zpos + 0.2);
+		hitbox(player->xpos - 0.2,player->ypos + 0.2,player->zpos - 1.8);
+		hitbox(player->xpos - 0.2,player->ypos + 0.2,player->zpos + 0.2);
+		hitbox(player->xpos - 0.2,player->ypos - 0.2,player->zpos - 1.8);
+		hitbox(player->xpos - 0.2,player->ypos - 0.2,player->zpos + 0.2);
+
+		if(touchStatus & 0x01){
 			player->xpos -= player->xvel;
-			if(map[(int)player->xpos + (int)player->ypos*MAPSZ + (int)player->zpos*MAPSZ*MAPSZ]
-			|| map[(int)player->xpos + (int)player->ypos*MAPSZ + (int)player->zpos*MAPSZ*MAPSZ + 64]){
-				player->xpos += player->xvel;
-				player->ypos -= player->yvel;
-				if(map[(int)player->xpos + (int)player->ypos*MAPSZ + (int)player->zpos*MAPSZ*MAPSZ]
-				|| map[(int)player->xpos + (int)player->ypos*MAPSZ + (int)player->zpos*MAPSZ*MAPSZ + 64]){
-					player->ypos += player->yvel;
-					player->zpos -= player->zvel;
-					if(GetKeyState(VK_SPACE) & 0x80){
-						player->zvel = 0.4;	
-					}
-					else{
-						player->zvel = 0;
-					}
-				}
-				else{
-					player->yvel = 0;
-				}
+			player->xvel = 0;
+		}
+		if(touchStatus & 0x02){
+			player->ypos -= player->yvel;
+			player->yvel = 0;
+		}
+		if(touchStatus & 0x04){
+			player->zpos -= player->zvel;
+			if(GetKeyState(VK_SPACE) & 0x80){
+				player->zvel = 0.5;
 			}
 			else{
-				player->xvel = 0;
+				player->zvel = 0;
 			}
 		}
+		if(touchStatus & 0x08){
+			player->xpos -= player->xvel;
+			player->xvel = 0;
+		}
+		if(touchStatus & 0x10){
+			player->ypos -= player->yvel;
+			player->yvel = 0;
+		}
+		if(touchStatus & 0x20){
+			player->zpos -= player->zvel;
+			if(GetKeyState(VK_SPACE) & 0x80){
+				player->zvel = 0.5;
+			}
+			else{
+				player->zvel = 0;
+			}
+		}
+
+		touchStatus = 0;
+
 		player->xvel /= 1.07;
 		player->yvel /= 1.07;
 		player->zvel /= 1.07;
 
+		//wat timing zooi hier
+
 		HANDLE renderThread = CreateThread(0,0,openCL,0,0,0);
 		Sleep(15);
 		WaitForSingleObject(renderThread,9999);
-		for(int i = 0;i < 10;i++){
+		for(int i = 0;i < 3;i++){
 			data[res/2 * res * 4 + res/2 * 4 + i] = 255;
 		}
+
+		//hier word de boel gerenderd op het scherm
+
 		StretchDIBits(dc,0,0,resy,resx,0,0,res,res,data,&bmi,0,SRCCOPY);
 		memset(data,0,VRAM);
+
+		//de standaard message loop om windows tevreden te houden
+
 		while(PeekMessage(&Msg,window,0,0,0)){
 			GetMessage(&Msg,window,0,0);
 			TranslateMessage(&Msg);
