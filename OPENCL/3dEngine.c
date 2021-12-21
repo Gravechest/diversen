@@ -13,6 +13,7 @@
 #define GL_COMPILE_STATUS 0x8B81
 #define GL_INFO_LOG_LENGTH 0x8B84
 #define GL_UNIFORM_BUFFER 0x8A11
+#define GL_TEXTURE_3D 0x806F	
 
 #define resx 256
 #define resy 256
@@ -49,6 +50,9 @@ void (*glVertexAttribPointer)(int,int,int,int,int,int);
 void (*glGetShaderiv)(int,int,int*);
 void (*glGetShaderInfoLog)(int,int,void*,char*);
 void (*glUniform1iv)(int,int,void*);
+void (*glBindBufferBase)(int,int,int);
+void (*glUniformBlockBinding)(int,int,int);
+void (*glTexImage3D)(int,int,int,int,int,int,int,int,int,void*);
 
 int (*glGetUniformLocation)(int,char*);
 
@@ -65,6 +69,7 @@ unsigned int VBO;
 unsigned int UBO;
 unsigned int vertexShader;
 unsigned int fragmentShader;
+unsigned int mapText;
 
 int shaderStatus;
 
@@ -400,6 +405,8 @@ void main(){
 	clSetKernelArg(kernel,2,sizeof(player_mem),(void*)&player_mem);
 	clSetKernelArg(kernel,3,sizeof(prop_mem),(void*)&prop_mem);
 
+	memset(map,1,MAPRAM);
+
 	// hier word de window gemaakt
 
 	wndclass.hInstance = GetModuleHandle(0);
@@ -451,30 +458,32 @@ void main(){
 	glUniform1iv                 = wglGetProcAddress("glUniform1iv");
 	glGetUniformLocation		 = wglGetProcAddress("glGetUniformLocation");
 	glGetUniformBlockIndex       = wglGetProcAddress("glGetUniformBlockIndex");
+	glBindBufferBase             = wglGetProcAddress("glBindBufferBase");
+	glUniformBlockBinding		 = wglGetProcAddress("glUniformBlockBinding");
+	glTexImage3D                 = wglGetProcAddress("glTexImage3D");
 
 	shaderProgram = glCreateProgram();
 
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 
-	glUniform1iv(glGetUniformLocation(shaderProgram,"map"),MAPRAM/4,map);
-
 	glShaderSource(vertexShader,1,(const char**)&VERTsource,0);
 	glShaderSource(fragmentShader,1,(const char**)&FRAGsource,0);
 
 	glCompileShader(vertexShader);
 	glCompileShader(fragmentShader);
-	
+
 	glAttachShader(shaderProgram,vertexShader);
 	glAttachShader(shaderProgram,fragmentShader);
 
 	glLinkProgram(shaderProgram);
 	glUseProgram(shaderProgram);
+	glEnable(GL_TEXTURE_3D);
 
-	glCreateBuffers(1,&UBO);
-	glBindBuffer(GL_UNIFORM_BUFFER,UBO);
-	glBufferData(GL_UNIFORM_BUFFER,MAPRAM,map,GL_STATIC_DRAW);
+	glGenTextures(1,&mapText);
 
+	glBindTexture(GL_TEXTURE_3D,mapText);
+	glTexImage3D(GL_TEXTURE_3D,0,GL_RED,MAPSZ,MAPSZ,MAPSZ,0,GL_RED,GL_UNSIGNED_BYTE,map);
 	glCreateBuffers(1,&VBO);
 	glBindBuffer(GL_ARRAY_BUFFER,VBO);
 	glBufferData(GL_ARRAY_BUFFER,12 * sizeof(float),quad,GL_STATIC_DRAW);
