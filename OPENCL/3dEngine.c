@@ -2,12 +2,22 @@
 #include <math.h>
 #include <intrin.h>
 #include <stdio.h>
+#include <GL/gl.h>
 #include <cl/cl.h>
 
-#define resx 1080
-#define resy 1920
+#define GL_ARRAY_BUFFER 0x8892
+#define GL_STATIC_DRAW 0x88E4
+#define GL_FLOAT 0x1406
+#define GL_FRAGMENT_SHADER 0x8B30
+#define GL_VERTEX_SHADER 0x8B31
+#define GL_COMPILE_STATUS 0x8B81
+#define GL_INFO_LOG_LENGTH 0x8B84
+#define GL_UNIFORM_BUFFER 0x8A11
 
-#define res 128
+#define resx 256
+#define resy 256
+
+#define res 256
 
 #define RENDERDISTANCE 32
 
@@ -19,6 +29,44 @@
 #define gpu 0
 
 #define PI_2 1.57079632679489661923
+
+#define rendertechnique 1
+
+unsigned int (*glCreateProgram)(void);
+unsigned int (*glCreateShader)(int);
+unsigned int (*glGetUniformBlockIndex)(int,char*);
+
+void (*glCreateBuffers)(int,unsigned int*);
+void (*glBindBuffer)(int,int);
+void (*glBufferData)(int,int,void*,int);
+void (*glEnableVertexAttribArray)(int);
+void (*glShaderSource)(int,int,void*,int);
+void (*glCompileShader)(int);
+void (*glAttachShader)(unsigned int,int);
+void (*glLinkProgram)(unsigned int);
+void (*glUseProgram)(unsigned int);
+void (*glVertexAttribPointer)(int,int,int,int,int,int);
+void (*glGetShaderiv)(int,int,int*);
+void (*glGetShaderInfoLog)(int,int,void*,char*);
+void (*glUniform1iv)(int,int,void*);
+
+int (*glGetUniformLocation)(int,char*);
+
+PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
+PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,PFD_TYPE_RGBA,
+24,0, 0, 0, 0, 0, 0,0,0,0,
+0,0,0,0,32,0,0,PFD_MAIN_PLANE,
+0,0,0,0	};
+
+float quad[12] = {1.0,1.0 ,-1.0,1.0 ,1.0,-1.0 ,-1.0,-1.0 ,-1.0,1.0 ,1.0,-1.0};
+
+unsigned int shaderProgram;
+unsigned int VBO;
+unsigned int UBO;
+unsigned int vertexShader;
+unsigned int fragmentShader;
+
+int shaderStatus;
 
 typedef struct RAY{
 	float x;
@@ -43,6 +91,16 @@ typedef struct PLAYERDATA{
 	float xvel;
 	float yvel;
 	float zvel;
+
+	float richtingx;
+	float richtingy;
+	float richtingz;
+
+	float leftx;
+	float lefty;
+
+	float downx;
+	float downy;
 }PLAYERDATA;
 
 typedef struct PROPERTIES{
@@ -74,7 +132,9 @@ int fsize;
 int count = VRAM/4;
 int count2 = 1;
 
-char *source;
+char *VERTsource;
+char *FRAGsource;
+char *CLsource;
 char *data;
 char *map;
 
@@ -268,6 +328,16 @@ WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
 //de gpu code word hier uitgevoert
 
 void openCL(){
+	player->richtingx = cosf(player->xpitch);
+	player->richtingy = sinf(player->xpitch);
+	player->richtingz = sinf(player->ypitch);
+
+	player->leftx = player->richtingy;
+	player->lefty = -player->richtingx;
+
+	player->downx = player->richtingz;
+	player->downy = -player->richtingx;
+
 	long long t = _rdtsc();	
 	clEnqueueWriteBuffer(commandqueue,map_mem,1,0,MAPRAM,map,0,0,0);
 	clEnqueueWriteBuffer(commandqueue,player_mem,1,0,sizeof(PLAYERDATA),player,0,0,0);
@@ -283,8 +353,21 @@ void main(){
 
 	HANDLE h = CreateFile("source.cl",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 	fsize = GetFileSize(h,0);
-	source = HeapAlloc(GetProcessHeap(),8,fsize);
-	ReadFile(h,source,fsize,0,0);
+	CLsource = HeapAlloc(GetProcessHeap(),8,fsize);
+	ReadFile(h,CLsource,fsize,0,0);
+	CloseHandle(h);
+
+	h = CreateFile("fragment.frag",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
+	fsize = GetFileSize(h,0);
+	FRAGsource = HeapAlloc(GetProcessHeap(),8,fsize+1);
+	ReadFile(h,FRAGsource,fsize+1,0,0);
+	CloseHandle(h);
+
+	h = CreateFile("vertex.vert",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
+	fsize = GetFileSize(h,0);
+	VERTsource = HeapAlloc(GetProcessHeap(),8,fsize+1);
+	ReadFile(h,VERTsource,fsize+1,0,0);
+	CloseHandle(h);
 
 	//hier word memory gealloceerd
 
@@ -299,7 +382,7 @@ void main(){
 	clGetDeviceIDs(platformid[gpu],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
 	context = clCreateContext(0,1,&deviceid,0,0,0);
 	commandqueue = clCreateCommandQueue(context,deviceid,0,0);
-	program = clCreateProgramWithSource(context,1,(const char**)&source,0,0);
+	program = clCreateProgramWithSource(context,1,(const char**)&CLsource,0,0);
 	clBuildProgram(program,0,0,0,0,0);
 	kernel = clCreateKernel(program,"add",0);
 	if(!kernel){	
@@ -345,6 +428,59 @@ void main(){
 	
 	map[0] = 1;
 
+	//opengl initializing
+
+	SetPixelFormat(dc, ChoosePixelFormat(dc, &pfd), &pfd);
+	wglMakeCurrent(dc, wglCreateContext(dc));
+
+	glGetShaderiv				 = wglGetProcAddress("glGetShaderiv");
+	glCreateProgram 			 = wglGetProcAddress("glCreateProgram"); 
+	glCreateShader  			 = wglGetProcAddress("glCreateShader");
+	glCreateBuffers			     = wglGetProcAddress("glCreateBuffers");
+	glBindBuffer                 = wglGetProcAddress("glBindBuffer"); 
+	glCreateShader  			 = wglGetProcAddress("glCreateShader");
+	glBufferData    			 = wglGetProcAddress("glBufferData"); 
+	glEnableVertexAttribArray    = wglGetProcAddress("glEnableVertexAttribArray");
+	glVertexAttribPointer		 = wglGetProcAddress("glVertexAttribPointer");
+	glShaderSource 				 = wglGetProcAddress("glShaderSource"); 
+	glCompileShader 			 = wglGetProcAddress("glCompileShader"); 
+	glAttachShader 				 = wglGetProcAddress("glAttachShader");
+	glLinkProgram 				 = wglGetProcAddress("glLinkProgram");
+	glUseProgram 				 = wglGetProcAddress("glUseProgram");
+	glGetShaderInfoLog			 = wglGetProcAddress("glGetShaderInfoLog");
+	glUniform1iv                 = wglGetProcAddress("glUniform1iv");
+	glGetUniformLocation		 = wglGetProcAddress("glGetUniformLocation");
+	glGetUniformBlockIndex       = wglGetProcAddress("glGetUniformBlockIndex");
+
+	shaderProgram = glCreateProgram();
+
+	vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+	glUniform1iv(glGetUniformLocation(shaderProgram,"map"),MAPRAM/4,map);
+
+	glShaderSource(vertexShader,1,(const char**)&VERTsource,0);
+	glShaderSource(fragmentShader,1,(const char**)&FRAGsource,0);
+
+	glCompileShader(vertexShader);
+	glCompileShader(fragmentShader);
+	
+	glAttachShader(shaderProgram,vertexShader);
+	glAttachShader(shaderProgram,fragmentShader);
+
+	glLinkProgram(shaderProgram);
+	glUseProgram(shaderProgram);
+
+	glCreateBuffers(1,&UBO);
+	glBindBuffer(GL_UNIFORM_BUFFER,UBO);
+	glBufferData(GL_UNIFORM_BUFFER,MAPRAM,map,GL_STATIC_DRAW);
+
+	glCreateBuffers(1,&VBO);
+	glBindBuffer(GL_ARRAY_BUFFER,VBO);
+	glBufferData(GL_ARRAY_BUFFER,12 * sizeof(float),quad,GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0,2,GL_FLOAT,0,2 * sizeof(float),0);
+
 	for(;;){
 		//movement
 		if(GetKeyState(0x57) & 0x80){
@@ -378,7 +514,7 @@ void main(){
 			}
 		}
 
-		player->zvel -= 0.02;
+		player->zvel -= 0.03;
 
 		player->xpos += player->xvel;
 		player->ypos += player->yvel;
@@ -438,16 +574,24 @@ void main(){
 
 		//wat timing zooi hier
 
-		HANDLE renderThread = CreateThread(0,0,openCL,0,0,0);
-		Sleep(15);
-		WaitForSingleObject(renderThread,9999);
-		for(int i = 0;i < 3;i++){
-			data[res/2 * res * 4 + res/2 * 4 + i] = 255;
+		switch(rendertechnique){
+		case 0:{
+				HANDLE renderThread = CreateThread(0,0,openCL,0,0,0);
+				Sleep(15);
+				WaitForSingleObject(renderThread,9999);
+				StretchDIBits(dc,0,0,resy,resx,0,0,res,res,data,&bmi,0,SRCCOPY);
+				break;
+			}
+		case 1:
+    		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    		glClear(GL_COLOR_BUFFER_BIT);
+			glDrawArrays(GL_TRIANGLES,0,12);
+			SwapBuffers(dc);
+			break;
 		}
 
 		//hier word de boel gerenderd op het scherm
 
-		StretchDIBits(dc,0,0,resy,resx,0,0,res,res,data,&bmi,0,SRCCOPY);
 		memset(data,0,VRAM);
 
 		//de standaard message loop om windows tevreden te houden
@@ -459,32 +603,3 @@ void main(){
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
