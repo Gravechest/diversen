@@ -14,6 +14,12 @@
 #define GL_INFO_LOG_LENGTH 0x8B84
 #define GL_UNIFORM_BUFFER 0x8A11
 #define GL_TEXTURE_3D 0x806F	
+#define GL_TEXTURE_WRAP_S 0x2802
+#define GL_TEXTURE_WRAP_T 0x2803
+#define GL_TEXTURE_WRAP_R 0x8072
+#define GL_TEXTURE0 0x84C0
+#define GL_MIRRORED_REPEAT 0x8370
+#define GL_DYNAMIC_DRAW 0x88E8
 
 #define resx 256
 #define resy 256
@@ -33,28 +39,36 @@
 
 #define rendertechnique 1
 
-unsigned int (*glCreateProgram)(void);
-unsigned int (*glCreateShader)(int);
-unsigned int (*glGetUniformBlockIndex)(int,char*);
+typedef unsigned int (*GLCREATEPROGRAM)(void);
+typedef unsigned int (*GLCREATESHADER)(int);
+typedef unsigned int (*GLGETUNIFORMBLOCKINDEX)(int, char*);
 
-void (*glCreateBuffers)(int,unsigned int*);
-void (*glBindBuffer)(int,int);
-void (*glBufferData)(int,int,void*,int);
-void (*glEnableVertexAttribArray)(int);
-void (*glShaderSource)(int,int,void*,int);
-void (*glCompileShader)(int);
-void (*glAttachShader)(unsigned int,int);
-void (*glLinkProgram)(unsigned int);
-void (*glUseProgram)(unsigned int);
-void (*glVertexAttribPointer)(int,int,int,int,int,int);
-void (*glGetShaderiv)(int,int,int*);
-void (*glGetShaderInfoLog)(int,int,void*,char*);
-void (*glUniform1iv)(int,int,void*);
-void (*glBindBufferBase)(int,int,int);
-void (*glUniformBlockBinding)(int,int,int);
-void (*glTexImage3D)(int,int,int,int,int,int,int,int,int,void*);
 
-int (*glGetUniformLocation)(int,char*);
+
+typedef void (*GLCREATEBUFFERS)(int, unsigned int*);
+typedef void (*GLBINDBUFFER)(int, int);
+typedef void (*GLBUFFERDATA)(int, int, void*, int);
+typedef void (*GLENABLEVERTEXATTRIBARRAY)(int);
+typedef void (*GLSHADERSOURCE)(int, int, void*, int);
+typedef void (*GLCOMPILESHADER)(int);
+typedef void (*GLATTACHSHADER)(unsigned int, int);
+typedef void (*GLLINKPROGRAM)(unsigned int);
+typedef void (*GLUSEPROGRAM)(unsigned int);
+typedef void (*GLVERTEXATTRIBPOINTER)(int, int, int, int, int, int);
+typedef void (*GLGETSHADERIV)(int, int, int*);
+typedef void (*GLGETSHADERINFOLOG)(int, int, void*,const char*);
+typedef void (*GLUNIFORM1IV)(int, int, void*);
+typedef void (*GLUNIFORM2F)(int, float, float);
+typedef void (*GLUNIFORM3F)(int, float, float, float);
+typedef void (*GLBINDBUFFERBASE)(int, int, int);
+typedef void (*GLUNIFORMBLOCKBINDING)(int, int, int);
+typedef void (*GLTEXTIMAGE3D)(int, int, int, int, int, int, int, int, int, void*);
+typedef void (*GLACTIVETEXTURE)(int);
+typedef void (*GLBINDVERTEXARRAY)(int);
+typedef void (*GLGENVERTEXARRAYS)(int, void*);
+typedef void (*GLGENERATEMIPMAP)(int);
+
+typedef int (*GLGETUNIFORMLOCATION)(int,const char*);
 
 PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
 PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,PFD_TYPE_RGBA,
@@ -66,10 +80,13 @@ float quad[12] = {1.0,1.0 ,-1.0,1.0 ,1.0,-1.0 ,-1.0,-1.0 ,-1.0,1.0 ,1.0,-1.0};
 
 unsigned int shaderProgram;
 unsigned int VBO;
+unsigned int VTO;
+
 unsigned int UBO;
 unsigned int vertexShader;
 unsigned int fragmentShader;
 unsigned int mapText;
+unsigned int VAO;
 
 int shaderStatus;
 
@@ -353,6 +370,7 @@ void openCL(){
 }
 
 void main(){
+	glEnable(GL_TEXTURE_3D);
 	//om de Sleep functie accurater te maken
 	timeBeginPeriod(1);
 
@@ -383,44 +401,48 @@ void main(){
 
 	//opencl standaard code 
 
-	clGetPlatformIDs(20,platformid,&platformC);
-	clGetDeviceIDs(platformid[gpu],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
-	context = clCreateContext(0,1,&deviceid,0,0,0);
-	commandqueue = clCreateCommandQueue(context,deviceid,0,0);
-	program = clCreateProgramWithSource(context,1,(const char**)&CLsource,0,0);
-	clBuildProgram(program,0,0,0,0,0);
-	kernel = clCreateKernel(program,"add",0);
-	if(!kernel){	
-		printf("program has not compiled\n");
-		ExitProcess(0);
+	switch(rendertechnique){
+	case 0:
+		clGetPlatformIDs(20,platformid,&platformC);
+		clGetDeviceIDs(platformid[gpu],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
+		context = clCreateContext(0,1,&deviceid,0,0,0);
+		commandqueue = clCreateCommandQueue(context,deviceid,0,0);
+		program = clCreateProgramWithSource(context,1,(const char**)&CLsource,0,0);
+		clBuildProgram(program,0,0,0,0,0);
+		kernel = clCreateKernel(program,"add",0);
+		if(!kernel){	
+			printf("program has not compiled\n");
+			ExitProcess(0);
+		}
+
+		mem        = clCreateBuffer(context,0,VRAM,0,0);
+		map_mem    = clCreateBuffer(context,0,MAPRAM,0,0);
+		player_mem = clCreateBuffer(context,0,sizeof(PLAYERDATA),0,0);
+		prop_mem   = clCreateBuffer(context,0,sizeof(PROPERTIES),0,0);
+
+		clSetKernelArg(kernel,0,sizeof(mem),(void*)&mem);
+		clSetKernelArg(kernel,1,sizeof(map_mem),(void*)&map_mem);
+		clSetKernelArg(kernel,2,sizeof(player_mem),(void*)&player_mem);
+		clSetKernelArg(kernel,3,sizeof(prop_mem),(void*)&prop_mem);
+		
+		clEnqueueWriteBuffer(commandqueue,map_mem,1,0,MAPRAM,map,0,0,0);
+		break;
+	case 1:
+		break;
 	}
-
-	mem        = clCreateBuffer(context,0,VRAM,0,0);
-	map_mem    = clCreateBuffer(context,0,MAPRAM,0,0);
-	player_mem = clCreateBuffer(context,0,sizeof(PLAYERDATA),0,0);
-	prop_mem   = clCreateBuffer(context,0,sizeof(PROPERTIES),0,0);
-
-	clSetKernelArg(kernel,0,sizeof(mem),(void*)&mem);
-	clSetKernelArg(kernel,1,sizeof(map_mem),(void*)&map_mem);
-	clSetKernelArg(kernel,2,sizeof(player_mem),(void*)&player_mem);
-	clSetKernelArg(kernel,3,sizeof(prop_mem),(void*)&prop_mem);
-
-	memset(map,1,MAPRAM);
 
 	// hier word de window gemaakt
 
 	wndclass.hInstance = GetModuleHandle(0);
 	RegisterClass(&wndclass);
-	window = CreateWindowEx(0,name,name,0x90080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
+	window = CreateWindowEx(0,name,name,0x10080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
-
-	clEnqueueWriteBuffer(commandqueue,map_mem,1,0,MAPRAM,map,0,0,0);
 
 	//initializatie
 
 	player->xfov = 0.5;
 	player->yfov = 1;
-	player->zpos = 14;
+	player->zpos = 1;
 	player->xpos = 6;
 	player->ypos = 6;
 
@@ -440,27 +462,36 @@ void main(){
 	SetPixelFormat(dc, ChoosePixelFormat(dc, &pfd), &pfd);
 	wglMakeCurrent(dc, wglCreateContext(dc));
 
-	glGetShaderiv				 = wglGetProcAddress("glGetShaderiv");
-	glCreateProgram 			 = wglGetProcAddress("glCreateProgram"); 
-	glCreateShader  			 = wglGetProcAddress("glCreateShader");
-	glCreateBuffers			     = wglGetProcAddress("glCreateBuffers");
-	glBindBuffer                 = wglGetProcAddress("glBindBuffer"); 
-	glCreateShader  			 = wglGetProcAddress("glCreateShader");
-	glBufferData    			 = wglGetProcAddress("glBufferData"); 
-	glEnableVertexAttribArray    = wglGetProcAddress("glEnableVertexAttribArray");
-	glVertexAttribPointer		 = wglGetProcAddress("glVertexAttribPointer");
-	glShaderSource 				 = wglGetProcAddress("glShaderSource"); 
-	glCompileShader 			 = wglGetProcAddress("glCompileShader"); 
-	glAttachShader 				 = wglGetProcAddress("glAttachShader");
-	glLinkProgram 				 = wglGetProcAddress("glLinkProgram");
-	glUseProgram 				 = wglGetProcAddress("glUseProgram");
-	glGetShaderInfoLog			 = wglGetProcAddress("glGetShaderInfoLog");
-	glUniform1iv                 = wglGetProcAddress("glUniform1iv");
-	glGetUniformLocation		 = wglGetProcAddress("glGetUniformLocation");
-	glGetUniformBlockIndex       = wglGetProcAddress("glGetUniformBlockIndex");
-	glBindBufferBase             = wglGetProcAddress("glBindBufferBase");
-	glUniformBlockBinding		 = wglGetProcAddress("glUniformBlockBinding");
-	glTexImage3D                 = wglGetProcAddress("glTexImage3D");
+	GLGETSHADERIV glGetShaderiv = (GLGETSHADERIV)wglGetProcAddress("glGetShaderiv");
+	GLCREATEPROGRAM glCreateProgram = (GLCREATEPROGRAM)wglGetProcAddress("glCreateProgram");
+	GLCREATESHADER glCreateShader = (GLCREATESHADER)wglGetProcAddress("glCreateShader");
+	GLCREATEBUFFERS glCreateBuffers = (GLCREATEBUFFERS)wglGetProcAddress("glCreateBuffers");
+	GLBINDBUFFER glBindBuffer = (GLBINDBUFFER)wglGetProcAddress("glBindBuffer");
+	GLBUFFERDATA glBufferData = (GLBUFFERDATA)wglGetProcAddress("glBufferData");
+	GLENABLEVERTEXATTRIBARRAY glEnableVertexAttribArray = (GLENABLEVERTEXATTRIBARRAY)wglGetProcAddress("glEnableVertexAttribArray");
+	GLVERTEXATTRIBPOINTER glVertexAttribPointer = (GLVERTEXATTRIBPOINTER)wglGetProcAddress("glVertexAttribPointer");
+	GLSHADERSOURCE glShaderSource = (GLSHADERSOURCE)wglGetProcAddress("glShaderSource");
+	GLCOMPILESHADER glCompileShader = (GLCOMPILESHADER)wglGetProcAddress("glCompileShader");
+	GLATTACHSHADER glAttachShader = (GLATTACHSHADER)wglGetProcAddress("glAttachShader");
+	GLLINKPROGRAM glLinkProgram = (GLLINKPROGRAM)wglGetProcAddress("glLinkProgram");
+	GLUSEPROGRAM glUseProgram = (GLUSEPROGRAM)wglGetProcAddress("glUseProgram");
+	GLGETSHADERINFOLOG glGetShaderInfoLog = (GLGETSHADERINFOLOG)wglGetProcAddress("glGetShaderInfoLog");
+	GLUNIFORM1IV glUniform1iv = (GLUNIFORM1IV)wglGetProcAddress("glUniform1iv");
+	GLUNIFORM2F glUniform2f = (GLUNIFORM2F)wglGetProcAddress("glUniform2f");
+	GLUNIFORM3F glUniform3f = (GLUNIFORM3F)wglGetProcAddress("glUniform3f");
+	GLGETUNIFORMLOCATION glGetUniformLocation = (GLGETUNIFORMLOCATION)wglGetProcAddress("glGetUniformLocation");
+	GLGETUNIFORMBLOCKINDEX glGetUniformBlockIndex = (GLGETUNIFORMBLOCKINDEX)wglGetProcAddress("glGetUniformBlockIndex");
+	GLBINDBUFFERBASE glBindBufferBase = (GLBINDBUFFERBASE)wglGetProcAddress("glBindBufferBase");
+	GLUNIFORMBLOCKBINDING glUniformBlockBinding = (GLUNIFORMBLOCKBINDING)wglGetProcAddress("glUniformBlockBinding");
+	GLTEXTIMAGE3D glTexImage3D = (GLTEXTIMAGE3D)wglGetProcAddress("glTexImage3D");
+	GLACTIVETEXTURE glActiveTexture = (GLACTIVETEXTURE)wglGetProcAddress("glActiveTexture");
+	GLBINDVERTEXARRAY glBindVertexArray = (GLBINDVERTEXARRAY)wglGetProcAddress("glBindVertexArray");
+	GLGENVERTEXARRAYS glGenVertexArrays = (GLGENVERTEXARRAYS)wglGetProcAddress("glGenVertexArrays");
+	GLGENERATEMIPMAP glGenerateMipmap = (GLGENERATEMIPMAP)wglGetProcAddress("glGenerateMipmap");	
+
+	for(int i = 1;i < MAPRAM;i+=4){
+		map[i] = 1;
+	}
 
 	shaderProgram = glCreateProgram();
 
@@ -470,6 +501,7 @@ void main(){
 	glShaderSource(vertexShader,1,(const char**)&VERTsource,0);
 	glShaderSource(fragmentShader,1,(const char**)&FRAGsource,0);
 
+
 	glCompileShader(vertexShader);
 	glCompileShader(fragmentShader);
 
@@ -477,20 +509,26 @@ void main(){
 	glAttachShader(shaderProgram,fragmentShader);
 
 	glLinkProgram(shaderProgram);
+
 	glUseProgram(shaderProgram);
-	glEnable(GL_TEXTURE_3D);
+
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
 
 	glGenTextures(1,&mapText);
-
 	glBindTexture(GL_TEXTURE_3D,mapText);
 	glTexImage3D(GL_TEXTURE_3D,0,GL_RED,MAPSZ,MAPSZ,MAPSZ,0,GL_RED,GL_UNSIGNED_BYTE,map);
+	glGenerateMipmap(GL_TEXTURE_3D);
+
 	glCreateBuffers(1,&VBO);
 	glBindBuffer(GL_ARRAY_BUFFER,VBO);
-	glBufferData(GL_ARRAY_BUFFER,12 * sizeof(float),quad,GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER,12 * sizeof(float),quad,GL_DYNAMIC_DRAW);
 	glEnableVertexAttribArray(0);
     glVertexAttribPointer(0,2,GL_FLOAT,0,2 * sizeof(float),0);
 
+
 	for(;;){
+
 		//movement
 		if(GetKeyState(0x57) & 0x80){
 			player->xvel += cosf(player->xpitch + 0.50 / player->xfov) / 120;
@@ -582,20 +620,22 @@ void main(){
 		player->zvel /= 1.07;
 
 		//wat timing zooi hier
-
-		switch(rendertechnique){
+		switch(1){
 		case 0:{
 				HANDLE renderThread = CreateThread(0,0,openCL,0,0,0);
 				Sleep(15);
 				WaitForSingleObject(renderThread,9999);
 				StretchDIBits(dc,0,0,resy,resx,0,0,res,res,data,&bmi,0,SRCCOPY);
+
+
 				break;
 			}
-		case 1:
-    		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    		glClear(GL_COLOR_BUFFER_BIT);
-			glDrawArrays(GL_TRIANGLES,0,12);
-			SwapBuffers(dc);
+		case 1:	
+			for(;;){
+				glClear(GL_COLOR_BUFFER_BIT);
+				glDrawArrays(GL_TRIANGLES,0,12);
+				SwapBuffers(dc);
+			}
 			break;
 		}
 
