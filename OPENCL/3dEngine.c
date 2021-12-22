@@ -2,73 +2,25 @@
 #include <math.h>
 #include <intrin.h>
 #include <stdio.h>
+#include <GL/glew.h>
 #include <GL/gl.h>
 #include <cl/cl.h>
 
-#define GL_ARRAY_BUFFER 0x8892
-#define GL_STATIC_DRAW 0x88E4
-#define GL_FLOAT 0x1406
-#define GL_FRAGMENT_SHADER 0x8B30
-#define GL_VERTEX_SHADER 0x8B31
-#define GL_COMPILE_STATUS 0x8B81
-#define GL_INFO_LOG_LENGTH 0x8B84
-#define GL_UNIFORM_BUFFER 0x8A11
-#define GL_TEXTURE_3D 0x806F	
-#define GL_TEXTURE_WRAP_S 0x2802
-#define GL_TEXTURE_WRAP_T 0x2803
-#define GL_TEXTURE_WRAP_R 0x8072
-#define GL_TEXTURE0 0x84C0
-#define GL_MIRRORED_REPEAT 0x8370
-#define GL_DYNAMIC_DRAW 0x88E8
-
 #define resx 256
 #define resy 256
-
-#define res 256
 
 #define RENDERDISTANCE 32
 
 #define MAPSZ 32
 #define MAPRAM MAPSZ*MAPSZ*MAPSZ
 
-#define VRAM res*res*4
+#define VRAM resx*resy*4
 
 #define gpu 0
 
 #define PI_2 1.57079632679489661923
 
 #define rendertechnique 1
-
-typedef unsigned int (*GLCREATEPROGRAM)(void);
-typedef unsigned int (*GLCREATESHADER)(int);
-typedef unsigned int (*GLGETUNIFORMBLOCKINDEX)(int, char*);
-
-
-
-typedef void (*GLCREATEBUFFERS)(int, unsigned int*);
-typedef void (*GLBINDBUFFER)(int, int);
-typedef void (*GLBUFFERDATA)(int, int, void*, int);
-typedef void (*GLENABLEVERTEXATTRIBARRAY)(int);
-typedef void (*GLSHADERSOURCE)(int, int, void*, int);
-typedef void (*GLCOMPILESHADER)(int);
-typedef void (*GLATTACHSHADER)(unsigned int, int);
-typedef void (*GLLINKPROGRAM)(unsigned int);
-typedef void (*GLUSEPROGRAM)(unsigned int);
-typedef void (*GLVERTEXATTRIBPOINTER)(int, int, int, int, int, int);
-typedef void (*GLGETSHADERIV)(int, int, int*);
-typedef void (*GLGETSHADERINFOLOG)(int, int, void*,const char*);
-typedef void (*GLUNIFORM1IV)(int, int, void*);
-typedef void (*GLUNIFORM2F)(int, float, float);
-typedef void (*GLUNIFORM3F)(int, float, float, float);
-typedef void (*GLBINDBUFFERBASE)(int, int, int);
-typedef void (*GLUNIFORMBLOCKBINDING)(int, int, int);
-typedef void (*GLTEXTIMAGE3D)(int, int, int, int, int, int, int, int, int, void*);
-typedef void (*GLACTIVETEXTURE)(int);
-typedef void (*GLBINDVERTEXARRAY)(int);
-typedef void (*GLGENVERTEXARRAYS)(int, void*);
-typedef void (*GLGENERATEMIPMAP)(int);
-
-typedef int (*GLGETUNIFORMLOCATION)(int,const char*);
 
 PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
 PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,PFD_TYPE_RGBA,
@@ -126,7 +78,8 @@ typedef struct PLAYERDATA{
 }PLAYERDATA;
 
 typedef struct PROPERTIES{
-	int reso;
+	int xres;
+	int yres;
 	int lvlSz;
 	int renderDistance;
 }PROPERTIES;
@@ -164,7 +117,7 @@ char settings;
 char touchStatus;
 char threadStatus;
 
-BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),res,res,1,32,BI_RGB };	
+BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),resx,resy,1,32,BI_RGB };	
 
 const char name[] = "window";
 HWND window;
@@ -271,6 +224,17 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 				SetCursorPos(50,50);
 			}
 		}
+		if(GetKeyState(0x46) & 0x80){
+			settings ^= 2;
+			if(settings & 2){
+				SetWindowPos(window,0,0,0,GetSystemMetrics(SM_CXSCREEN),GetSystemMetrics(SM_CYSCREEN),0);	
+				glViewport(0,0,GetSystemMetrics(SM_CXSCREEN),GetSystemMetrics(SM_CYSCREEN));
+			}
+			else{
+				SetWindowPos(window,0,0,0,256,256,0);	
+				glViewport(0,0,256,256);
+			}
+		}
 		break;
 	case WM_MOUSEMOVE:;
 		if(settings & 1){
@@ -289,21 +253,24 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			ray.x = player->xpos;
 			ray.y = player->ypos;
 			ray.z = player->zpos;
-			ray.vz = sin((float)(res/2) / res / player->yfov + player->ypitch);
-			ray.vx = cos((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
-			ray.vy = sin((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
-			for(int i = 0;i < 12;i++){
+			ray.vz = sin((float)(resy/2) / resy / player->yfov + player->ypitch);
+			ray.vx = cos((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
+			ray.vy = sin((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
+			for(int i = 0;i < 254;i++){
 				rayItterate(&ray);
 				int block = (int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz;
 				if(map[block]){
 					if(ray.z - (int)ray.z == 0){
 						map[block - properties->lvlSz * properties->lvlSz] = 1;
+						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y,(int)ray.z+1,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block - properties->lvlSz * properties->lvlSz);
 					}
 					else if(ray.y - (int)ray.y == 0){
 						map[block - properties->lvlSz] = 1;
+						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y+1,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block - properties->lvlSz);
 					}
 					else{
 						map[block - 1] = 1;
+						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x+1,(int)ray.y,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block - 1);
 					}
 					break;
 				}
@@ -311,12 +278,15 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 				if(map[block]){
 					if(ray.z - (int)ray.z == 0){
 						map[block + properties->lvlSz * properties->lvlSz] = 1;
+						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y,(int)ray.z-1,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block + properties->lvlSz * properties->lvlSz);
 					}
 					else if(ray.y - (int)ray.y == 0){
 						map[block + properties->lvlSz] = 1;
+						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y-1,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block + properties->lvlSz);
 					}
 					else{
 						map[block + 1] = 1;
+						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x-1,(int)ray.y,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block + 1);
 					}
 					break;
 				}
@@ -328,14 +298,15 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			ray.x = player->xpos;
 			ray.y = player->ypos;
 			ray.z = player->zpos;
-			ray.vz = sin((float)(res/2) / res / player->yfov + player->ypitch);
-			ray.vx = cos((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
-			ray.vy = sin((float)(res/2) / res / player->xfov + player->xpitch) * cos((float)(res/2) / res / player->yfov + player->ypitch);
+			ray.vz = sin((float)(resy/2) / resy / player->yfov + player->ypitch);
+			ray.vx = cos((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
+			ray.vy = sin((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
 			for(int i = 0;i < 12;i++){
 				rayItterate(&ray);
 				int block = (int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz;
 				if(map[block]){
 					map[block] = 0;
+					glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block);
 					break;
 				}
 			}
@@ -392,14 +363,34 @@ void main(){
 	ReadFile(h,VERTsource,fsize+1,0,0);
 	CloseHandle(h);
 
-	//hier word memory gealloceerd
-
 	data       = HeapAlloc(GetProcessHeap(),8,VRAM);
 	map        = HeapAlloc(GetProcessHeap(),8,MAPRAM);
 	player     = HeapAlloc(GetProcessHeap(),8,sizeof(PLAYERDATA));
 	properties = HeapAlloc(GetProcessHeap(),8,sizeof(PROPERTIES));
 
-	//opencl standaard code 
+
+
+	wndclass.hInstance = GetModuleHandle(0);
+	RegisterClass(&wndclass);
+	window = CreateWindowEx(0,name,name,0x90080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
+	dc = GetDC(window);
+
+	player->xfov = 1;
+	player->yfov = 1;
+	player->zpos = 5;
+	player->xpos = 6;
+	player->ypos = 6;
+
+	properties->lvlSz = MAPSZ;
+	properties->renderDistance = RENDERDISTANCE;
+
+	properties->xres = resx;
+	properties->yres = resy;
+
+	settings = 1;
+	ShowCursor(0);
+	
+	map[0] = 1;
 
 	switch(rendertechnique){
 	case 0:
@@ -428,123 +419,66 @@ void main(){
 		clEnqueueWriteBuffer(commandqueue,map_mem,1,0,MAPRAM,map,0,0,0);
 		break;
 	case 1:
+		SetPixelFormat(dc, ChoosePixelFormat(dc, &pfd), &pfd);
+		wglMakeCurrent(dc, wglCreateContext(dc));	
+
+		glewInit();
+
+		shaderProgram = glCreateProgram();
+
+		vertexShader = glCreateShader(GL_VERTEX_SHADER);
+		fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+
+		glShaderSource(vertexShader,1,(const char**)&VERTsource,0);
+		glShaderSource(fragmentShader,1,(const char**)&FRAGsource,0);
+
+		glCompileShader(vertexShader);
+		glCompileShader(fragmentShader);
+
+		glAttachShader(shaderProgram,vertexShader);
+		glAttachShader(shaderProgram,fragmentShader);
+
+		glLinkProgram(shaderProgram);
+
+		glUseProgram(shaderProgram);
+
+		glGenVertexArrays(1,&VAO);
+		glBindVertexArray(VAO);
+
+		glGenTextures(1,&mapText);
+		glBindTexture(GL_TEXTURE_3D,mapText);
+		glTexImage3D(GL_TEXTURE_3D,0,GL_RED,MAPSZ,MAPSZ,MAPSZ,0,GL_RED,GL_UNSIGNED_BYTE,map);
+		glGenerateMipmap(GL_TEXTURE_3D);
+
+		glCreateBuffers(1,&VBO);
+		glBindBuffer(GL_ARRAY_BUFFER,VBO);
+		glBufferData(GL_ARRAY_BUFFER,12 * sizeof(float),quad,GL_DYNAMIC_DRAW);
+		glEnableVertexAttribArray(0);
+	    glVertexAttribPointer(0,2,GL_FLOAT,0,2 * sizeof(float),0);
+		
+		glUniform2i(glGetUniformLocation(shaderProgram,"reso"),properties->xres,properties->yres);
+
 		break;
 	}
-
-	// hier word de window gemaakt
-
-	wndclass.hInstance = GetModuleHandle(0);
-	RegisterClass(&wndclass);
-	window = CreateWindowEx(0,name,name,0x10080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
-	dc = GetDC(window);
-
-	//initializatie
-
-	player->xfov = 0.5;
-	player->yfov = 1;
-	player->zpos = 1;
-	player->xpos = 6;
-	player->ypos = 6;
-
-	properties->lvlSz = MAPSZ;
-	properties->renderDistance = RENDERDISTANCE;
-	properties->reso = res*4;
-
-	settings = 1;
-	ShowCursor(0);
-
-	//mapgencode kan hier
-	
-	map[0] = 1;
-
-	//opengl initializing
-
-	SetPixelFormat(dc, ChoosePixelFormat(dc, &pfd), &pfd);
-	wglMakeCurrent(dc, wglCreateContext(dc));
-
-	GLGETSHADERIV glGetShaderiv = (GLGETSHADERIV)wglGetProcAddress("glGetShaderiv");
-	GLCREATEPROGRAM glCreateProgram = (GLCREATEPROGRAM)wglGetProcAddress("glCreateProgram");
-	GLCREATESHADER glCreateShader = (GLCREATESHADER)wglGetProcAddress("glCreateShader");
-	GLCREATEBUFFERS glCreateBuffers = (GLCREATEBUFFERS)wglGetProcAddress("glCreateBuffers");
-	GLBINDBUFFER glBindBuffer = (GLBINDBUFFER)wglGetProcAddress("glBindBuffer");
-	GLBUFFERDATA glBufferData = (GLBUFFERDATA)wglGetProcAddress("glBufferData");
-	GLENABLEVERTEXATTRIBARRAY glEnableVertexAttribArray = (GLENABLEVERTEXATTRIBARRAY)wglGetProcAddress("glEnableVertexAttribArray");
-	GLVERTEXATTRIBPOINTER glVertexAttribPointer = (GLVERTEXATTRIBPOINTER)wglGetProcAddress("glVertexAttribPointer");
-	GLSHADERSOURCE glShaderSource = (GLSHADERSOURCE)wglGetProcAddress("glShaderSource");
-	GLCOMPILESHADER glCompileShader = (GLCOMPILESHADER)wglGetProcAddress("glCompileShader");
-	GLATTACHSHADER glAttachShader = (GLATTACHSHADER)wglGetProcAddress("glAttachShader");
-	GLLINKPROGRAM glLinkProgram = (GLLINKPROGRAM)wglGetProcAddress("glLinkProgram");
-	GLUSEPROGRAM glUseProgram = (GLUSEPROGRAM)wglGetProcAddress("glUseProgram");
-	GLGETSHADERINFOLOG glGetShaderInfoLog = (GLGETSHADERINFOLOG)wglGetProcAddress("glGetShaderInfoLog");
-	GLUNIFORM1IV glUniform1iv = (GLUNIFORM1IV)wglGetProcAddress("glUniform1iv");
-	GLUNIFORM2F glUniform2f = (GLUNIFORM2F)wglGetProcAddress("glUniform2f");
-	GLUNIFORM3F glUniform3f = (GLUNIFORM3F)wglGetProcAddress("glUniform3f");
-	GLGETUNIFORMLOCATION glGetUniformLocation = (GLGETUNIFORMLOCATION)wglGetProcAddress("glGetUniformLocation");
-	GLGETUNIFORMBLOCKINDEX glGetUniformBlockIndex = (GLGETUNIFORMBLOCKINDEX)wglGetProcAddress("glGetUniformBlockIndex");
-	GLBINDBUFFERBASE glBindBufferBase = (GLBINDBUFFERBASE)wglGetProcAddress("glBindBufferBase");
-	GLUNIFORMBLOCKBINDING glUniformBlockBinding = (GLUNIFORMBLOCKBINDING)wglGetProcAddress("glUniformBlockBinding");
-	GLTEXTIMAGE3D glTexImage3D = (GLTEXTIMAGE3D)wglGetProcAddress("glTexImage3D");
-	GLACTIVETEXTURE glActiveTexture = (GLACTIVETEXTURE)wglGetProcAddress("glActiveTexture");
-	GLBINDVERTEXARRAY glBindVertexArray = (GLBINDVERTEXARRAY)wglGetProcAddress("glBindVertexArray");
-	GLGENVERTEXARRAYS glGenVertexArrays = (GLGENVERTEXARRAYS)wglGetProcAddress("glGenVertexArrays");
-	GLGENERATEMIPMAP glGenerateMipmap = (GLGENERATEMIPMAP)wglGetProcAddress("glGenerateMipmap");	
-
-	for(int i = 1;i < MAPRAM;i+=4){
-		map[i] = 1;
-	}
-
-	shaderProgram = glCreateProgram();
-
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-	glShaderSource(vertexShader,1,(const char**)&VERTsource,0);
-	glShaderSource(fragmentShader,1,(const char**)&FRAGsource,0);
-
-
-	glCompileShader(vertexShader);
-	glCompileShader(fragmentShader);
-
-	glAttachShader(shaderProgram,vertexShader);
-	glAttachShader(shaderProgram,fragmentShader);
-
-	glLinkProgram(shaderProgram);
-
-	glUseProgram(shaderProgram);
-
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	glGenTextures(1,&mapText);
-	glBindTexture(GL_TEXTURE_3D,mapText);
-	glTexImage3D(GL_TEXTURE_3D,0,GL_RED,MAPSZ,MAPSZ,MAPSZ,0,GL_RED,GL_UNSIGNED_BYTE,map);
-	glGenerateMipmap(GL_TEXTURE_3D);
-
-	glCreateBuffers(1,&VBO);
-	glBindBuffer(GL_ARRAY_BUFFER,VBO);
-	glBufferData(GL_ARRAY_BUFFER,12 * sizeof(float),quad,GL_DYNAMIC_DRAW);
-	glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0,2,GL_FLOAT,0,2 * sizeof(float),0);
-
 
 	for(;;){
 
 		//movement
 		if(GetKeyState(0x57) & 0x80){
-			player->xvel += cosf(player->xpitch + 0.50 / player->xfov) / 120;
-			player->yvel += sinf(player->xpitch + 0.50 / player->xfov) / 120;
+			player->xvel += sinf(player->xpitch + 0.50 / player->xfov) / 120;
+			player->yvel += cosf(player->xpitch + 0.50 / player->xfov) / 120;
 		}
 		if(GetKeyState(0x53) & 0x80){
-			player->xvel -= cosf(player->xpitch + 0.50 / player->xfov) / 120;
-			player->yvel -= sinf(player->xpitch + 0.50 / player->xfov) / 120;
+			player->xvel -= sinf(player->xpitch + 0.50 / player->xfov) / 120;
+			player->yvel -= cosf(player->xpitch + 0.50 / player->xfov) / 120;
 		}
 		if(GetKeyState(0x44) & 0x80){
-			player->xvel += cosf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
-			player->yvel += sinf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
+			player->xvel += sinf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
+			player->yvel += cosf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
 		}
 		if(GetKeyState(0x41) & 0x80){
-			player->xvel -= cosf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
-			player->yvel -= sinf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
+			player->xvel -= sinf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
+			player->yvel -= cosf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
 		}
 		if(!settings & 0x01){
 			if(GetKeyState(VK_UP) & 0x80){
@@ -620,22 +554,20 @@ void main(){
 		player->zvel /= 1.07;
 
 		//wat timing zooi hier
-		switch(1){
+		switch(rendertechnique){
 		case 0:{
-				HANDLE renderThread = CreateThread(0,0,openCL,0,0,0);
-				Sleep(15);
-				WaitForSingleObject(renderThread,9999);
-				StretchDIBits(dc,0,0,resy,resx,0,0,res,res,data,&bmi,0,SRCCOPY);
-
-
-				break;
+			HANDLE renderThread = CreateThread(0,0,openCL,0,0,0);
+			Sleep(15);
+			WaitForSingleObject(renderThread,9999);
+			StretchDIBits(dc,0,0,resy,resx,0,0,resy,resx,data,&bmi,0,SRCCOPY);
+			break;
 			}
 		case 1:	
-			for(;;){
-				glClear(GL_COLOR_BUFFER_BIT);
-				glDrawArrays(GL_TRIANGLES,0,12);
-				SwapBuffers(dc);
-			}
+			glUniform2f(glGetUniformLocation(shaderProgram,"pitch"),player->xpitch,player->ypitch);
+			glUniform3f(glGetUniformLocation(shaderProgram,"pos"),player->xpos,player->ypos,player->zpos);
+			glClear(GL_COLOR_BUFFER_BIT);
+			glDrawArrays(GL_TRIANGLES,0,12);
+			SwapBuffers(dc);
 			break;
 		}
 
