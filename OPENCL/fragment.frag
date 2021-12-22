@@ -4,13 +4,18 @@ out vec4 FragColor;
 
 uniform sampler3D map;
 
+uniform vec2 pitch;
+uniform vec3 pos;
+
+uniform ivec2 reso;
+
 void main(){
-    float vx = sin(gl_FragCoord.x / 500.0 + 0.0) * cos(gl_FragCoord.y / 500.0 + 0.0);
-    float vy = cos(gl_FragCoord.x / 500.0 + 0.0) * cos(gl_FragCoord.y / 500.0 + 0.0);
-    float vz = sin(gl_FragCoord.y / 500.0 + 0.0);
-    float x = 2.0;
-    float y = 2.0;
-    float z = 0.0;
+    float vx = sin(gl_FragCoord.x / reso.x + pitch.x) * cos(gl_FragCoord.y / reso.y + pitch.y);
+    float vy = cos(gl_FragCoord.x / reso.x + pitch.x) * cos(gl_FragCoord.y / reso.y + pitch.y);
+    float vz = sin(gl_FragCoord.y / reso.y + pitch.y);
+    float x = pos.x;
+    float y = pos.y;
+    float z = pos.z;
     float dx,dy,dz;
     for(int i = 0;i < 256;i++){
         if(vx > 0.0){
@@ -62,20 +67,39 @@ void main(){
             y += vy * dz / vz;
             z += dz;
         }
-        if(x < 0.0 || x > 8.0){
-            FragColor.r = 1.0;
+        if(x < 0.0 || x > 32.0){
+			if(int(z) + int(x) + int(y) % 1 == 1){
+				FragColor.r = 1.0;
+				FragColor.g = 1.0;
+				FragColor.b = 1.0;
+			}
             break;
         }
-        if(y < 0.0 || y > 8.0){
-            FragColor.g = 1.0;
+        if(y < 0.0 || y > 32.0){
+			if(int(z) + int(x) + int(y) % 1 == 1){
+				FragColor.r = 1.0;
+				FragColor.g = 1.0;
+				FragColor.b = 1.0;
+			}
             break;
         }
-        if(z < 0.0 || z > 8.0){
-            FragColor.b = 1.0;
+        if(z < 0.0 || z > 32.0){
+			if(int(z) + int(x) + int(y) % 1 == 1){
+				FragColor.r = 1.0;
+				FragColor.g = 1.0;
+				FragColor.b = 1.0;
+			}
             break;
         }
 		vec4 testmap = texelFetch(map,ivec3(x,y,z),0);
-        if(testmap[0] == 1){
+        if(testmap[0] > 0.0){
+            FragColor.r = x - float(int(x));
+            FragColor.g = y - float(int(y));
+            FragColor.b = z - float(int(z));
+            break;
+        }
+		testmap = texelFetch(map,ivec3(int(x - 0.00001),int(y - 0.00001),int(z - 0.00001)),0);
+        if(testmap[0] > 0.0){
             FragColor.r = x - float(int(x));
             FragColor.g = y - float(int(y));
             FragColor.b = z - float(int(z));
