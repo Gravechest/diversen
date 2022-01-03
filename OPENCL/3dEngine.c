@@ -2,16 +2,16 @@
 #include <math.h>
 #include <intrin.h>
 #include <stdio.h>
-#include <GL/glew.h>
+#include <glew.h>
 #include <GL/gl.h>
-#include <cl/cl.h>
+#include <main.h>
 
 #define resx 256
 #define resy 256
 
 #define RENDERDISTANCE 32
 
-#define MAPSZ 32
+#define MAPSZ 256
 #define MAPRAM MAPSZ*MAPSZ*MAPSZ
 
 #define VRAM resx*resy*4
@@ -20,25 +20,9 @@
 
 #define PI_2 1.57079632679489661923
 
-#define rendertechnique 1
 
-PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
-PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,PFD_TYPE_RGBA,
-24,0, 0, 0, 0, 0, 0,0,0,0,
-0,0,0,0,32,0,0,PFD_MAIN_PLANE,
-0,0,0,0	};
-
-float quad[12] = {1.0,1.0 ,-1.0,1.0 ,1.0,-1.0 ,-1.0,-1.0 ,-1.0,1.0 ,1.0,-1.0};
-
-unsigned int shaderProgram;
-unsigned int VBO;
-unsigned int VTO;
-
-unsigned int UBO;
-unsigned int vertexShader;
-unsigned int fragmentShader;
-unsigned int mapText;
-unsigned int VAO;
+PROPERTIES *properties;
+PLAYERDATA *player;
 
 int shaderStatus;
 
@@ -51,54 +35,6 @@ typedef struct RAY{
 	float vz;
 }RAY;
 
-typedef struct PLAYERDATA{
-	float xpitch;
-	float ypitch;
-
-	float xpos;
-	float ypos;
-	float zpos;
-
-	float xfov;
-	float yfov;
-
-	float xvel;
-	float yvel;
-	float zvel;
-
-	float richtingx;
-	float richtingy;
-	float richtingz;
-
-	float leftx;
-	float lefty;
-
-	float downx;
-	float downy;
-}PLAYERDATA;
-
-typedef struct PROPERTIES{
-	int xres;
-	int yres;
-	int lvlSz;
-	int renderDistance;
-}PROPERTIES;
-
-PLAYERDATA *player;
-PROPERTIES *properties;
-
-cl_platform_id platformid[20];
-cl_command_queue commandqueue;
-cl_device_id deviceid;
-cl_context context;
-cl_program program;	
-cl_kernel kernel;
-
-cl_mem mem;
-cl_mem map_mem;
-cl_mem player_mem;
-cl_mem prop_mem;
-
 int platformC;
 int deviceC;
 int result;
@@ -107,19 +43,18 @@ int fsize;
 int count = VRAM/4;
 int count2 = 1;
 
-char *VERTsource;
-char *FRAGsource;
 char *CLsource;
-char *data;
 char *map;
 
 char settings;
 char touchStatus;
 char threadStatus;
+char blockSel = 1;
 
 BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),resx,resy,1,32,BI_RGB };	
 
 const char name[] = "window";
+
 HWND window;
 HDC dc;
 MSG Msg;
@@ -147,7 +82,7 @@ char hitbox(float x,float y,float z){
 		if(!map[m]){
 			touchStatus |= 0x10;
 		}	
-		y += player->yvel;		
+		y += player->yvel;
 		z -= player->zvel;
 		m = (int)x + (int)y * properties->lvlSz + (int)z * properties->lvlSz * properties->lvlSz;
 		if(!map[m]){
@@ -228,20 +163,32 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			settings ^= 2;
 			if(settings & 2){
 				SetWindowPos(window,0,0,0,GetSystemMetrics(SM_CXSCREEN),GetSystemMetrics(SM_CYSCREEN),0);	
-				glViewport(0,0,GetSystemMetrics(SM_CXSCREEN),GetSystemMetrics(SM_CYSCREEN));
+				properties->xres = GetSystemMetrics(SM_CXSCREEN);
+				properties->yres = GetSystemMetrics(SM_CYSCREEN);
+				glMes[glMesC].id = 0;
+				glMesC++;
 			}
 			else{
 				SetWindowPos(window,0,0,0,256,256,0);	
-				glViewport(0,0,256,256);
+				properties->xres = 256;
+				properties->yres = 256;
+				glMes[glMesC].id = 0;
+				glMesC++;
 			}
 		}
+		if(GetKeyState(VK_ADD) & 0x80){
+			blockSel++;
+		}
+		if(GetKeyState(VK_SUBTRACT) & 0x80){
+			blockSel--;
+		}
 		break;
-	case WM_MOUSEMOVE:;
+	case WM_MOUSEMOVE:
 		if(settings & 1){
 			POINT curp;
 			GetCursorPos(&curp);
-			player->xpitch += (float)(curp.x - 50) / 130;
-			player->ypitch -= (float)(curp.y - 50) / 130;
+			player->xpitch += (float)(curp.x - 50) / 250;
+			player->ypitch -= (float)(curp.y - 50) / 250;
 			if(player->ypitch < -2){
 				player->ypitch = -2;
 			}
@@ -253,40 +200,67 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			ray.x = player->xpos;
 			ray.y = player->ypos;
 			ray.z = player->zpos;
-			ray.vz = sin((float)(resy/2) / resy / player->yfov + player->ypitch);
-			ray.vx = cos((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
-			ray.vy = sin((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
+			ray.vz = sinf(player->ypitch);
+			ray.vx = cosf(player->xpitch) * cosf(player->ypitch);
+			ray.vy = sinf(player->xpitch) * cosf(player->ypitch);
 			for(int i = 0;i < 254;i++){
 				rayItterate(&ray);
+				if(ray.x < 0 || ray.y < 0 || ray.z < 0){
+					break;
+				}	
 				int block = (int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz;
 				if(map[block]){
 					if(ray.z - (int)ray.z == 0){
-						map[block - properties->lvlSz * properties->lvlSz] = 1;
-						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y,(int)ray.z+1,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block - properties->lvlSz * properties->lvlSz);
+						map[block - properties->lvlSz * properties->lvlSz] = blockSel;
+						glMes[glMesC].id    = 1;
+						glMes[glMesC].data1 = ray.x;
+						glMes[glMesC].data2 = ray.y;
+						glMes[glMesC].data3 = ray.z-1;
+						glMesC++;
 					}
 					else if(ray.y - (int)ray.y == 0){
-						map[block - properties->lvlSz] = 1;
-						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y+1,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block - properties->lvlSz);
+						map[block - properties->lvlSz] = blockSel;
+						glMes[glMesC].id    = 1;
+						glMes[glMesC].data1 = ray.x;
+						glMes[glMesC].data2 = ray.y-1;
+						glMes[glMesC].data3 = ray.z;
+						glMesC++;
 					}
 					else{
-						map[block - 1] = 1;
-						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x+1,(int)ray.y,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block - 1);
+						map[block - 1] = blockSel;
+						glMes[glMesC].id    = 1;
+						glMes[glMesC].data1 = ray.x-1;
+						glMes[glMesC].data2 = ray.y;
+						glMes[glMesC].data3 = ray.z;
+						glMesC++;
 					}
 					break;
 				}
 				block = (int)(ray.x - 0.00001) + (int)(ray.y - 0.00001) * properties->lvlSz + (int)(ray.z - 0.00001) * properties->lvlSz * properties->lvlSz;
 				if(map[block]){
 					if(ray.z - (int)ray.z == 0){
-						map[block + properties->lvlSz * properties->lvlSz] = 1;
-						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y,(int)ray.z-1,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block + properties->lvlSz * properties->lvlSz);
+						map[block + properties->lvlSz * properties->lvlSz] = blockSel;
+						glMes[glMesC].id    = 1;
+						glMes[glMesC].data1 = ray.x;
+						glMes[glMesC].data2 = ray.y;
+						glMes[glMesC].data3 = ray.z;
+						glMesC++;
 					}
 					else if(ray.y - (int)ray.y == 0){
-						map[block + properties->lvlSz] = 1;
-						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y-1,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block + properties->lvlSz);
+						map[block + properties->lvlSz] = blockSel;
+						glMes[glMesC].id    = 1;
+						glMes[glMesC].data1 = ray.x;
+						glMes[glMesC].data2 = ray.y;
+						glMes[glMesC].data3 = ray.z;
+						glMesC++;
 					}
 					else{
-						map[block + 1] = 1;
-						glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x-1,(int)ray.y,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block + 1);
+						map[block + 1] = blockSel;
+						glMes[glMesC].id    = 1;
+						glMes[glMesC].data1 = ray.x;
+						glMes[glMesC].data2 = ray.y;
+						glMes[glMesC].data3 = ray.z;
+						glMesC++;
 					}
 					break;
 				}
@@ -298,15 +272,19 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			ray.x = player->xpos;
 			ray.y = player->ypos;
 			ray.z = player->zpos;
-			ray.vz = sin((float)(resy/2) / resy / player->yfov + player->ypitch);
-			ray.vx = cos((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
-			ray.vy = sin((float)(resx/2) / resx / player->xfov + player->xpitch) * cos((float)(resy/2) / resy / player->yfov + player->ypitch);
+			ray.vz = sinf(player->ypitch);
+			ray.vx = cosf(player->xpitch) * cosf(player->ypitch);
+			ray.vy = sinf(player->xpitch) * cosf(player->ypitch);
 			for(int i = 0;i < 12;i++){
 				rayItterate(&ray);
 				int block = (int)ray.x + (int)ray.y * properties->lvlSz + (int)ray.z * properties->lvlSz * properties->lvlSz;
 				if(map[block]){
 					map[block] = 0;
-					glTexSubImage3D(GL_TEXTURE_3D,0,(int)ray.x,(int)ray.y,(int)ray.z,1,1,1,GL_RED,GL_UNSIGNED_BYTE,map+block);
+					glMes[glMesC].id    = 1;
+					glMes[glMesC].data1 = ray.x;
+					glMes[glMesC].data2 = ray.y;
+					glMes[glMesC].data3 = ray.z;
+					glMesC++;
 					break;
 				}
 			}
@@ -318,167 +296,28 @@ long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 
 WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
 
-//de gpu code word hier uitgevoert
 
-void openCL(){
-	player->richtingx = cosf(player->xpitch);
-	player->richtingy = sinf(player->xpitch);
-	player->richtingz = sinf(player->ypitch);
-
-	player->leftx = player->richtingy;
-	player->lefty = -player->richtingx;
-
-	player->downx = player->richtingz;
-	player->downy = -player->richtingx;
-
-	long long t = _rdtsc();	
-	clEnqueueWriteBuffer(commandqueue,map_mem,1,0,MAPRAM,map,0,0,0);
-	clEnqueueWriteBuffer(commandqueue,player_mem,1,0,sizeof(PLAYERDATA),player,0,0,0);
-	clEnqueueWriteBuffer(commandqueue,prop_mem,1,0,sizeof(PROPERTIES),properties,0,0,0);
-	clEnqueueWriteBuffer(commandqueue,mem,1,0,VRAM,data,0,0,0);
-	clEnqueueNDRangeKernel(commandqueue,kernel,1,0,&count,&count2,0,0,0);
-	clEnqueueReadBuffer(commandqueue,mem,1,0,VRAM,data,0,0,0);
-}
-
-void main(){
-	glEnable(GL_TEXTURE_3D);
-	//om de Sleep functie accurater te maken
-	timeBeginPeriod(1);
-
-	HANDLE h = CreateFile("source.cl",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
-	fsize = GetFileSize(h,0);
-	CLsource = HeapAlloc(GetProcessHeap(),8,fsize);
-	ReadFile(h,CLsource,fsize,0,0);
-	CloseHandle(h);
-
-	h = CreateFile("fragment.frag",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
-	fsize = GetFileSize(h,0);
-	FRAGsource = HeapAlloc(GetProcessHeap(),8,fsize+1);
-	ReadFile(h,FRAGsource,fsize+1,0,0);
-	CloseHandle(h);
-
-	h = CreateFile("vertex.vert",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
-	fsize = GetFileSize(h,0);
-	VERTsource = HeapAlloc(GetProcessHeap(),8,fsize+1);
-	ReadFile(h,VERTsource,fsize+1,0,0);
-	CloseHandle(h);
-
-	data       = HeapAlloc(GetProcessHeap(),8,VRAM);
-	map        = HeapAlloc(GetProcessHeap(),8,MAPRAM);
-	player     = HeapAlloc(GetProcessHeap(),8,sizeof(PLAYERDATA));
-	properties = HeapAlloc(GetProcessHeap(),8,sizeof(PROPERTIES));
-
-
-
-	wndclass.hInstance = GetModuleHandle(0);
-	RegisterClass(&wndclass);
-	window = CreateWindowEx(0,name,name,0x90080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
-	dc = GetDC(window);
-
-	player->xfov = 1;
-	player->yfov = 1;
-	player->zpos = 5;
-	player->xpos = 6;
-	player->ypos = 6;
-
-	properties->lvlSz = MAPSZ;
-	properties->renderDistance = RENDERDISTANCE;
-
-	properties->xres = resx;
-	properties->yres = resy;
-
-	settings = 1;
-	ShowCursor(0);
-	
-	map[0] = 1;
-
-	switch(rendertechnique){
-	case 0:
-		clGetPlatformIDs(20,platformid,&platformC);
-		clGetDeviceIDs(platformid[gpu],CL_DEVICE_TYPE_DEFAULT,1,&deviceid,0);
-		context = clCreateContext(0,1,&deviceid,0,0,0);
-		commandqueue = clCreateCommandQueue(context,deviceid,0,0);
-		program = clCreateProgramWithSource(context,1,(const char**)&CLsource,0,0);
-		clBuildProgram(program,0,0,0,0,0);
-		kernel = clCreateKernel(program,"add",0);
-		if(!kernel){	
-			printf("program has not compiled\n");
-			ExitProcess(0);
-		}
-
-		mem        = clCreateBuffer(context,0,VRAM,0,0);
-		map_mem    = clCreateBuffer(context,0,MAPRAM,0,0);
-		player_mem = clCreateBuffer(context,0,sizeof(PLAYERDATA),0,0);
-		prop_mem   = clCreateBuffer(context,0,sizeof(PROPERTIES),0,0);
-
-		clSetKernelArg(kernel,0,sizeof(mem),(void*)&mem);
-		clSetKernelArg(kernel,1,sizeof(map_mem),(void*)&map_mem);
-		clSetKernelArg(kernel,2,sizeof(player_mem),(void*)&player_mem);
-		clSetKernelArg(kernel,3,sizeof(prop_mem),(void*)&prop_mem);
-		
-		clEnqueueWriteBuffer(commandqueue,map_mem,1,0,MAPRAM,map,0,0,0);
-		break;
-	case 1:
-		SetPixelFormat(dc, ChoosePixelFormat(dc, &pfd), &pfd);
-		wglMakeCurrent(dc, wglCreateContext(dc));	
-
-		glewInit();
-
-		shaderProgram = glCreateProgram();
-
-		vertexShader = glCreateShader(GL_VERTEX_SHADER);
-		fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
-		glShaderSource(vertexShader,1,(const char**)&VERTsource,0);
-		glShaderSource(fragmentShader,1,(const char**)&FRAGsource,0);
-
-		glCompileShader(vertexShader);
-		glCompileShader(fragmentShader);
-
-		glAttachShader(shaderProgram,vertexShader);
-		glAttachShader(shaderProgram,fragmentShader);
-
-		glLinkProgram(shaderProgram);
-
-		glUseProgram(shaderProgram);
-
-		glGenVertexArrays(1,&VAO);
-		glBindVertexArray(VAO);
-
-		glGenTextures(1,&mapText);
-		glBindTexture(GL_TEXTURE_3D,mapText);
-		glTexImage3D(GL_TEXTURE_3D,0,GL_RED,MAPSZ,MAPSZ,MAPSZ,0,GL_RED,GL_UNSIGNED_BYTE,map);
-		glGenerateMipmap(GL_TEXTURE_3D);
-
-		glCreateBuffers(1,&VBO);
-		glBindBuffer(GL_ARRAY_BUFFER,VBO);
-		glBufferData(GL_ARRAY_BUFFER,12 * sizeof(float),quad,GL_DYNAMIC_DRAW);
-		glEnableVertexAttribArray(0);
-	    glVertexAttribPointer(0,2,GL_FLOAT,0,2 * sizeof(float),0);
-		
-		glUniform2i(glGetUniformLocation(shaderProgram,"reso"),properties->xres,properties->yres);
-
-		break;
-	}
-
+void physics(){
 	for(;;){
-
 		//movement
 		if(GetKeyState(0x57) & 0x80){
-			player->xvel += sinf(player->xpitch + 0.50 / player->xfov) / 120;
-			player->yvel += cosf(player->xpitch + 0.50 / player->xfov) / 120;
+			player->xvel += cosf(player->xpitch) / 120;
+			player->yvel += sinf(player->xpitch) / 120;
 		}
 		if(GetKeyState(0x53) & 0x80){
-			player->xvel -= sinf(player->xpitch + 0.50 / player->xfov) / 120;
-			player->yvel -= cosf(player->xpitch + 0.50 / player->xfov) / 120;
+			player->xvel -= cosf(player->xpitch) / 120;
+			player->yvel -= sinf(player->xpitch) / 120;
 		}
 		if(GetKeyState(0x44) & 0x80){
-			player->xvel += sinf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
-			player->yvel += cosf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
+			player->xvel += cosf(player->xpitch + PI_2) / 120;
+			player->yvel += sinf(player->xpitch + PI_2) / 120;
 		}
 		if(GetKeyState(0x41) & 0x80){
-			player->xvel -= sinf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
-			player->yvel -= cosf(player->xpitch + 0.50 / player->xfov + PI_2) / 120;
+			player->xvel -= cosf(player->xpitch + PI_2) / 120;
+			player->yvel -= sinf(player->xpitch + PI_2) / 120;
+		}
+		if(GetKeyState(VK_SHIFT) & 0x80){
+			player->zpos += 1;
 		}
 		if(!settings & 0x01){
 			if(GetKeyState(VK_UP) & 0x80){
@@ -495,7 +334,7 @@ void main(){
 			}
 		}
 
-		player->zvel -= 0.03;
+		player->zvel -= 0.015;
 
 		player->xpos += player->xvel;
 		player->ypos += player->yvel;
@@ -549,38 +388,52 @@ void main(){
 
 		touchStatus = 0;
 
-		player->xvel /= 1.07;
-		player->yvel /= 1.07;
-		player->zvel /= 1.07;
+		player->xvel /= 1.08;
+		player->yvel /= 1.08;
+		player->zvel /= 1.02;
+		Sleep(15);
+	}
+}
 
-		//wat timing zooi hier
-		switch(rendertechnique){
-		case 0:{
-			HANDLE renderThread = CreateThread(0,0,openCL,0,0,0);
-			Sleep(15);
-			WaitForSingleObject(renderThread,9999);
-			StretchDIBits(dc,0,0,resy,resx,0,0,resy,resx,data,&bmi,0,SRCCOPY);
-			break;
-			}
-		case 1:	
-			glUniform2f(glGetUniformLocation(shaderProgram,"pitch"),player->xpitch,player->ypitch);
-			glUniform3f(glGetUniformLocation(shaderProgram,"pos"),player->xpos,player->ypos,player->zpos);
-			glClear(GL_COLOR_BUFFER_BIT);
-			glDrawArrays(GL_TRIANGLES,0,12);
-			SwapBuffers(dc);
-			break;
-		}
+void main(){
+	//om de Sleep functie accurater te maken
+	timeBeginPeriod(1);
 
-		//hier word de boel gerenderd op het scherm
+	map        = HeapAlloc(GetProcessHeap(),8,MAPRAM);
+	player     = HeapAlloc(GetProcessHeap(),8,sizeof(PLAYERDATA));
+	properties = HeapAlloc(GetProcessHeap(),8,sizeof(PROPERTIES));
 
-		memset(data,0,VRAM);
+	wndclass.hInstance = GetModuleHandle(0);
+	RegisterClass(&wndclass);
+	window = CreateWindowEx(0,name,name,0x90080000,0,0,resy + 16,resx + 39,0,0,wndclass.hInstance,0);
+	dc = GetDC(window);
 
-		//de standaard message loop om windows tevreden te houden
+	player->xfov = 0.5;
+	player->yfov = 1;
+	player->zpos = 10;
+	player->xpos = 6;
+	player->ypos = 6;
 
+	properties->lvlSz = MAPSZ;
+	properties->renderDistance = RENDERDISTANCE;
+
+	properties->xres = resx;
+	properties->yres = resy;
+
+	settings = 1;
+	ShowCursor(0);
+
+	levelgen();
+
+	CreateThread(0,0,openGL,0,0,0);
+	CreateThread(0,0,physics,0,0,0);
+
+	for(;;){
 		while(PeekMessage(&Msg,window,0,0,0)){
 			GetMessage(&Msg,window,0,0);
 			TranslateMessage(&Msg);
 			DispatchMessageW(&Msg);
 		}
+		Sleep(1);
 	}
 }
