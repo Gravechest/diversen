@@ -1,0 +1,126 @@
+#include <windows.h>
+#include <math.h>
+#include <stdio.h>
+
+int *heap;
+const char name[] = "window";
+HWND window;
+HDC dc;
+MSG Msg;
+
+float xangle = 0.0;
+float yangle = 0.0;
+
+float sphereX[2] = {6.0,5000.0};
+float sphereY[2] = {0.0,5.0};
+float sphereZ[2] = {0.0,0.0};
+
+unsigned char texture[1000][1000][4];
+
+BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),1000,1000,1,32,BI_RGB };
+
+long _stdcall proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
+	return DefWindowProc(hwnd,msg,wParam,lParam);
+}
+
+WNDCLASS wndclass = {0,proc,0,0,0,0,0,0,name,name};
+
+inline float max3(float x,float y,float z){
+	if(x > y){
+		if(x > z){
+			return x;
+		}
+		else{
+			return z;
+		}
+	}
+	else if(y > z){
+		return y;
+	}
+	else{
+		return z;
+	}
+}
+
+void main(){
+	heap = HeapAlloc(GetProcessHeap(),0,30000);
+	wndclass.hInstance = GetModuleHandle(0);
+	RegisterClass(&wndclass);
+	window = CreateWindowEx(0,name,name,0x90080000,0,0,1000,1000,0,0,wndclass.hInstance,0);
+	dc = GetDC(window);
+	float dirx = cosf(xangle);
+	float diry = sinf(xangle);
+	float dirz = sinf(yangle);
+	float dirw = cosf(yangle);
+	for(int i = 0;i < 1000;i++){
+		for(int i2 = 0;i2 < 1000;i2++){
+			float offX = (float)i2 / 500 - 1;
+			float offY = (float)i  / 500 - 1;
+			float vx = (dirx * dirw  - dirx * dirz * offY) - diry * offX;
+			float vy = (diry * dirw  - diry * dirz * offY) + dirx * offX;
+			float vz = dirz + dirw * offY;
+			float x = 0;
+			float y = 0;
+			float z = 0;
+			float nv = max3(fabsf(vx),fabsf(vy),fabsf(vz));
+			vx /= nv;
+			vy /= nv;
+			vz /= nv;
+			for(int i3 = 0;i3 < 200;i3++){
+				int surf = 0;
+				float dstf = 999999;
+				for(int i4 = 0;i4 < 2;i4++){
+					float dstX = sphereX[i4] - x;
+					float dstY = sphereY[i4] - y;
+					float dstZ = sphereZ[i4] - z;
+					float dst = sqrtf(dstX * dstX + dstY * dstY + dstZ * dstZ);
+					dst -= 2.5;
+					if(dst < dstf){
+						dstf = dst;
+						surf = i4;
+					}
+				}
+				if(dstf < 0.000001){
+					switch(surf){
+					default:{
+						float nx = x - sphereX[surf];
+						float ny = y - sphereY[surf];
+						float nz = z - sphereZ[surf];
+						nv = max3(fabsf(nx),fabsf(ny),fabsf(nz));
+						nx /= nv;
+						ny /= nv;
+						nz /= nv;
+						vx = vx - 2.0 * (vx * nx) * nx;
+						vy = vy - 2.0 * (vy * ny) * ny;
+						vz = vz - 2.0 * (vz * nz) * nz;
+						x += vx;
+						y += vy;
+						z += vz;
+						}
+						break;
+					}
+				}
+				x += vx * dstf;
+				y += vy * dstf;
+				z += vz * dstf;
+			} 
+			if(z < -100){
+				texture[i][i2][0] += 25;
+				texture[i][i2][1] += 25;
+				texture[i][i2][2] += 25;
+			}
+			if(x < -100){
+				texture[i][i2][0] += 60;
+				texture[i][i2][1] += 25;
+				texture[i][i2][2] += 15;
+			}
+		}
+	}
+	StretchDIBits(dc, 0, 0, 1000, 1000, 0, 0, 1000, 1000, &texture, &bmi, DIB_RGB_COLORS, SRCCOPY);
+	for(;;){
+		GetMessage(&Msg,window,0,0);
+		TranslateMessage(&Msg);
+		DispatchMessageW(&Msg);
+		Sleep(15);
+	}
+}
