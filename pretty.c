@@ -3,8 +3,8 @@
 #include <math.h>
 #include <intrin.h>
 
-#define resX 480
-#define resY 640
+#define resX 540
+#define resY 960
 
 unsigned char texture[resX][resY*3];
 const char className[] = "myWindowClass";
@@ -21,9 +21,9 @@ HDC wdcontext;
 BITMAPINFO bmi = { sizeof(BITMAPINFOHEADER),resY,resX,1,24,BI_RGB };
 
 void colorSpawn(int x,int y){
-	textureB[x][y+0] = _rdtsc()^rand();
-	textureB[x][y+1] = _rdtsc()^rand();
-	textureB[x][y+2] = _rdtsc()^rand();
+	texture[x][y+0] = _rdtsc()^rand();
+	texture[x][y+1] = _rdtsc()^rand();
+	texture[x][y+2] = _rdtsc()^rand();
 }
 
 void WINAPI Quarter1(){
@@ -36,26 +36,38 @@ void WINAPI Quarter1(){
 		colorSpawn(resX/2.5,resY*3/2);
 		for(int i = 1;i < resX-1;i++){
 			for(int i2 = 3;i2 < resY*3-3;i2+=3){
-				switch((rand()^_rdtsc())&0x7){
-				case 4:
-					textureB[i-1][i2+0] = texture[i][i2+0];
-					textureB[i-1][i2+1] = texture[i][i2+1];
-					textureB[i-1][i2+2] = texture[i][i2+2];
+				switch((_rdtsc())&0x3){
+				case 0:
+					if(!texture[i+1][i2+0]){
+						break;
+					}
+					textureB[i][i2+0] = texture[i+1][i2+0];
+					textureB[i][i2+1] = texture[i+1][i2+1];
+					textureB[i][i2+2] = texture[i+1][i2+2];
 					break;
-				case 5:
-					textureB[i+1][i2+0] = texture[i][i2+0];
-					textureB[i+1][i2+1] = texture[i][i2+1];
-					textureB[i+1][i2+2] = texture[i][i2+2];
+				case 1:
+					if(!texture[i-1][i2+0]){
+						break;
+					}
+					textureB[i][i2+0] = texture[i-1][i2+0];
+					textureB[i][i2+1] = texture[i-1][i2+1];
+					textureB[i][i2+2] = texture[i-1][i2+2];
 					break;
-				case 6:
-					textureB[i][i2+3] = texture[i][i2+0];
-					textureB[i][i2+4] = texture[i][i2+1];
-					textureB[i][i2+5] = texture[i][i2+2];
+				case 2:
+					if(!texture[i][i2+3]){
+						break;
+					}
+					textureB[i][i2+0] = texture[i][i2+3];
+					textureB[i][i2+1] = texture[i][i2+4];
+					textureB[i][i2+2] = texture[i][i2+5];
 					break;
-				case 7:
-					textureB[i][i2-3] = texture[i][i2+0];
-					textureB[i][i2-2] = texture[i][i2+1];
-					textureB[i][i2-1] = texture[i][i2+2];
+				case 3:
+					if(!texture[i][i2-3]){
+						break;
+					}
+					textureB[i][i2+0] = texture[i][i2-3];
+					textureB[i][i2+1] = texture[i][i2-2];
+					textureB[i][i2+2] = texture[i][i2-1];
 					break;
 				}
 			}
