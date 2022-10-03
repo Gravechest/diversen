@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <intrin.h>
 
-#define DEPTH 4
+#define DEPTH 2
 
 #pragma warning(disable:4996)
 
@@ -33,24 +33,17 @@ char board[64] = {
         'R','N','B','Q','K','B','N','R',
 };
 
-char turn;
+char turn;  
 char castleRights = 0b00001111;
 
 i8 minAI(u8 depth);
-
-void removeMov(CHESSMOVE *arr,u8 item,u8 *counter){
-    for(int i = item;i < *counter;i++){
-        arr[item] = arr[item+1];
-    }
-    --*counter;
-}
+i8 maxAI(u8 depth);
 
 i8 blackPcsToScore(u8 piece){
     switch(piece){
     case 'p':
         return -1;
     case 'b':
-        return -3;
     case 'n':
         return -3;
     case 'r':
@@ -64,12 +57,11 @@ i8 blackPcsToScore(u8 piece){
     }
 }
 
-i8 whitePcsToScore(u8 piece){
+inline i8 whitePcsToScore(u8 piece){
     switch(piece){
     case 'P':
         return 1;
     case 'B':
-        return 3;
     case 'N':
         return 3;
     case 'R':
@@ -155,16 +147,300 @@ void movePieceBlack(int SX,int SY,int DX,int DY){
     }
 }
 
+i8 maxAIdiagonal(u8 i,u8 depth,i8 pts){
+    if(i > 7){
+        if((i & 7) != 0){
+            if(!depth){
+                for(int i2 = i - 9;board[i2] < 'a' || board[i2] > 'z';i2-=9){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        pts = max(pts,whitePcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 < 8 || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i - 9;board[i2] < 'a' || board[i2] > 'z';i2-=9){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        char lpts = whitePcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 < 8 || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+        }
+        if((i & 7) != 7){
+            if(!depth){
+                for(int i2 = i - 7;board[i2] < 'a' || board[i2] > 'z';i2-=7){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        pts = max(pts,whitePcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 < 8 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i - 7;board[i2] < 'a' || board[i2] > 'z';i2-=7){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        char lpts = whitePcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 < 8 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if(i < 55){
+        if((i & 7) != 7){
+            if(!depth){
+                for(int i2 = i + 9;board[i2] < 'a' || board[i2] > 'z';i2+=9){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        pts = max(pts,whitePcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 > 55 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i + 9;board[i2] < 'a' || board[i2] > 'z';i2+=9){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        char lpts = whitePcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 > 55 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+        }
+        if((i & 7) != 0){
+            if(!depth){
+                for(int i2 = i + 7;board[i2] < 'a' || board[i2] > 'z';i2+=7){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        pts = max(pts,whitePcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 > 55 || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i + 7;board[i2] < 'a' || board[i2] > 'z';i2+=7){
+                    if(board[i2] > 'A' && board[i2] < 'Z'){
+                        char lpts = whitePcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = max(pts,minAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 > 55 || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return pts;
+}
+
+i8 maxAIstraight(u8 i,u8 depth,i8 pts){
+    if((i & 7) != 7){
+        if(!depth){
+            for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    pts = max(pts,whitePcsToScore(board[i2]));
+                    break;
+                }
+                if((i2 & 7) == 7){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    char lpts = whitePcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if((i2 & 7) == 7){
+                    break;
+                }
+            }
+        }
+    }
+    if((i & 7) != 0){
+        if(!depth){
+            for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    pts = max(pts,whitePcsToScore(board[i2]));
+                    break;
+                }
+                if((i2 & 7) == 0){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    char lpts = whitePcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if((i2 & 7) == 0){
+                    break;
+                }
+            }
+        }
+    }
+    if(i > 7){
+        if(!depth){
+            for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    pts = max(pts,whitePcsToScore(board[i2]));
+                    break;
+                }
+                if(i2 < 7){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    char lpts = whitePcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if(i2 < 7){
+                    break;
+                }
+            }
+        }
+    }
+    if(i < 55){
+        if(!depth){
+            for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    pts = max(pts,whitePcsToScore(board[i2]));
+                    break;
+                }
+                if(i2 > 55){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
+                if(board[i2] > 'A' && board[i2] < 'Z'){
+                    char lpts = whitePcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = max(pts,minAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if(i2 > 55){
+                    break;
+                }
+            }
+        }
+    }
+    return pts;
+}
+
 i8 maxAI(u8 depth){
     i8 pts = -128;
     for(int i = 0;i < 64;i++){
         switch(board[i]){
         case 'p':
             if(!depth){
-                if(board[i+9] > 'a' && board[i+9] < 'z' && (i & 7) != 7){
+                if(board[i+9] > 'a' && board[i+9] < 'z' && (i & 7) != 0){
                     pts = max(pts,whitePcsToScore(board[i+9]));
                 }
-                if(board[i+7] > 'a' && board[i+7] < 'z' && (i & 7) != 0){
+                if(board[i+7] > 'a' && board[i+7] < 'z' && (i & 7) != 7){
                     pts = max(pts,whitePcsToScore(board[i+7]));
                 }
             }
@@ -179,7 +455,7 @@ i8 maxAI(u8 depth){
                         movePieceD(i+16,i);
                     }
                 }
-                if(board[i+9] > 'a' && board[i+9] < 'z' && (i & 7) != 7){
+                if(board[i+9] > 'a' && board[i+9] < 'z' && (i & 7) != 0){
                     char lpts = whitePcsToScore(board[i+9]);
                     char tpcs = board[i+9];
                     capturePieceD(i,i+9);
@@ -187,7 +463,7 @@ i8 maxAI(u8 depth){
                     board[i] = board[i+9];
                     board[i+9] = tpcs;
                 }
-                if(board[i+7] > 'a' && board[i+7] < 'z' && (i & 7) != 0){
+                if(board[i+7] > 'a' && board[i+7] < 'z' && (i & 7) != 7){
                     char lpts = whitePcsToScore(board[i+7]);
                     char tpcs = board[i+7];
                     capturePieceD(i,i+7);
@@ -197,7 +473,7 @@ i8 maxAI(u8 depth){
                 }
             }
             break;
-       case 'n':
+       case 'n':{
             u8 sx = i >> 3;
             u8 sy = i & 7;
             if(sx > 0){
@@ -369,287 +645,301 @@ i8 maxAI(u8 depth){
                 }
             }
             break;
+            }
         case 'b':
-            break;
-            if(i > 7){
-                if((i & 7) != 7){
-                    if(!depth){
-                        for(int i2 = i - 9;board[i2] < 'a' || board[i2] > 'z';i2-=9){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                pts = max(pts,whitePcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 < 0 || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i - 9;board[i2] < 'a' || board[i2] > 'z';i2-=9){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                char lpts = whitePcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 < 0 || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                }
-                if((i & 7) != 0){
-                    if(!depth){
-                        for(int i2 = i - 7;board[i2] < 'a' || board[i2] > 'z';i2-=7){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                pts = max(pts,whitePcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 < 0 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i - 7;board[i2] < 'a' || board[i2] > 'z';i2-=7){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                char lpts = whitePcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 < 0 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if(i < 55){
-                if((i & 7) != 7){
-                    if(!depth){
-                        for(int i2 = i + 9;board[i2] < 'a' || board[i2] > 'z';i2+=9){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                pts = max(pts,whitePcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 > 63 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i + 9;board[i2] < 'a' || board[i2] > 'z';i2+=9){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                char lpts = whitePcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 > 63 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                }
-                if((i & 7) != 0){
-                    if(!depth){
-                        for(int i2 = i + 7;board[i2] < 'a' || board[i2] > 'z';i2+=7){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                pts = max(pts,whitePcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 > 63  || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i + 7;board[i2] < 'a' || board[i2] > 'z';i2+=7){
-                            if(board[i2] > 'A' && board[i2] < 'Z'){
-                                char lpts = whitePcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = max(pts,minAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 > 63  || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
+            pts = maxAIdiagonal(i,depth,pts);
             break;
         case 'r':
-            if((i & 7) != 7){
-                if(!depth){
-                    for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            pts = max(pts,whitePcsToScore(board[i2]));
-                            break;
-                        }
-                        if((i2 & 7) == 7){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            char lpts = whitePcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if((i2 & 7) == 7){
-                            break;
-                        }
-                    }
-                }
-            }
-            if((i & 7) != 0){
-                if(!depth){
-                    for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            pts = max(pts,whitePcsToScore(board[i2]));
-                            break;
-                        }
-                        if((i2 & 7) == 0){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            char lpts = whitePcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if((i2 & 7) == 0){
-                            break;
-                        }
-                    }
-                }
-            }
-            if(i > 7){
-                if(!depth){
-                    for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            pts = max(pts,whitePcsToScore(board[i2]));
-                            break;
-                        }
-                        if(i2 < 7){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            char lpts = whitePcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if(i2 < 7){
-                            break;
-                        }
-                    }
-                }
-            }
-            if(i < 55){
-                if(!depth){
-                    for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            pts = max(pts,whitePcsToScore(board[i2]));
-                            break;
-                        }
-                        if(i2 > 55){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
-                        if(board[i2] > 'A' && board[i2] < 'Z'){
-                            char lpts = whitePcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = max(pts,minAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if(i2 > 55){
-                            break;
-                        }
-                    }
-                }
-            }
+            pts = maxAIstraight(i,depth,pts);
             break;
+        case 'q':
+            pts = maxAIstraight(i,depth,pts);
+            pts = maxAIdiagonal(i,depth,pts);
+            break;
+        }
+    }
+    return pts;
+}
+
+i8 minAIdiagonal(u8 i,u8 depth,i8 pts){
+    if(i > 7){
+        if((i & 7) != 0){
+            if(!depth){
+                for(int i2 = i - 9;board[i2] < 'A' || board[i2] > 'Z';i2-=9){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        pts = min(pts,blackPcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 < 8 || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i - 9;board[i2] < 'A' || board[i2] > 'Z';i2-=9){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        char lpts = blackPcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 < 8 || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+        }
+        if((i & 7) != 7){
+            if(!depth){
+                for(int i2 = i - 7;board[i2] < 'A' || board[i2] > 'Z';i2-=7){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        pts = min(pts,blackPcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 < 8 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i - 7;board[i2] < 'A' || board[i2] > 'Z';i2-=7){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        char lpts = blackPcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 < 8 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if(i < 55){
+        if((i & 7) != 7){
+            if(!depth){
+                for(int i2 = i + 9;board[i2] < 'A' || board[i2] > 'Z';i2+=9){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        pts = min(pts,blackPcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 > 63 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i + 9;board[i2] < 'A' || board[i2] > 'Z';i2+=9){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        char lpts = blackPcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 > 63 || (i2 & 7) == 7){
+                        break;
+                    }
+                }
+            }
+        }
+        if((i & 7) != 0){
+            if(!depth){
+                for(int i2 = i + 7;board[i2] < 'A' || board[i2] > 'Z';i2+=7){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        pts = min(pts,blackPcsToScore(board[i2]));
+                        break;
+                    }
+                    if(i2 > 63  || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+            else{
+                for(int i2 = i + 7;board[i2] < 'A' || board[i2] > 'Z';i2+=7){
+                    if(board[i2] > 'a' && board[i2] < 'z'){
+                        char lpts = blackPcsToScore(board[i2]);
+                        char tpcs = board[i2];
+                        capturePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1) + lpts);
+                        board[i] = board[i2];
+                        board[i2] = tpcs;
+                        break;
+                    }
+                    else{
+                        movePieceD(i,i2);
+                        pts = min(pts,maxAI(depth-1));
+                        movePieceD(i2,i);
+                    }
+                    if(i2 > 55 || (i2 & 7) == 0){
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return pts;
+}
+
+i8 minAIstraight(u8 i,u8 depth,i8 pts){
+    if((i & 7) != 7){
+        if(!depth){
+            for(int i2 = i + 1;board[i2] < 'A' || board[i2] > 'Z';i2++){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    pts = min(pts,blackPcsToScore(board[i2]));
+                    break;
+                }
+                if((i2 & 7) == 7){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i + 1;board[i2] < 'A' || board[i2] > 'Z';i2++){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    char lpts = blackPcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if((i2 & 7) == 7){
+                    break;
+                }
+            }
+        }
+    }
+    if((i & 7) != 0){
+        if(!depth){
+            for(int i2 = i - 1;board[i2] < 'A' || board[i2] > 'Z';i2--){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    pts = min(pts,blackPcsToScore(board[i2]));
+                    break;
+                }
+                if((i2 & 7) == 0){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i - 1;board[i2] < 'A' || board[i2] > 'Z';i2--){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    char lpts = blackPcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if((i2 & 7) == 0){
+                    break;
+                }
+            }
+        }
+    }
+    if(i > 7){
+        if(!depth){
+            for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    pts = min(pts,blackPcsToScore(board[i2]));
+                    break;
+                }
+                if(i2 > 7){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    char lpts = blackPcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if(i2 > 7){
+                    break;
+                }
+            }
+        }
+    }
+    if(i < 55){
+        if(!depth){
+            for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    pts = min(pts,blackPcsToScore(board[i2]));
+                    break;
+                }
+                if(i2 > 55){
+                    break;
+                }
+            }
+        }
+        else{
+            for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
+                if(board[i2] > 'a' && board[i2] < 'z'){
+                    char lpts = blackPcsToScore(board[i2]);
+                    char tpcs = board[i2];
+                    capturePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1) + lpts);
+                    board[i] = board[i2];
+                    board[i2] = tpcs;
+                    break;
+                }
+                else{
+                    movePieceD(i,i2);
+                    pts = min(pts,maxAI(depth-1));
+                    movePieceD(i2,i);
+                }
+                if(i2 > 55){
+                    break;
+                }
+            }
         }
     }
     return pts;
@@ -661,10 +951,10 @@ i8 minAI(u8 depth){
         switch(board[i]){
         case 'P':
             if(!depth){
-                if(board[i-9] > 'a' && board[i-9] < 'z' && (i & 7) != 7){
+                if(board[i-9] > 'a' && board[i-9] < 'z' && (i & 7) != 0){
                     pts = min(pts,blackPcsToScore(board[i-9]));
                 }
-                if(board[i-7] > 'a' && board[i-7] < 'z' && (i & 7) != 0){
+                if(board[i-7] > 'a' && board[i-7] < 'z' && (i & 7) != 7){
                     pts = min(pts,blackPcsToScore(board[i-7]));
                 }
             }
@@ -679,7 +969,7 @@ i8 minAI(u8 depth){
                         movePieceD(i-16,i);
                     }
                 }
-                if(board[i-9] > 'a' && board[i-9] < 'z' && (i & 7) != 7){
+                if(board[i-9] > 'a' && board[i-9] < 'z' && (i & 7) != 0){
                     char lpts = blackPcsToScore(board[i-9]);
                     char tpcs = board[i-9];
                     capturePieceD(i,i-9);
@@ -687,7 +977,7 @@ i8 minAI(u8 depth){
                     board[i] = board[i-9];
                     board[i-9] = tpcs;
                 }
-                if(board[i-7] > 'a' && board[i-7] < 'z' && (i & 7) != 0){
+                if(board[i-7] > 'a' && board[i-7] < 'z' && (i & 7) != 7){
                     char lpts = blackPcsToScore(board[i-7]);
                     char tpcs = board[i-7];
                     capturePieceD(i,i-7);
@@ -697,7 +987,7 @@ i8 minAI(u8 depth){
                 }
             }
             break;
-        case 'N':
+        case 'N':{
             u8 sx = i >> 3;
             u8 sy = i & 7;
             if(sx > 0){
@@ -869,285 +1159,16 @@ i8 minAI(u8 depth){
                 }
             }
             break;
+            }
         case 'B':
-            if(i > 7){
-                if((i & 7) != 7){
-                    if(!depth){
-                        for(int i2 = i - 9;board[i2] < 'A' || board[i2] > 'Z';i2-=9){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                pts = min(pts,blackPcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 < 0 || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i - 9;board[i2] < 'A' || board[i2] > 'Z';i2-=9){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                char lpts = blackPcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 < 0 || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                }
-                if((i & 7) != 0){
-                    if(!depth){
-                        for(int i2 = i - 7;board[i2] < 'A' || board[i2] > 'Z';i2-=7){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                pts = min(pts,blackPcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 < 0 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i - 7;board[i2] < 'A' || board[i2] > 'Z';i2-=7){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                char lpts = blackPcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 < 0 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if(i < 55){
-                if((i & 7) != 7){
-                    if(!depth){
-                        for(int i2 = i + 9;board[i2] < 'A' || board[i2] > 'Z';i2+=9){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                pts = min(pts,blackPcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 > 63 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i + 9;board[i2] < 'A' || board[i2] > 'Z';i2+=9){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                char lpts = blackPcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 > 63 || (i2 & 7) == 7){
-                                break;
-                            }
-                        }
-                    }
-                }
-                if((i & 7) != 0){
-                    if(!depth){
-                        for(int i2 = i + 7;board[i2] < 'A' || board[i2] > 'Z';i2+=7){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                pts = min(pts,blackPcsToScore(board[i2]));
-                                break;
-                            }
-                            if(i2 > 63  || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                    else{
-                        for(int i2 = i + 7;board[i2] < 'A' || board[i2] > 'Z';i2+=7){
-                            if(board[i2] > 'a' && board[i2] < 'z'){
-                                char lpts = blackPcsToScore(board[i2]);
-                                char tpcs = board[i2];
-                                capturePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1) + lpts);
-                                board[i] = board[i2];
-                                board[i2] = tpcs;
-                                break;
-                            }
-                            else{
-                                movePieceD(i,i2);
-                                pts = min(pts,maxAI(depth-1));
-                                movePieceD(i2,i);
-                            }
-                            if(i2 > 63  || (i2 & 7) == 0){
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
+            pts = minAIdiagonal(i,depth,pts);
             break;
         case 'R':
-            if((i & 7) != 7){
-                if(!depth){
-                    for(int i2 = i + 1;board[i2] < 'A' || board[i2] > 'Z';i2++){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            pts = min(pts,blackPcsToScore(board[i2]));
-                            break;
-                        }
-                        if((i2 & 7) != 7){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i + 1;board[i2] < 'A' || board[i2] > 'Z';i2++){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            char lpts = blackPcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if((i2 & 7) != 7){
-                            break;
-                        }
-                    }
-                }
-            }
-            if((i & 7) != 0){
-                if(!depth){
-                    for(int i2 = i - 1;board[i2] < 'A' || board[i2] > 'Z';i2--){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            pts = min(pts,blackPcsToScore(board[i2]));
-                            break;
-                        }
-                        if((i2 & 7) != 0){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i - 1;board[i2] < 'A' || board[i2] > 'Z';i2--){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            char lpts = blackPcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if((i2 & 7) != 0){
-                            break;
-                        }
-                    }
-                }
-            }
-            if(i > 7){
-                if(!depth){
-                    for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            pts = min(pts,blackPcsToScore(board[i2]));
-                            break;
-                        }
-                        if(i2 > 7){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            char lpts = blackPcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if(i2 > 7){
-                            break;
-                        }
-                    }
-                }
-            }
-            if(i < 55){
-                if(!depth){
-                    for(int i2 = i + 7;board[i2] < 'A' || board[i2] > 'Z';i2+=7){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            pts = min(pts,blackPcsToScore(board[i2]));
-                            break;
-                        }
-                        if(i2 < 55){
-                            break;
-                        }
-                    }
-                }
-                else{
-                    for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
-                        if(board[i2] > 'a' && board[i2] < 'z'){
-                            char lpts = blackPcsToScore(board[i2]);
-                            char tpcs = board[i2];
-                            capturePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1) + lpts);
-                            board[i] = board[i2];
-                            board[i2] = tpcs;
-                            break;
-                        }
-                        else{
-                            movePieceD(i,i2);
-                            pts = min(pts,maxAI(depth-1));
-                            movePieceD(i2,i);
-                        }
-                        if(i2 < 55){
-                            break;
-                        }
-                    }
-                }
-            }
+            pts = minAIstraight(i,depth,pts);
+            break;
+        case 'Q':
+            pts = minAIdiagonal(i,depth,pts);
+            pts = minAIstraight(i,depth,pts);
             break;
         }
     }
@@ -1163,10 +1184,10 @@ void printMove(u8 src,u8 dst,u8 pts){
     printf("%hhi\n",pts);
 }
 
-void captureAI(u8 src,u8 dst,i8 *pts,u8 *movC){
+void captureAI(u8 src,u8 dst,i8 *pts,u8 *movC,u8 depth){
     char tpcs = board[dst];
     capturePieceD(src,dst);
-    i8 tpts = minAI(DEPTH);
+    i8 tpts = minAI(depth);
     board[src] = board[dst];
     board[dst] = tpcs;
     tpts += whitePcsToScore(tpcs);
@@ -1182,9 +1203,9 @@ void captureAI(u8 src,u8 dst,i8 *pts,u8 *movC){
     }
 }
 
-void moveAI(u8 src,u8 dst,i8 *pts,u8 *movC){
+void moveAI(u8 src,u8 dst,i8 *pts,u8 *movC,u8 depth){
     movePieceD(src,dst);
-    i8 tpts = minAI(DEPTH);
+    i8 tpts = minAI(depth);
     movePieceD(dst,src);
     printMove(src,dst,tpts);
     if(*pts <= tpts){
@@ -1198,26 +1219,26 @@ void moveAI(u8 src,u8 dst,i8 *pts,u8 *movC){
     }
 }
 
-void moveCaptureAI(u8 src,u8 dst,i8 *pts,u8 *movC){
+void moveCaptureAI(u8 src,u8 dst,i8 *pts,u8 *movC,u8 depth){
     if(board[dst] > 'A' && board[dst] < 'Z'){
-        captureAI(src,dst,pts,movC);
+        captureAI(src,dst,pts,movC,depth);
     }
     else if(board[dst] == '*'){
-        moveAI(src,dst,pts,movC);
+        moveAI(src,dst,pts,movC,depth);
     }
 }
 
-void straightAI(u8 i,i8 *pts,u8 *movC){
+void straightAI(u8 i,i8 *pts,u8 *movC,u8 depth){
     if((i & 7) != 7){
         for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
             if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureAI(i,i2,pts,movC);
+                captureAI(i,i2,pts,movC,depth);
                 break;
             }
             else{
-                moveAI(i,i2,pts,movC);
+                moveAI(i,i2,pts,movC,depth);
             }
-            if((i & 7) == 7){
+            if((i2 & 7) == 7){
                 break;
             }
         }
@@ -1225,13 +1246,13 @@ void straightAI(u8 i,i8 *pts,u8 *movC){
     if((i & 7) != 0){
         for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
             if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureAI(i,i2,pts,movC);
+                captureAI(i,i2,pts,movC,depth);
                 break;
             }
             else{
-                moveAI(i,i2,pts,movC);
+                moveAI(i,i2,pts,movC,depth);
             }
-            if((i & 7) == 0){
+            if((i2 & 7) == 0){
                 break;
             }
         }
@@ -1239,43 +1260,43 @@ void straightAI(u8 i,i8 *pts,u8 *movC){
     if(i > 7){
         for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
             if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureAI(i,i2,pts,movC);
+                captureAI(i,i2,pts,movC,depth);
                 break;
             }
             else{
-                moveAI(i,i2,pts,movC);
+                moveAI(i,i2,pts,movC,depth);
             }
-            if(i < 7){
+            if(i2 < 7){
                 break;
             }
         }
     }
     if(i < 55){
-        for(int i2 = i + 7;board[i2] < 'a' || board[i2] > 'z';i2+=7){
+        for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
             if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureAI(i,i2,pts,movC);
+                captureAI(i,i2,pts,movC,depth);
                 break;
             }
             else{
-                moveAI(i,i2,pts,movC);
+                moveAI(i,i2,pts,movC,depth);
             }
-            if(i > 55){
+            if(i2 > 55){
                 break;
             }
         }
     }
 }
 
-void diagonalAI(u8 i,i8 *pts,u8 *movC){
+void diagonalAI(u8 i,i8 *pts,u8 *movC,u8 depth){
     if(i > 7){
         if((i & 7) != 7){
             for(int i2 = i - 9;board[i2] < 'a' || board[i2] > 'z';i2-=9){
                 if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureAI(i,i2,pts,movC);
+                    captureAI(i,i2,pts,movC,depth);
                     break;
                 }
                 else{
-                    moveAI(i,i2,pts,movC);
+                    moveAI(i,i2,pts,movC,depth);
                 }
                 if(i2 < 0 || (i2 & 7) == 7){
                     break;
@@ -1285,11 +1306,11 @@ void diagonalAI(u8 i,i8 *pts,u8 *movC){
         if((i & 7) != 0){
             for(int i2 = i - 7;board[i2] < 'a' || board[i2] > 'z';i2-=7){
                 if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureAI(i,i2,pts,movC);
+                    captureAI(i,i2,pts,movC,depth);
                     break;
                 }
                 else{
-                    moveAI(i,i2,pts,movC);
+                    moveAI(i,i2,pts,movC,depth);
                 }
                 if(i2 < 0 || (i2 & 7) == 0){
                     break;
@@ -1301,11 +1322,11 @@ void diagonalAI(u8 i,i8 *pts,u8 *movC){
         if((i & 7) != 7){
             for(int i2 = i + 9;board[i2] < 'a' || board[i2] > 'z';i2+=9){
                 if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureAI(i,i2,pts,movC);
+                    captureAI(i,i2,pts,movC,depth);
                     break;
                 }
                 else{
-                    moveAI(i,i2,pts,movC);
+                    moveAI(i,i2,pts,movC,depth);
                 }
                 if(i2 > 55 || (i2 & 7) == 7){
                     break;
@@ -1315,11 +1336,11 @@ void diagonalAI(u8 i,i8 *pts,u8 *movC){
         if((i & 7) != 0){
             for(int i2 = i + 7;board[i2] < 'a' || board[i2] > 'z';i2+=7){
                 if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureAI(i,i2,pts,movC);
+                    captureAI(i,i2,pts,movC,depth);
                     break;
                 }
                 else{
-                    moveAI(i,i2,pts,movC);
+                    moveAI(i,i2,pts,movC,depth);
                 }
                 if(i2 > 55  || (i2 & 7) == 0){
                     break;
@@ -1349,7 +1370,6 @@ u8 checkDiagonal(int SX,int SY,int DX,int DY){
         return 1;
     }
     else if(SX-DX==DY-SY){
-        printf("%c",'a');
         if(SX<DX){
             for(int i = 1;i < (DX-SX)+1;i++){
                 if(board[(SX+i)*8+(SY-i)] != '*'){
@@ -1411,6 +1431,7 @@ u8 checkStraight(int SX,int SY,int DX,int DY){
 }
 
 void main(){
+    master.mov = malloc(sizeof(CHESSMOVE)*64);
     printf("welcome to chessTM\n");
     printBoard();
     char inp[5];
@@ -1458,8 +1479,12 @@ mainLoop:
             break;
         }
         case 'Q':
-            if(!checkDiagonal(SX,SY,DX,DY)){continue;}
-            if(!checkStraight(SX,SY,DX,DY)){continue;}
+            if(SX==DX||SY==DY){
+                if(!checkStraight(SX,SY,DX,DY)){continue;}
+            }
+            else{
+                if(!checkDiagonal(SX,SY,DX,DY)){continue;}
+            }
             break;
         case 'N': {
             int MNX = abs(SX - DX);
@@ -1494,6 +1519,9 @@ mainLoop:
                         }
                         movePiece(SX,SY,DX,DY);
                     }
+                    else{
+                        continue;
+                    }
                 }
                 else if (SY == DY + 1 || SY == DY - 1) {
                     if (board[DX*8+DY] >= 'a' && board[DX*8+DY] <= 'z') {
@@ -1524,80 +1552,83 @@ mainLoop:
             break;
         }
         printBoard();
-        master.mov = malloc(sizeof(CHESSMOVE)*64);
-        u8 movC = 0;
-        i8 pts = -128;
-        for(int i = 0;i < 64;i++){
-            switch(board[i]){
-            case 'p':
-                if(board[i+8] == '*'){
-                    moveAI(i,i+8,&pts,&movC);
-                    if(i > 7 && i < 16){
-                        if(board[i+16] == '*'){
-                            moveAI(i,i+16,&pts,&movC);
+        u8 movC;
+        i8 pts;
+        for(int d = 0;d <= DEPTH;d++){
+            movC = 0;
+            pts = -128;
+            printf("\ndepth = %i\n",d);
+            for(int i = 0;i < 64;i++){
+                switch(board[i]){
+                case 'p':
+                    if(board[i+8] == '*'){
+                        moveAI(i,i+8,&pts,&movC,d);
+                        if(i > 7 && i < 16){
+                            if(board[i+16] == '*'){
+                                moveAI(i,i+16,&pts,&movC,d);
+                            }
                         }
                     }
-                }
-                if(board[i+9] > 'A' && board[i+9] < 'Z' && (i & 7) != 7){
-                    captureAI(i,i+9,&pts,&movC);
-                }
-                if(board[i+7] > 'A' && board[i+7] < 'Z' && (i & 7) != 0){
-                    captureAI(i,i+7,&pts,&movC);
-                }
-                break;
-            case 'n':{
-                u8 sx = i >> 3;
-                u8 sy = i & 7;
-                if(sx > 0){
-                    if(sy > 1){
-                        moveCaptureAI(i,i-6,&pts,&movC);
+                    if(board[i+9] > 'A' && board[i+9] < 'Z' && (i & 7) != 7){
+                        captureAI(i,i+9,&pts,&movC,d);
                     }
-                    if(sy < 6){
-                        moveCaptureAI(i,i-10,&pts,&movC);
+                    if(board[i+7] > 'A' && board[i+7] < 'Z' && (i & 7) != 0){
+                        captureAI(i,i+7,&pts,&movC,d);
                     }
-                    if(sx > 1){
-                        if(sy > 0){
-                            moveCaptureAI(i,i-15,&pts,&movC);
+                    break;
+                case 'n':{
+                    u8 sx = i >> 3;
+                    u8 sy = i & 7;
+                    if(sx > 0){
+                        if(sy > 1){
+                            moveCaptureAI(i,i-6,&pts,&movC,d);
                         }
-                        if(sy < 7){
-                            moveCaptureAI(i,i-17,&pts,&movC);
+                        if(sy < 6){
+                            moveCaptureAI(i,i-10,&pts,&movC,d);
                         }
-                    }
-                }
-                if(sx < 7){
-                    if(sy > 1){
-                        moveCaptureAI(i,i+6,&pts,&movC);
-                    }
-                    if(sy < 6){
-                        moveCaptureAI(i,i+10,&pts,&movC);
-                    }
-                    if(sx < 6){
-                        if(sy > 0){
-                            moveCaptureAI(i,i+15,&pts,&movC);
-                        }
-                        if(sy < 7){
-                            moveCaptureAI(i,i+17,&pts,&movC);
+                        if(sx > 1){
+                            if(sy > 0){
+                                moveCaptureAI(i,i-15,&pts,&movC,d);
+                            }
+                            if(sy < 7){
+                                moveCaptureAI(i,i-17,&pts,&movC,d);
+                            }
                         }
                     }
+                    if(sx < 7){
+                        if(sy > 1){
+                            moveCaptureAI(i,i+6,&pts,&movC,d);
+                        }
+                        if(sy < 6){
+                            moveCaptureAI(i,i+10,&pts,&movC,d);
+                        }
+                        if(sx < 6){
+                            if(sy > 0){
+                                moveCaptureAI(i,i+15,&pts,&movC,d);
+                            }
+                            if(sy < 7){
+                                moveCaptureAI(i,i+17,&pts,&movC,d);
+                            }
+                        }
+                    }
+                    break;
                 }
-                break;
-            }
-            case 'b':
-                diagonalAI(i,&pts,&movC);
-                break;
-            case 'r':
-                straightAI(i,&pts,&movC);
-                break;
-            case 'q':
-                diagonalAI(i,&pts,&movC);
-                straightAI(i,&pts,&movC);
-                break;
+                case 'b':
+                    diagonalAI(i,&pts,&movC,d);
+                    break;
+                case 'r':
+                    straightAI(i,&pts,&movC,d);
+                    break;
+                case 'q':
+                    diagonalAI(i,&pts,&movC,d);
+                    straightAI(i,&pts,&movC,d);
+                    break;
+                }
             }
         }
         u8 mv = __rdtsc()%movC;
         u8 mvsrc = master.mov[mv].src;
         u8 mvdst = master.mov[mv].dst;
-        free(master.mov);
         movePieceBlack(mvsrc>>3,mvsrc&7,mvdst>>3,mvdst&7);
         printf("\n%c",(mvsrc&7)+'A');
         printf("%c",(mvsrc>>3)+'0');
