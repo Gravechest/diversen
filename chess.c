@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <intrin.h>
 
-#define DEPTH 2
+#define DEPTH 3
 
 #pragma warning(disable:4996)
 
@@ -40,15 +40,15 @@ inline i8 i8min(i8 p1,i8 p2){
     return p1 < p2 ? p1 : p2;
 }
 
-char board[64] = {
-        '*','*','*','*','*','*','*','*',
-        '*','*','*','*','p','*','*','*',
-        '*','*','*','*','*','*','*','*',
-        '*','*','*','*','p','*','*','*',
-        '*','*','*','P','*','*','*','*',
-        '*','*','*','*','*','*','*','*',
-        '*','*','*','P','*','*','*','*',
-        '*','*','*','*','*','*','*','*',
+char board[64] ={
+    'r','n','b','k','q','b','n','r',
+    'p','p','p','p','p','p','p','p',
+    '*','*','*','*','*','*','*','*',
+    '*','*','*','*','*','*','*','*',
+    '*','*','*','*','*','*','*','*',
+    '*','*','*','*','*','*','*','*',
+    'P','P','P','P','P','P','P','P',
+    'R','N','B','K','Q','B','N','R',
 };
 
 char turn;  
@@ -110,6 +110,7 @@ i8 blackPcsToScore(u8 piece){
 i8 whitePcsToScore(u8 piece){
     switch(piece){
     case 'P':
+        //printBoard();
         return 1;
     case 'B':
     case 'N':
@@ -171,7 +172,7 @@ void maxAIdiagonalLow0(u8 i,u8 itt,i8 stp,i8 *pts){
             *pts = i8max(*pts,whitePcsToScore(board[i2]));
             break;
         }
-        if(i2 < 8 || (i2 & stp) == 0){
+        if(i2 < 8 || (i2 & 7) == stp){
             break;
         }
     }
@@ -183,7 +184,7 @@ void maxAIdiagonalHigh0(u8 i,u8 itt,i8 stp,i8 *pts){
             *pts = i8max(*pts,whitePcsToScore(board[i2]));
             break;
         }
-        if(i2 > 54 || (i2 & stp) == 0){
+        if(i2 > 54 || (i2 & 7) == stp){
             break;
         }
     }
@@ -225,7 +226,7 @@ void maxAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8max(eval->pts,minAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
-        if(i2 < 8 || (i2 & stp) == 0){
+        if(i2 < 8 || (i2 & 7) == stp){
             break;
         }
     }
@@ -247,7 +248,7 @@ void maxAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8max(eval->pts,minAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
-        if(i2 > 54 || (i2 & stp) == 7){
+        if(i2 > 54 || (i2 & 7) == stp){
             break;
         }
     }
@@ -411,7 +412,7 @@ i8 maxAI(u8 depth,ALPHABETA ab){
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'p':
-                if(i < 58 && i > 49){
+                if(i > 49){
                     if(board[i+9] > 'A' && board[i+9] < 'Z' && (i & 7) != 7){
                         eval.pts = i8max(eval.pts,whitePcsToScore(board[i+9])+8);
                     }
@@ -472,16 +473,20 @@ i8 maxAI(u8 depth,ALPHABETA ab){
                 break;
                 }
             case 'b':
+                eval.pts = i8max(eval.pts,0);
                 eval.pts = maxAIdiagonal0(i,eval.pts);
                 break;
             case 'r':
+                eval.pts = i8max(eval.pts,0);
                 eval.pts = maxAIstraight0(i,eval.pts);
                 break;
             case 'q':
+                eval.pts = i8max(eval.pts,0);
                 eval.pts = maxAIstraight0(i,eval.pts);
                 eval.pts = maxAIdiagonal0(i,eval.pts);
                 break;
             case 'k':{
+                eval.pts = i8max(eval.pts,0);
                 int i2 = -1,lm = 2;
                 if((i & 7) == 0){
                     i2++;
@@ -493,9 +498,6 @@ i8 maxAI(u8 depth,ALPHABETA ab){
                     for(int i3 = -8;i3 < 9;i3+=8){
                         if(i2+i3!=0&&i+i2+i3>0&&i+i2+i3<64){
                             eval.pts = i8max(eval.pts,whitePcsToScore(board[i+i2+i3]));
-                        }
-                        if(((i+i2) & 7) == 7){
-                            break;
                         }
                     }
                 }
@@ -512,7 +514,7 @@ i8 maxAI(u8 depth,ALPHABETA ab){
                     if(board[i+8] == '*'){
                         board[i] = 'q';
                         movePieceD(i,i+8);
-                        eval.pts = i8max(eval.pts,minAI(depth-1,eval.ab));
+                        eval.pts = i8max(eval.pts,minAI(depth-1,eval.ab) + 8);
                         movePieceD(i+8,i);
                         board[i] = 'p';
                         eval.ab.alpha = i8max(eval.ab.alpha,eval.pts);
@@ -525,7 +527,7 @@ i8 maxAI(u8 depth,ALPHABETA ab){
                         char tpcs = board[i+9];
                         board[i] = 'q';
                         capturePieceD(i,i+9);
-                        eval.pts = i8max(eval.pts,minAI(depth-1,eval.ab) + lpts);
+                        eval.pts = i8max(eval.pts,minAI(depth-1,eval.ab) + lpts + 8);
                         board[i] = 'p';
                         board[i+9] = tpcs;
                         eval.ab.alpha = i8max(eval.ab.alpha,eval.pts);
@@ -538,7 +540,7 @@ i8 maxAI(u8 depth,ALPHABETA ab){
                         char tpcs = board[i+7];
                         board[i] = 'q';
                         capturePieceD(i,i+7);
-                        eval.pts = i8max(eval.pts,minAI(depth-1,eval.ab) + lpts);
+                        eval.pts = i8max(eval.pts,minAI(depth-1,eval.ab) + lpts + 8);
                         board[i] = 'p';
                         board[i+7] = tpcs;
                         eval.ab.alpha = i8max(eval.ab.alpha,eval.pts);
@@ -779,7 +781,7 @@ void minAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8min(eval->pts,maxAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
-        if(i2 < 8 || (i2 & stp) == 0){
+        if(i2 < 8 || (i2 & 7) == stp){
             break;
         }
     }
@@ -801,7 +803,7 @@ void minAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8max(eval->pts,maxAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
-        if(i2 > 54 || (i2 & stp) == 7){
+        if(i2 > 54 || (i2 & 7) == stp){
             break;
         }
     }
@@ -1044,16 +1046,20 @@ i8 minAI(u8 depth,ALPHABETA ab){
                 break;
                 }
             case 'B':
+                eval.pts = i8min(0,eval.pts);
                 eval.pts = minAIdiagonal0(i,eval.pts);
                 break;
             case 'R':
+                eval.pts = i8min(0,eval.pts);
                 eval.pts = minAIstraight0(i,eval.pts);
                 break;
             case 'Q':
+                eval.pts = i8min(0,eval.pts);
                 eval.pts = minAIdiagonal0(i,eval.pts);
                 eval.pts = minAIstraight0(i,eval.pts);
                 break;
-            case 'K':
+            case 'K':{
+                eval.pts = i8min(0,eval.pts);
                 int i2 = -1,lm = 2;
                 if((i & 7) == 0){
                     i2++;
@@ -1070,7 +1076,8 @@ i8 minAI(u8 depth,ALPHABETA ab){
                         }
                     }
                 }
-            break;
+                break;
+                }
             }
         }
     }
@@ -1082,11 +1089,11 @@ i8 minAI(u8 depth,ALPHABETA ab){
                     if(board[i-8] == '*'){
                         board[i] = 'Q';
                         movePieceD(i,i-8);
-                        eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab));
+                        eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab) - 8);
                         movePieceD(i-8,i);
                         board[i] = 'P';
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
@@ -1095,11 +1102,11 @@ i8 minAI(u8 depth,ALPHABETA ab){
                         char tpcs = board[i-9];
                         board[i] = 'Q';
                         capturePieceD(i,i-9);
-                        eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab) + lpts);
+                        eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab) + lpts - 8);
                         board[i-9] = tpcs;
                         board[i] = 'P';
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
@@ -1108,12 +1115,11 @@ i8 minAI(u8 depth,ALPHABETA ab){
                         char tpcs = board[i-7];
                         board[i] = 'Q';
                         capturePieceD(i,i-7);
-                        eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab) + lpts);
-                        printf("%i\n",i-7);
+                        eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab) + lpts - 8);
                         board[i-7] = tpcs;
                         board[i] = 'P';
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
@@ -1123,16 +1129,16 @@ i8 minAI(u8 depth,ALPHABETA ab){
                         movePieceD(i,i-8);
                         eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab));
                         movePieceD(i-8,i);
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                         if(i > 47 && i < 56 && board[i-16] == '*'){
                             movePieceD(i,i-16);
                             eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab));
                             movePieceD(i-16,i);
-                            eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                            if(eval.ab.alpha <= eval.ab.beta){
+                            eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                            if(eval.ab.beta <= eval.ab.alpha){
                                 return eval.pts;
                             }
                         }
@@ -1144,8 +1150,8 @@ i8 minAI(u8 depth,ALPHABETA ab){
                         eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab) + lpts);
                         board[i] = board[i-9];
                         board[i-9] = tpcs;
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
@@ -1156,8 +1162,8 @@ i8 minAI(u8 depth,ALPHABETA ab){
                         eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab) + lpts);
                         board[i] = board[i-7];
                         board[i-7] = tpcs;
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
@@ -1169,30 +1175,30 @@ i8 minAI(u8 depth,ALPHABETA ab){
                 if(sx > 0){
                     if(sy < 6){
                         minAIknight(i,-6,depth,&eval);
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
                     if(sy > 1){
                         minAIknight(i,-10,depth,&eval);
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
                     if(sx > 1){
                         if(sy < 7){
                             minAIknight(i,-15,depth,&eval);
-                            eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                            if(eval.ab.alpha <= eval.ab.beta){
+                            eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                            if(eval.ab.beta <= eval.ab.alpha){
                                 return eval.pts;
                             }
                         }
                         if(sy > 0){
                             minAIknight(i,-17,depth,&eval);
-                            eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                            if(eval.ab.alpha <= eval.ab.beta){
+                            eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                            if(eval.ab.beta <= eval.ab.alpha){
                                 return eval.pts;
                             }
                         }
@@ -1201,30 +1207,30 @@ i8 minAI(u8 depth,ALPHABETA ab){
                 if(sx < 7){
                     if(sy > 1){
                         minAIknight(i,6,depth,&eval);
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
                     if(sy < 6){
                         minAIknight(i,10,depth,&eval);
-                        eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                        if(eval.ab.alpha <= eval.ab.beta){
+                        eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                        if(eval.ab.beta <= eval.ab.alpha){
                             return eval.pts;
                         }
                     }
                     if(sx < 6){
                         if(sy > 0){
                             minAIknight(i,15,depth,&eval);
-                            eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                            if(eval.ab.alpha <= eval.ab.beta){
+                            eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                            if(eval.ab.beta <= eval.ab.alpha){
                                 return eval.pts;
                             }
                         }
                         if(sy < 7){
                             minAIknight(i,17,depth,&eval);
-                            eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                            if(eval.ab.alpha <= eval.ab.beta){
+                            eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                            if(eval.ab.beta <= eval.ab.alpha){
                                 return eval.pts;
                             }
                         }
@@ -1266,8 +1272,8 @@ i8 minAI(u8 depth,ALPHABETA ab){
                                 eval.pts = i8min(eval.pts,maxAI(depth-1,eval.ab));
                                 movePieceD(i+i2+i3,i);
                             }   
-                            eval.ab.beta = i8max(eval.ab.beta,eval.pts);
-                            if(eval.ab.alpha <= eval.ab.beta){
+                            eval.ab.beta = i8min(eval.ab.beta,eval.pts);
+                            if(eval.ab.beta <= eval.ab.alpha){
                                 return eval.pts;
                             }
                         }
@@ -1296,14 +1302,14 @@ void captureAI(u8 src,u8 dst,i8 *pts,u8 *movC,u8 depth){
     printf("%c",'|');
     for(int i = 0;i < DEPTH;i++){
         printf("depth %i = ",i);
-        i8 tpts = minAI(i,(ALPHABETA){75,-75});
+        i8 tpts = minAI(i,(ALPHABETA){-75,75});
         printf("pts ");
         if(tpts >= 0 && tpts < 10){
             printf("%c",' ');
         }
         printf("%i |",tpts);
     }
-    i8 tpts = minAI(depth,(ALPHABETA){75,-75});
+    i8 tpts = minAI(depth,(ALPHABETA){-75,75});
     tpts += whitePcsToScore(tpcs);
     printf("depth %i = ",depth);
     printf("pts %i\n",tpts);
@@ -1326,14 +1332,14 @@ void moveAI(u8 src,u8 dst,i8 *pts,u8 *movC,u8 depth){
     printf("%c",'|');
     for(int i = 0;i < DEPTH;i++){
         printf("depth %i = ",i);
-        i8 tpts = minAI(i,(ALPHABETA){127,-128});
+        i8 tpts = minAI(i,(ALPHABETA){-75,75});
         printf("pts ");
         if(tpts >= 0 && tpts < 10){
             printf("%c",' ');
         }
         printf("%i |",tpts);
     }
-    i8 tpts = minAI(depth,(ALPHABETA){127,-128});
+    i8 tpts = minAI(depth,(ALPHABETA){-75,75});
     printf("depth %i = ",depth);
     printf("pts %i\n",tpts);
     movePieceD(dst,src);
