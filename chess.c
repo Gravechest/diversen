@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <intrin.h>
 
-#define DEPTH 3
+#define DEPTH 10
 
 #pragma warning(disable:4996)
 
@@ -41,14 +41,14 @@ inline i8 i8min(i8 p1,i8 p2){
 }
 
 char board[64] ={
-    'r','n','b','k','q','b','n','r',
+    '*','*','*','k','*','*','*','*',
     'p','p','p','p','p','p','p','p',
     '*','*','*','*','*','*','*','*',
     '*','*','*','*','*','*','*','*',
     '*','*','*','*','*','*','*','*',
     '*','*','*','*','*','*','*','*',
     'P','P','P','P','P','P','P','P',
-    'R','N','B','K','Q','B','N','R',
+    '*','*','*','K','*','*','*','*',
 };
 
 char turn;  
@@ -110,7 +110,6 @@ i8 blackPcsToScore(u8 piece){
 i8 whitePcsToScore(u8 piece){
     switch(piece){
     case 'P':
-        //printBoard();
         return 1;
     case 'B':
     case 'N':
@@ -226,6 +225,10 @@ void maxAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8max(eval->pts,minAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
+        eval->ab.alpha = i8max(eval->ab.alpha,eval->pts);
+        if(eval->ab.beta <= eval->ab.alpha){
+            return;
+        }
         if(i2 < 8 || (i2 & 7) == stp){
             break;
         }
@@ -248,6 +251,10 @@ void maxAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8max(eval->pts,minAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
+        eval->ab.alpha = i8max(eval->ab.alpha,eval->pts);
+        if(eval->ab.beta <= eval->ab.alpha){
+            return;
+        }
         if(i2 > 54 || (i2 & 7) == stp){
             break;
         }
@@ -258,14 +265,23 @@ void maxAIdiagonal(u8 i,u8 depth,EVAL *eval){
     if(i > 7){
         if((i & 7) != 0){
             maxAIdiagonalLow(i,depth,9,0,eval);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
         }
         if((i & 7) != 7){
             maxAIdiagonalLow(i,depth,7,7,eval);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
         }
     }
     if(i < 55){
         if((i & 7) != 7){
             maxAIdiagonalHigh(i,depth,9,7,eval);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
         }
         if((i & 7) != 0){
             maxAIdiagonalHigh(i,depth,7,0,eval);
@@ -665,6 +681,9 @@ i8 maxAI(u8 depth,ALPHABETA ab){
                 }
             case 'b':
                 maxAIdiagonal(i,depth,&eval);
+                if(eval.ab.beta <= eval.ab.alpha){
+                    return eval.pts;
+                }
                 break;
             case 'r':
                 maxAIstraight(i,depth,&eval);
@@ -672,6 +691,9 @@ i8 maxAI(u8 depth,ALPHABETA ab){
             case 'q':
                 maxAIstraight(i,depth,&eval);
                 maxAIdiagonal(i,depth,&eval);
+                if(eval.ab.beta <= eval.ab.alpha){
+                    return eval.pts;
+                }
                 break;
             case 'k':{
                 int i2 = -1,lm = 2;
@@ -781,6 +803,10 @@ void minAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8min(eval->pts,maxAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
+        eval->ab.beta = i8min(eval->ab.beta,eval->pts);
+        if(eval->ab.beta <= eval->ab.alpha){
+            return;
+        }
         if(i2 < 8 || (i2 & 7) == stp){
             break;
         }
@@ -803,6 +829,10 @@ void minAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval){
             eval->pts = i8max(eval->pts,maxAI(depth-1,eval->ab));
             movePieceD(i2,i);
         }
+        eval->ab.beta = i8min(eval->ab.beta,eval->pts);
+        if(eval->ab.beta <= eval->ab.alpha){
+            return;
+        }
         if(i2 > 54 || (i2 & 7) == stp){
             break;
         }
@@ -813,14 +843,23 @@ void minAIdiagonal(u8 i,u8 depth,EVAL *eval){
     if(i > 7){
         if((i & 7) != 0){
             maxAIdiagonalLow(i,depth,9,0,eval);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return eval->pts;
+            }
         }
         if((i & 7) != 7){
             maxAIdiagonalLow(i,depth,7,7,eval);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return eval->pts;
+            }
         }
     }
     if(i < 55){
         if((i & 7) != 7){
             maxAIdiagonalHigh(i,depth,9,7,eval);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return eval->pts;
+            }
         }
         if((i & 7) != 0){
             maxAIdiagonalHigh(i,depth,7,0,eval);
@@ -1240,12 +1279,18 @@ i8 minAI(u8 depth,ALPHABETA ab){
                 }
             case 'B':
                 minAIdiagonal(i,depth,&eval);
+                if(eval.ab.beta <= eval.ab.alpha){
+                    return eval.pts;
+                }
                 break;
             case 'R':
                 minAIstraight(i,depth,&eval);
                 break;
             case 'Q':
                 minAIdiagonal(i,depth,&eval);
+                if(eval.ab.beta <= eval.ab.alpha){
+                    return eval.pts;
+                }
                 minAIstraight(i,depth,&eval);
                 break;
             case 'K':{
@@ -1302,7 +1347,7 @@ void captureAI(u8 src,u8 dst,i8 *pts,u8 *movC,u8 depth){
     printf("%c",'|');
     for(int i = 0;i < DEPTH;i++){
         printf("depth %i = ",i);
-        i8 tpts = minAI(i,(ALPHABETA){-75,75});
+        i8 tpts = minAI(i,(ALPHABETA){-75,75}) + whitePcsToScore(tpcs);
         printf("pts ");
         if(tpts >= 0 && tpts < 10){
             printf("%c",' ');
@@ -1331,17 +1376,20 @@ void moveAI(u8 src,u8 dst,i8 *pts,u8 *movC,u8 depth){
     movePieceD(src,dst);
     printf("%c",'|');
     for(int i = 0;i < DEPTH;i++){
-        printf("depth %i = ",i);
         i8 tpts = minAI(i,(ALPHABETA){-75,75});
+        printf("dpt %i = ",i);
         printf("pts ");
         if(tpts >= 0 && tpts < 10){
             printf("%c",' ');
         }
         printf("%i |",tpts);
     }
+    long long t = __rdtsc();
     i8 tpts = minAI(depth,(ALPHABETA){-75,75});
+    long long t2 = __rdtsc();
     printf("depth %i = ",depth);
-    printf("pts %i\n",tpts);
+    printf("pts %i,",tpts);
+    printf("t = %i\n",t2-t>>16);
     movePieceD(dst,src);
     if(*pts <= tpts){
         if(*pts != tpts){
@@ -1734,13 +1782,11 @@ mainLoop:
                     }
                 }
                 if(sx < 7){
-                    if(sy > 6){
+                    if(sy < 6){
                         moveCaptureAI(i,i+6,&pts,&movC,DEPTH);
-
                     }
-                    if(sy < 1){
+                    if(sy > 1){
                         moveCaptureAI(i,i+10,&pts,&movC,DEPTH);
-
                     }
                     if(sx < 6){
                         if(sy < 7){
