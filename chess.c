@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <intrin.h>
 
-#define DEPTH 6
+#define DEPTH 10
 
 #pragma warning(disable:4996)
 
@@ -41,17 +41,17 @@ inline i8 i8min(i8 p1,i8 p2){
 }
 
 char board[64] ={
-    'r','n','b','q','k','b','n','r',
+    '*','*','*','*','*','*','*','*',
     'p','p','p','p','p','p','p','p',
     '*','*','*','*','*','*','*','*',
     '*','*','*','*','*','*','*','*',
     '*','*','*','*','*','*','*','*',
     '*','*','*','*','*','*','*','*',
     'P','P','P','P','P','P','P','P',
-    'R','N','B','Q','K','B','N','R',
+    '*','*','*','*','*','*','*','*',
 };
 
-char turn;  
+char turn;
 char castleRights = 0b00001111;
 
 i8 minAI(u8 depth,EVAL eval);
@@ -59,19 +59,19 @@ i8 maxAI(u8 depth,EVAL eval);
 
 void printBoard(){
     printf("   ");
-    for (int i = 0; i < 8; i++) {
+    for(int i = 0; i < 8; i++) {
         printf("%c",'A'+i);
         printf("%c",' ');
     }
     printf("\n  ");
-    for (int i = 0; i < 16; i++) {
+    for(int i = 0; i < 16; i++) {
         printf("%c",'_');
     }
     printf("%c",'\n');
-    for (int i = 0; i < 8; i++) {
+    for(int i = 0; i < 8; i++) {
         printf("%i",i);
         printf("| ");
-        for (int i2 = 0; i2 < 8; i2++) {
+        for(int i2 = 0; i2 < 8; i2++) {
             if(board[i*8+i2] == '*'){
                 if((i2 + (i & 1)) & 1){
                     printf("%c",'.');
@@ -119,6 +119,7 @@ i8 whitePcsToScore(u8 piece){
     case 'Q':
         return 9;
     case 'K':
+        printBoard();
         return 75;
     default:
         return 0;
@@ -149,19 +150,19 @@ void capturePieceD(u8 src,u8 dst){
 
 void movePieceWhite(int SX,int SY,int DX,int DY){
     if(board[DX*8+DY] == '*'){
-         movePiece(SX,SY,DX,DY);
+        movePiece(SX,SY,DX,DY);
     }
     else if(board[DX*8+DY] >= 'a' && board[DX*8+DY] <= 'z'){
-         capturePiece(SX,SY,DX,DY);
+        capturePiece(SX,SY,DX,DY);
     }
 }
 
 void movePieceBlack(int SX,int SY,int DX,int DY){
     if(board[DX*8+DY] == '*'){
-         movePiece(SX,SY,DX,DY);
+        movePiece(SX,SY,DX,DY);
     }
     else if(board[DX*8+DY] >= 'A' && board[DX*8+DY] <= 'Z'){
-         capturePiece(SX,SY,DX,DY);
+        capturePiece(SX,SY,DX,DY);
     }
 }
 
@@ -250,7 +251,7 @@ i8 minAIdiagonal0(u8 i,i8 pts,i8 tpts){
             minAIdiagonalHigh0(i,7,0,pts,&tpts);
         }
     }
-    return pts;
+    return tpts;
 }
 
 void maxAIstraighHor0(u8 i,i8 itt,i8 stp,i8 pts,i8 *tpts){
@@ -839,7 +840,7 @@ i8 maxAI(u8 depth,EVAL eval){
                     }
                 }
                 break;
-                }
+            }
             case 'b':
                 tpts = maxAIdiagonal0(i,eval.pts,tpts);
                 break;
@@ -1024,7 +1025,7 @@ i8 maxAI(u8 depth,EVAL eval){
                     }
                 }
                 break;
-                }
+            }
             case 'b':
                 maxAIdiagonal(i,depth,&eval,&tpts);
                 if(eval.ab.beta <= eval.ab.alpha){
@@ -1059,22 +1060,23 @@ i8 maxAI(u8 depth,EVAL eval){
                     for(int i3 = -8;i3 < 9;i3+=8){
                         if(i2+i3!=0&&i+i2+i3>0&&i+i2+i3<64){
                             if(board[i+i2+i3] < 'Z' && board[i+i2+i3] > 'A'){
-                                char tpcs = board[i+i2+i3];
                                 eval.pts += whitePcsToScore(board[i+i2+i3]);
+                                char tpcs = board[i+i2+i3];
                                 capturePieceD(i,i+i2+i3);
-                                eval.pts = i8max(eval.pts,minAI(depth-1,eval));
+                                tpts = i8max(tpts,minAI(depth-1,eval));
                                 board[i] = board[i+i2+i3];
                                 board[i+i2+i3] = tpcs;
-                                eval.ab.alpha = i8max(eval.ab.alpha,eval.pts);
+                                eval.pts -= whitePcsToScore(board[i+i2+i3]);
+                                eval.ab.alpha = i8max(eval.ab.alpha,tpts);
                                 if(eval.ab.beta <= eval.ab.alpha){
                                     return tpts;
                                 }
                             }
                             else if(board[i+i2+i3] == '*'){
                                 movePieceD(i,i+i2+i3);
-                                eval.pts = i8max(eval.pts,minAI(depth-1,eval));
+                                tpts = i8max(tpts,minAI(depth-1,eval));
                                 movePieceD(i+i2+i3,i);
-                                eval.ab.alpha = i8max(eval.ab.alpha,eval.pts);
+                                eval.ab.alpha = i8max(eval.ab.alpha,tpts);
                                 if(eval.ab.beta <= eval.ab.alpha){
                                     return tpts;
                                 }
@@ -1155,7 +1157,7 @@ i8 minAI(u8 depth,EVAL eval){
                     }
                 }
                 break;
-                }
+            }
             case 'B':
                 tpts = minAIdiagonal0(i,eval.pts,tpts);
                 break;
@@ -1184,7 +1186,7 @@ i8 minAI(u8 depth,EVAL eval){
                     }
                 }
                 break;
-                }
+            }
             }
         }
     }
@@ -1342,7 +1344,7 @@ i8 minAI(u8 depth,EVAL eval){
                     }
                 }
                 break;
-                }
+            }
             case 'B':
                 minAIdiagonal(i,depth,&eval,&tpts);
                 if(eval.ab.beta <= eval.ab.alpha){
@@ -1397,12 +1399,12 @@ i8 minAI(u8 depth,EVAL eval){
                                 if(eval.ab.beta <= eval.ab.alpha){
                                     return tpts;;
                                 }
-                            }   
+                            }
                         }
                     }
                 }
                 break;
-                }
+            }
             }
         }
     }
@@ -1426,7 +1428,7 @@ void captureAI(u8 src,u8 dst,i8 *pts,u8 *movC){
     for(int i = 0;i < DEPTH;i++){
         printf("dpt %i = ",i);
         printf("pts ");
-        tpts = minAI(i,(EVAL){-75,75,0});
+        tpts = minAI(i,(EVAL){ -75,75,0 });
         tpts2 = whitePcsToScore(tpcs);
         if(tpts2 + tpts < 128){
             tpts += tpts2;
@@ -1440,10 +1442,10 @@ void captureAI(u8 src,u8 dst,i8 *pts,u8 *movC){
         printf("%i|",tpts);
         if(tpts < -50 || tpts > 50){
             printf("%c",'\n');
-            goto stopSearching; 
+            goto stopSearching;
         }
     }
-    tpts  = minAI(DEPTH,(EVAL){-75,75,0});
+    tpts  = minAI(DEPTH,(EVAL){ -75,75,0 });
     tpts2 = whitePcsToScore(tpcs);
     if(tpts2 + tpts < 128){
         tpts += tpts2;
@@ -1470,7 +1472,7 @@ void moveAI(u8 src,u8 dst,i8 *pts,u8 *movC){
     printf("%c",'|');
     i8 tpts;
     for(int i = 0;i < DEPTH;i++){
-        tpts = minAI(i,(EVAL){-75,75,0});
+        tpts = minAI(i,(EVAL){ -75,75,0 });
         printf("dpt %i = ",i);
         printf("pts ");
         if(tpts >= 0 && tpts < 10){
@@ -1486,7 +1488,7 @@ void moveAI(u8 src,u8 dst,i8 *pts,u8 *movC){
         }
     }
     long long t = __rdtsc();
-    tpts = minAI(DEPTH,(EVAL){-75,75,0});
+    tpts = minAI(DEPTH,(EVAL){ -75,75,0 });
     long long t2 = __rdtsc();
     printf("dpt %i = ",DEPTH);
     printf("pts %i,",tpts);
@@ -1583,7 +1585,7 @@ void diagonalAI(u8 i,i8 *pts,u8 *movC){
                 else{
                     moveAI(i,i2,pts,movC);
                 }
-                if(i2 < 0 || (i2 & 7) == 0){
+                if(i2 < 8 || (i2 & 7) == 0){
                     break;
                 }
             }
@@ -1597,7 +1599,7 @@ void diagonalAI(u8 i,i8 *pts,u8 *movC){
                 else{
                     moveAI(i,i2,pts,movC);
                 }
-                if(i2 < 0 || (i2 & 7) == 7){
+                if(i2 < 8 || (i2 & 7) == 7){
                     break;
                 }
             }
@@ -1736,7 +1738,7 @@ mainLoop:
         case 'K': {
             int MNX = abs(SX - DX);
             int MNY = abs(SY - DY);
-            if (MNX == 1 || MNY == 1) {
+            if(MNX == 1 || MNY == 1) {
                 if(board[DX*8+DY] == '*'){
                     movePiece(SX,SY,DX,DY);
                 }
@@ -1770,18 +1772,18 @@ mainLoop:
         }
         case 'Q':
             if(SX==DX||SY==DY){
-                if(!checkStraight(SX,SY,DX,DY)){continue;}
+                if(!checkStraight(SX,SY,DX,DY)){ continue; }
             }
             else{
-                if(!checkDiagonal(SX,SY,DX,DY)){continue;}
+                if(!checkDiagonal(SX,SY,DX,DY)){ continue; }
             }
             break;
         case 'N': {
             int MNX = abs(SX - DX);
             int MNY = abs(SY - DY);
-            if ((MNX == 1 && MNY == 2) || (MNX == 2 && MNY == 1)) {
+            if((MNX == 1 && MNY == 2) || (MNX == 2 && MNY == 1)) {
                 if(board[DX*8+DY] == '*'){
-                    movePiece(SX, SY, DX, DY);
+                    movePiece(SX,SY,DX,DY);
                 }
                 else if(board[DX*8+DY] < 'z' && board[DX*8+DY] > 'a'){
                     capturePiece(SX,SY,DX,DY);
@@ -1790,7 +1792,7 @@ mainLoop:
             break;
         }
         case 'B':
-            if(!checkDiagonal(SX,SY,DX,DY)){continue;}
+            if(!checkDiagonal(SX,SY,DX,DY)){ continue; }
             break;
         case 'R':
             if(DY == 0){
@@ -1799,17 +1801,17 @@ mainLoop:
             if(DY == 7){
                 castleRights &= ~0b0001;
             }
-            if(!checkStraight(SX,SY,DX,DY)){continue;}
+            if(!checkStraight(SX,SY,DX,DY)){ continue; }
             break;
         case 'P':
-            if (SX == DX + 1) {
-                if (SY == DY) {
-                    if (board[DX*8+DY] == '*') {
-                        if (DX == 0){
+            if(SX == DX + 1) {
+                if(SY == DY) {
+                    if(board[DX*8+DY] == '*') {
+                        if(DX == 0){
                             printf("promotion");
                             do{
                                 scanf("%s",inp);
-                            }while(inp[0]!='Q'&&inp[0]!='R'&&inp[0]!='N'&&inp[0]!='B');
+                            } while(inp[0]!='Q'&&inp[0]!='R'&&inp[0]!='N'&&inp[0]!='B');
                             board[SX*8+SY] = inp[0];
                         }
                         movePiece(SX,SY,DX,DY);
@@ -1818,13 +1820,13 @@ mainLoop:
                         continue;
                     }
                 }
-                else if (SY == DY + 1 || SY == DY - 1) {
-                    if (board[DX*8+DY] >= 'a' && board[DX*8+DY] <= 'z') {
-                        if (DX == 0){
+                else if(SY == DY + 1 || SY == DY - 1) {
+                    if(board[DX*8+DY] >= 'a' && board[DX*8+DY] <= 'z') {
+                        if(DX == 0){
                             printf("promotion");
                             do{
                                 scanf("%s",inp);
-                            }while(inp[0]!='Q'&&inp[0]!='R'&&inp[0]!='N'&&inp[0]!='B');
+                            } while(inp[0]!='Q'&&inp[0]!='R'&&inp[0]!='N'&&inp[0]!='B');
                             board[SX*8+SY] = inp[0];
                         }
                         capturePiece(SX,SY,DX,DY);
@@ -1836,9 +1838,15 @@ mainLoop:
             }
             else if(SX == DX + 2){
                 if(SX == 6){
-                    if (board[(DX-1)*8+DY] == '*' && board[DX*8+DY] == '*') {
+                    if(board[(DX+1)*8+DY] == '*' && board[DX*8+DY] == '*') {
                         movePiece(SX,SY,DX,DY);
                     }
+                    else{
+                        continue;
+                    }
+                }
+                else{
+                    continue;
                 }
             }
             else{
@@ -1849,6 +1857,7 @@ mainLoop:
         printBoard();
         u8 movC = 0;
         i8 pts = -128;
+        unsigned long long mTime = __rdtsc();
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'p':
@@ -1932,6 +1941,7 @@ mainLoop:
                 break;
             }
         }
+        printf("total time elapsed =%i\n",__rdtsc()-mTime>>16);
         if(!movC){
             printf("stalemate");
             exit(0);
@@ -1940,6 +1950,9 @@ mainLoop:
         u8 mvsrc = master.mov[mv].src;
         u8 mvdst = master.mov[mv].dst;
         movePieceBlack(mvsrc>>3,mvsrc&7,mvdst>>3,mvdst&7);
+        if(master.mov[mv].dst > 54 && board[master.mov[mv].dst] == 'p'){
+            board[master.mov[mv].dst] = 'q';
+        }
         printf("\n%c",(mvsrc&7)+'A');
         printf("%c",(mvsrc>>3)+'0');
         printf("%c",'-');
