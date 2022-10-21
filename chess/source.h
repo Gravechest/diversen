@@ -1,8 +1,8 @@
 #pragma once
 
 #define AIMAXTHINKINGTIME 999999999
-#define MTIME AIMAXTHINKINGTIME >> 16
-#define DEPTH 8
+#define MTIME AIMAXTHINKINGTIME << 16
+#define DEPTH 6
 
 #pragma warning(disable:4996)
 
