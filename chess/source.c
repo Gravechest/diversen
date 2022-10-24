@@ -16,14 +16,14 @@ i8 i8min(i8 p1,i8 p2){
 }
 
 char board[64] ={
-    '*','*','*','*','q','*','*','*',
-    '*','*','*','p','*','*','*','*',
-    '*','*','*','*','*','*','*','*',
-    '*','*','N','*','*','*','*','*',
-    '*','*','*','*','*','*','*','*',
-    '*','*','*','*','*','N','*','*',
+    'r','n','b','q','k','b','n','r',
+    'p','p','p','p','p','p','p','p',
     '*','*','*','*','*','*','*','*',
     '*','*','*','*','*','*','*','*',
+    '*','*','*','*','*','*','*','*',
+    '*','*','*','*','*','*','*','*',
+    'P','P','P','P','P','P','P','P',
+    'R','N','B','Q','K','B','N','R',
 };
 
 char pcsVal[122] ={
@@ -69,7 +69,7 @@ void pcsValBlack(){
     pcsVal['K'] = 75;
 }
 
-void printBoard(){
+void printBoardWhite(){
     printf("   ");
     for(int i = 0; i < 8; i++) {
         printf("%c",'A'+i);
@@ -77,7 +77,7 @@ void printBoard(){
     }
     printf("\n  ");
     for(int i = 0; i < 16; i++) {
-        printf("%c",'_');
+        printf("%c",'-');
     }
     printf("%c",'\n');
     for(int i = 0; i < 8; i++) {
@@ -99,6 +99,48 @@ void printBoard(){
         }
         printf("%c",'\n');
     }
+    printf("  ");
+    for(int i = 0; i < 16; i++) {
+        printf("%c",'-');
+    }
+    printf("%c",'\n');
+}
+
+void printBoardBlack(){
+    printf("   ");
+    for(int i = 7;i >= 0;i--) {
+        printf("%c",'A'+i);
+        printf("%c",' ');
+    }
+    printf("\n  ");
+    for(int i = 0;i < 16;i++) {
+        printf("%c",'-');
+    }
+    printf("%c",'\n');
+    for(int i = 7;i >= 0;i--) {
+        printf("%i",i);
+        printf("| ");
+        for(int i2 = 7;i2 >= 0;i2--) {
+            if(board[i*8+i2] == '*'){
+                if((i2 + (i & 1)) & 1){
+                    printf("%c",'.');
+                }
+                else{
+                    printf("%c",',');
+                }
+            }
+            else{
+                printf("%c",board[i*8+i2]);
+            }
+            printf("%c",' ');
+        }
+        printf("%c",'\n');
+    }
+    printf("  ");
+    for(int i = 0; i < 16; i++) {
+        printf("%c",'-');
+    }
+    printf("%c",'\n');
 }
 
 void movePiece(int SX,int SY,int DX,int DY){
@@ -149,732 +191,332 @@ void printMove(u8 src,u8 dst){
     printf("%c = ",(dst>>3)+'0');
 }
 
-void maxBlackAIdiagonalLow0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'a' || board[i2] > 'z';i2-=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            *tpts = i8max(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxWhiteAIdiagonalLow0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'A' || board[i2] > 'Z';i2-=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            *tpts = i8max(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minBlackAIdiagonalLow0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'A' || board[i2] > 'Z';i2-=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            *tpts = i8min(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minWhiteAIdiagonalLow0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'a' || board[i2] > 'z';i2-=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            *tpts = i8min(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxBlackAIdiagonalHigh0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'a' || board[i2] > 'z';i2+=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            *tpts = i8max(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxWhiteAIdiagonalHigh0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'A' || board[i2] > 'Z';i2+=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            *tpts = i8max(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minBlackAIdiagonalHigh0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'A' || board[i2] > 'Z';i2+=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            *tpts = i8min(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minWhiteAIdiagonalHigh0(u8 i,u8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'a' || board[i2] > 'z';i2+=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            *tpts = i8min(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
 i8 maxBlackAIdiagonal0(u8 i,i8 pts,i8 tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            maxBlackAIdiagonalLow0(i,9,0,pts,&tpts);
-        }
-        if((i & 7) != 7){
-            maxBlackAIdiagonalLow0(i,7,7,pts,&tpts);
+    for(int i2 = i - 9;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        if((i & 7) != 7){
-            maxBlackAIdiagonalHigh0(i,9,7,pts,&tpts);
+    for(int i2 = i - 7;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
-        if((i & 7) != 0){
-            maxBlackAIdiagonalHigh0(i,7,0,pts,&tpts);
+    }
+    for(int i2 = i + 9;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
 i8 maxWhiteAIdiagonal0(u8 i,i8 pts,i8 tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            maxWhiteAIdiagonalLow0(i,9,0,pts,&tpts);
-        }
-        if((i & 7) != 7){
-            maxWhiteAIdiagonalLow0(i,7,7,pts,&tpts);
+    for(int i2 = i - 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        if((i & 7) != 7){
-            maxWhiteAIdiagonalHigh0(i,9,7,pts,&tpts);
+    for(int i2 = i - 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
-        if((i & 7) != 0){
-            maxWhiteAIdiagonalHigh0(i,7,0,pts,&tpts);
+    }
+    for(int i2 = i + 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
 i8 minBlackAIdiagonal0(u8 i,i8 pts,i8 tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            minBlackAIdiagonalLow0(i,9,0,pts,&tpts);
-        }
-        if((i & 7) != 7){
-            minBlackAIdiagonalLow0(i,7,7,pts,&tpts);
+    for(int i2 = i - 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        if((i & 7) != 7){
-            minBlackAIdiagonalHigh0(i,9,7,pts,&tpts);
+    for(int i2 = i - 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
-        if((i & 7) != 0){
-            minBlackAIdiagonalHigh0(i,7,0,pts,&tpts);
+    }
+    for(int i2 = i + 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
 i8 minWhiteAIdiagonal0(u8 i,i8 pts,i8 tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            minWhiteAIdiagonalLow0(i,9,0,pts,&tpts);
-        }
-        if((i & 7) != 7){
-            minWhiteAIdiagonalLow0(i,7,7,pts,&tpts);
+    for(int i2 = i - 9;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        if((i & 7) != 7){
-            minWhiteAIdiagonalHigh0(i,9,7,pts,&tpts);
+    for(int i2 = i - 7;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
-        if((i & 7) != 0){
-            minWhiteAIdiagonalHigh0(i,7,0,pts,&tpts);
+    }
+    for(int i2 = i + 9;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
-void maxBlackAIstraighHor0(u8 i,i8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'a' || board[i2] > 'z';i2+=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            *tpts = i8max(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if((i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxWhiteAIstraighHor0(u8 i,i8 itt,i8 stp,i8 pts,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'A' || board[i2] > 'Z';i2+=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            *tpts = i8max(*tpts,pts+pcsVal[board[i2]]);
-            return;
-        }
-        if((i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
 i8 maxBlackAIstraight0(u8 i,i8 pts,i8 tpts){
-    if((i & 7) != 7){
-        maxBlackAIstraighHor0(i,1,7,pts,&tpts);
-    }
-    if((i & 7) != 0){
-        maxBlackAIstraighHor0(i,-1,0,pts,&tpts);
-    }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                tpts = i8max(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 < 8){
-                break;
-            }
+    for(int i2 = i + 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                tpts = i8max(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 > 54){
-                break;
-            }
+    for(int i2 = i - 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i - 8;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i + 8;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64;i2+=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
 i8 maxWhiteAIstraight0(u8 i,i8 pts,i8 tpts){
-    if((i & 7) != 7){
-        maxWhiteAIstraighHor0(i,1,7,pts,&tpts);
-    }
-    if((i & 7) != 0){
-        maxWhiteAIstraighHor0(i,-1,0,pts,&tpts);
-    }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                tpts = i8max(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 < 8){
-                break;
-            }
+    for(int i2 = i + 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                tpts = i8max(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 > 54){
-                break;
-            }
+    for(int i2 = i - 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i - 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
+        }
+    }
+    for(int i2 = i + 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64;i2+=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8max(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
 i8 minBlackAIstraight0(u8 i,i8 pts,i8 tpts){
-    if((i & 7) != 7){
-        for(int i2 = i + 1;board[i2] < 'A' || board[i2] > 'Z';i2++){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if((i2 & 7) == 7){
-                break;
-            }
+    for(int i2 = i + 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if((i & 7) != 0){
-        for(int i2 = i - 1;board[i2] < 'A' || board[i2] > 'Z';i2--){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if((i2 & 7) == 0){
-                break;
-            }
+    for(int i2 = i - 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 < 8){
-                break;
-            }
+    for(int i2 = i - 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 > 54){
-                break;
-            }
+    for(int i2 = i + 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64;i2+=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
 i8 minWhiteAIstraight0(u8 i,i8 pts,i8 tpts){
-    if((i & 7) != 7){
-        for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if((i2 & 7) == 7){
-                break;
-            }
+    for(int i2 = i + 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if((i & 7) != 0){
-        for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if((i2 & 7) == 0){
-                break;
-            }
+    for(int i2 = i - 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 < 8){
-                break;
-            }
+    for(int i2 = i - 8;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                tpts = i8min(tpts,pts+pcsVal[board[i2]]);
-                break;
-            }
-            if(i2 > 54){
-                break;
-            }
+    for(int i2 = i + 8;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64;i2+=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            tpts = i8min(tpts,pts+pcsVal[board[i2]]);
+            break;
         }
     }
     return tpts;
 }
 
-void maxBlackAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'a' || board[i2] > 'z';i2-=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxWhiteAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'A' || board[i2] > 'Z';i2-=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minBlackAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'A' || board[i2] > 'Z';i2-=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minWhiteAIdiagonalLow(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i - itt;board[i2] < 'a' || board[i2] > 'z';i2-=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 < 8 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxBlackAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'a' || board[i2] > 'z';i2+=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxWhiteAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'A' || board[i2] > 'Z';i2+=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minBlackAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'A' || board[i2] > 'Z';i2+=itt){
-        if(board[i2] > 'a' && board[i2] < 'z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8max(*tpts,maxBlackAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8max(*tpts,maxBlackAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void minWhiteAIdiagonalHigh(u8 i,u8 depth,u8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'a' || board[i2] > 'z';i2+=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8max(*tpts,maxWhiteAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8max(*tpts,maxWhiteAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.beta = i8min(eval->ab.beta,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if(i2 > 54 || (i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
 void maxBlackAIdiagonal(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            maxBlackAIdiagonalLow(i,depth,9,0,eval,tpts);
+    for(int i2 = i - 9;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
             if(eval->ab.beta <= eval->ab.alpha){
                 return;
             }
+            break;
         }
-        if((i & 7) != 7){
-            maxBlackAIdiagonalLow(i,depth,7,7,eval,tpts);
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
             if(eval->ab.beta <= eval->ab.alpha){
                 return;
             }
         }
     }
-    if(i < 55){
-        if((i & 7) != 7){
-            maxBlackAIdiagonalHigh(i,depth,9,7,eval,tpts);
+    for(int i2 = i - 7;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
             if(eval->ab.beta <= eval->ab.alpha){
                 return;
             }
         }
-        if((i & 7) != 0){
-            maxBlackAIdiagonalHigh(i,depth,7,0,eval,tpts);
+    }
+    for(int i2 = i + 9;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
         }
     }
 }
 
 void maxWhiteAIdiagonal(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            maxWhiteAIdiagonalLow(i,depth,9,0,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if((i & 7) != 7){
-            maxWhiteAIdiagonalLow(i,depth,7,7,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-    }
-    if(i < 55){
-        if((i & 7) != 7){
-            maxWhiteAIdiagonalHigh(i,depth,9,7,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if((i & 7) != 0){
-            maxWhiteAIdiagonalHigh(i,depth,7,0,eval,tpts);
-        }
-    }
-}
-
-void minBlackAIdiagonal(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            minBlackAIdiagonalLow(i,depth,9,0,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return eval->pts;
-            }
-        }
-        if((i & 7) != 7){
-            minBlackAIdiagonalLow(i,depth,7,7,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return eval->pts;
-            }
-        }
-    }
-    if(i < 55){
-        if((i & 7) != 7){
-            minBlackAIdiagonalHigh(i,depth,9,7,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return eval->pts;
-            }
-        }
-        if((i & 7) != 0){
-            minBlackAIdiagonalHigh(i,depth,7,0,eval,tpts);
-        }
-    }
-}
-
-void minWhiteAIdiagonal(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if(i > 7){
-        if((i & 7) != 0){
-            minWhiteAIdiagonalLow(i,depth,9,0,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return eval->pts;
-            }
-        }
-        if((i & 7) != 7){
-            minWhiteAIdiagonalLow(i,depth,7,7,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return eval->pts;
-            }
-        }
-    }
-    if(i < 55){
-        if((i & 7) != 7){
-            minWhiteAIdiagonalHigh(i,depth,9,7,eval,tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return eval->pts;
-            }
-        }
-        if((i & 7) != 0){
-            minWhiteAIdiagonalHigh(i,depth,7,0,eval,tpts);
-        }
-    }
-}
-
-void maxBlackAIstraighHor(u8 i,u8 depth,i8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'a' || board[i2] > 'z';i2+=itt){
-        if(board[i2] > 'A' && board[i2] < 'Z'){
-            eval->pts += pcsVal[board[i2]];
-            char tpcs = board[i2];
-            capturePieceD(i,i2);
-            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-            board[i] = board[i2];
-            board[i2] = tpcs;
-            eval->pts -= pcsVal[board[i2]];
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            return;
-        }
-        else{
-            movePieceD(i,i2);
-            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-            movePieceD(i2,i);
-            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            if(eval->ab.beta <= eval->ab.alpha){
-                return;
-            }
-        }
-        if((i2 & 7) == stp){
-            return;
-        }
-    }
-}
-
-void maxWhiteAIstraighHor(u8 i,u8 depth,i8 itt,i8 stp,EVAL *eval,i8 *tpts){
-    for(int i2 = i + itt;board[i2] < 'A' || board[i2] > 'Z';i2+=itt){
+    for(int i2 = i - 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
         if(board[i2] > 'a' && board[i2] < 'z'){
             eval->pts += pcsVal[board[i2]];
             char tpcs = board[i2];
@@ -884,7 +526,10 @@ void maxWhiteAIstraighHor(u8 i,u8 depth,i8 itt,i8 stp,EVAL *eval,i8 *tpts){
             board[i2] = tpcs;
             eval->pts -= pcsVal[board[i2]];
             eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-            return;
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
         }
         else{
             movePieceD(i,i2);
@@ -895,276 +540,578 @@ void maxWhiteAIstraighHor(u8 i,u8 depth,i8 itt,i8 stp,EVAL *eval,i8 *tpts){
                 return;
             }
         }
-        if((i2 & 7) == stp){
+    }
+    for(int i2 = i - 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+}
+
+void minBlackAIdiagonal(u8 i,u8 depth,EVAL *eval,i8 *tpts){
+    for(int i2 = i - 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i - 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
             return;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+}
+
+void minWhiteAIdiagonal(u8 i,u8 depth,EVAL *eval,i8 *tpts){
+    for(int i2 = i - 9;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i - 7;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 9;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
         }
     }
 }
 
 void maxBlackAIstraight(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if((i & 7) != 7){
-        maxBlackAIstraighHor(i,depth,1,7,eval,tpts);
-        if(eval->ab.beta <= eval->ab.alpha){
-            return;
-        }
-    }
-    if((i & 7) != 0){
-        maxBlackAIstraighHor(i,depth,-1,0,eval,tpts);
-        if(eval->ab.beta <= eval->ab.alpha){
-            return;
-        }
-    }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
+    for(int i2 = i + 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if(i2 < 7){
-                break;
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
+    for(int i2 = i - 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            if(i2 > 54){
-                break;
+        }
+    }
+    for(int i2 = i - 8;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 8;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64;i2+=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
         }
     }
 }
 
 void maxWhiteAIstraight(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if((i & 7) != 7){
-        maxWhiteAIstraighHor(i,depth,1,7,eval,tpts);
-        if(eval->ab.beta <= eval->ab.alpha){
-            return;
-        }
-    }
-    if((i & 7) != 0){
-        maxWhiteAIstraighHor(i,depth,-1,0,eval,tpts);
-        if(eval->ab.beta <= eval->ab.alpha){
-            return;
-        }
-    }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
+    for(int i2 = i + 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if(i2 < 7){
-                break;
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
+    for(int i2 = i - 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            if(i2 > 54){
-                break;
+        }
+    }
+    for(int i2 = i - 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64;i2+=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8max(*tpts,minWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.alpha = i8max(eval->ab.alpha,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
         }
     }
 }
 
 void minBlackAIstraight(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if((i & 7) != 7){
-        for(int i2 = i + 1;board[i2] < 'A' || board[i2] > 'Z';i2++){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
-            }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if((i2 & 7) == 7){
-                break;
-            }
-        }
-    }
-    if((i & 7) != 0){
-        for(int i2 = i - 1;board[i2] < 'A' || board[i2] > 'Z';i2--){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
-            }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if((i2 & 7) == 0){
-                break;
-            }
-        }
-    }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
-            }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if(i2 < 8){
-                break;
-            }
-        }
-    }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
+    for(int i2 = i + 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
                 return;
             }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            if(i2 > 54){
+        }
+    }
+    for(int i2 = i - 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i - 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64;i2+=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            return;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxBlackAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
                 return;
             }
         }
@@ -1172,119 +1119,99 @@ void minBlackAIstraight(u8 i,u8 depth,EVAL *eval,i8 *tpts){
 }
 
 void minWhiteAIstraight(u8 i,u8 depth,EVAL *eval,i8 *tpts){
-    if((i & 7) != 7){
-        for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
-            }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if((i2 & 7) == 7){
-                break;
-            }
-        }
-    }
-    if((i & 7) != 0){
-        for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
-            }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if((i2 & 7) == 0){
-                break;
-            }
-        }
-    }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-                break;
-            }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
-            }
-            if(i2 < 8){
-                break;
-            }
-        }
-    }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                eval->pts += pcsVal[board[i2]];
-                char tpcs = board[i2];
-                capturePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                board[i] = board[i2];
-                board[i2] = tpcs;
-                eval->pts -= pcsVal[board[i2]];
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
+    for(int i2 = i + 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
                 return;
             }
-            else{
-                movePieceD(i,i2);
-                *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
-                movePieceD(i2,i);
-                eval->ab.beta = i8min(eval->ab.beta,*tpts);
-                if(eval->ab.beta <= eval->ab.alpha){
-                    return;
-                }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
             }
-            if(i2 > 54){
+        }
+    }
+    for(int i2 = i - 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i - 8;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+            break;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
+                return;
+            }
+        }
+    }
+    for(int i2 = i + 8;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64;i2+=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            eval->pts += pcsVal[board[i2]];
+            char tpcs = board[i2];
+            capturePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            board[i] = board[i2];
+            board[i2] = tpcs;
+            eval->pts -= pcsVal[board[i2]];
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            return;
+        }
+        else{
+            movePieceD(i,i2);
+            *tpts = i8min(*tpts,maxWhiteAI(depth-1,*eval));
+            movePieceD(i2,i);
+            eval->ab.beta = i8min(eval->ab.beta,*tpts);
+            if(eval->ab.beta <= eval->ab.alpha){
                 return;
             }
         }
@@ -1368,12 +1295,13 @@ void minWhiteAIknight(i8 i,i8 dst,u8 depth,EVAL *eval,i8 *tpts){
 }
 
 i8 maxBlackAI(u8 depth,EVAL eval){
-    i8 tpts = -75;
+    i8 tpts;
     if(!depth){
+        tpts = eval.pts;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'p':
-                if(i > 49){
+                if(i > 47){
                     if((i & 7) != 7){
                         tpts = i8max(tpts,eval.pts+pcsVal[board[i+9]]+8);
                     }
@@ -1464,10 +1392,11 @@ i8 maxBlackAI(u8 depth,EVAL eval){
         }
     }
     else{
+        tpts = -75;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'p':
-                if(i > 55){
+                if(i > 47){
                     if(board[i+8] == '*'){
                         board[i] = 'q';
                         movePieceD(i,i+8);
@@ -1685,8 +1614,9 @@ i8 maxBlackAI(u8 depth,EVAL eval){
 }
 
 i8 maxWhiteAI(u8 depth,EVAL eval){
-    i8 tpts = -75;
+    i8 tpts;
     if(!depth){
+        tpts = eval.pts;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'P':
@@ -1781,6 +1711,7 @@ i8 maxWhiteAI(u8 depth,EVAL eval){
         }
     }
     else{
+        tpts = -75;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'P':
@@ -2002,8 +1933,9 @@ i8 maxWhiteAI(u8 depth,EVAL eval){
 }
 
 i8 minBlackAI(u8 depth,EVAL eval){
-    i8 tpts = 75;
+    i8 tpts;
     if(!depth){
+        tpts = eval.pts;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'P':
@@ -2100,6 +2032,7 @@ i8 minBlackAI(u8 depth,EVAL eval){
         }
     }
     else{
+        tpts = 75;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'P':
@@ -2321,8 +2254,9 @@ i8 minBlackAI(u8 depth,EVAL eval){
 }
 
 i8 minWhiteAI(u8 depth,EVAL eval){
-    i8 tpts = 75;
+    i8 tpts;
     if(!depth){
+        tpts = eval.pts;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'p':
@@ -2419,10 +2353,11 @@ i8 minWhiteAI(u8 depth,EVAL eval){
         }
     }
     else{
+        tpts = 75;
         for(int i = 0;i < 64;i++){
             switch(board[i]){
             case 'p':
-                if(i > 53){
+                if(i > 47){
                     if(board[i+8] == '*'){
                         board[i] = 'q';
                         movePieceD(i,i+8);
@@ -2732,7 +2667,7 @@ void moveBlackAI(u8 src,u8 dst,AIMOVEDATA *data){
     i8 tpts;
     for(int i = 0;i <= DEPTH;i++){
         u64 mTime = __rdtsc();
-        tpts = minBlackAI(i,(EVAL){ -75,75,0 });
+        tpts = minBlackAI(i,(EVAL){-75,75,0});
         u64 mTimeE = __rdtsc();
         printf("dpt %i = ",i);
         printf("pts ");
@@ -2826,245 +2761,157 @@ void moveCaptureWhiteAI(u8 src,u8 dst,AIMOVEDATA *data){
 }
 
 void straightBlackAI(u8 i,AIMOVEDATA *data){
-    if((i & 7) != 7){
-        for(int i2 = i + 1;board[i2] < 'a' || board[i2] > 'z';i2++){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureBlackAI(i,i2,data);
-                break;
-            }
-            else{
-                moveBlackAI(i,i2,data);
-            }
-            if((i2 & 7) == 7){
-                break;
-            }
+    for(int i2 = i + 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
+        }
+        else{
+            moveBlackAI(i,i2,data);
         }
     }
-    if((i & 7) != 0){
-        for(int i2 = i - 1;board[i2] < 'a' || board[i2] > 'z';i2--){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureBlackAI(i,i2,data);
-                break;
-            }
-            else{
-                moveBlackAI(i,i2,data);
-            }
-            if((i2 & 7) == 0){
-                break;
-            }
+    for(int i2 = i - 1;(board[i2] < 'a' || board[i2] > 'z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
+        }
+        else{
+            moveBlackAI(i,i2,data);
         }
     }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'a' || board[i2] > 'z';i2-=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureBlackAI(i,i2,data);
-                break;
-            }
-            else{
-                moveBlackAI(i,i2,data);
-            }
-            if(i2 < 8){
-                break;
-            }
+    for(int i2 = i - 8;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
+        }
+        else{
+            moveBlackAI(i,i2,data);
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'a' || board[i2] > 'z';i2+=8){
-            if(board[i2] > 'A' && board[i2] < 'Z'){
-                captureBlackAI(i,i2,data);
-                break;
-            }
-            else{
-                moveBlackAI(i,i2,data);
-            }
-            if(i2 > 54){
-                break;
-            }
+    for(int i2 = i + 8;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64;i2+=8){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
+        }
+        else{
+            moveBlackAI(i,i2,data);
         }
     }
 }
 
 void straightWhiteAI(u8 i,AIMOVEDATA *data){
-    if((i & 7) != 7){
-        for(int i2 = i + 1;board[i2] < 'A' || board[i2] > 'Z';i2++){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                captureWhiteAI(i,i2,data);
-                break;
-            }
-            else{
-                moveWhiteAI(i,i2,data);
-            }
-            if((i2 & 7) == 7){
-                break;
-            }
+    for(int i2 = i + 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 0;i2++){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
+        }
+        else{
+            moveWhiteAI(i,i2,data);
         }
     }
-    if((i & 7) != 0){
-        for(int i2 = i - 1;board[i2] < 'A' || board[i2] > 'Z';i2--){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                captureWhiteAI(i,i2,data);
-                break;
-            }
-            else{
-                moveWhiteAI(i,i2,data);
-            }
-            if((i2 & 7) == 0){
-                break;
-            }
+    for(int i2 = i - 1;(board[i2] < 'A' || board[i2] > 'Z') && (i2 & 7) != 7;i2--){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
+        }
+        else{
+            moveWhiteAI(i,i2,data);
         }
     }
-    if(i > 7){
-        for(int i2 = i - 8;board[i2] < 'A' || board[i2] > 'Z';i2-=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                captureWhiteAI(i,i2,data);
-                break;
-            }
-            else{
-                moveWhiteAI(i,i2,data);
-            }
-            if(i2 < 8){
-                break;
-            }
+    for(int i2 = i - 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0;i2-=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
+        }
+        else{
+            moveWhiteAI(i,i2,data);
         }
     }
-    if(i < 55){
-        for(int i2 = i + 8;board[i2] < 'A' || board[i2] > 'Z';i2+=8){
-            if(board[i2] > 'a' && board[i2] < 'z'){
-                captureWhiteAI(i,i2,data);
-                break;
-            }
-            else{
-                moveWhiteAI(i,i2,data);
-            }
-            if(i2 > 54){
-                break;
-            }
+    for(int i2 = i + 8;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64;i2+=8){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
+        }
+        else{
+            moveWhiteAI(i,i2,data);
         }
     }
 }
 
 void diagonalBlackAI(u8 i,AIMOVEDATA *data){
-    if(i > 7){
-        if((i & 7) != 0){
-            for(int i2 = i - 9;board[i2] < 'a' || board[i2] > 'z';i2-=9){
-                if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureBlackAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveBlackAI(i,i2,data);
-                }
-                if(i2 < 8 || (i2 & 7) == 0){
-                    break;
-                }
-            }
+    for(int i2 = i - 9;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
         }
-        if((i & 7) != 7){
-            for(int i2 = i - 7;board[i2] < 'a' || board[i2] > 'z';i2-=7){
-                if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureBlackAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveBlackAI(i,i2,data);
-                }
-                if(i2 < 8 || (i2 & 7) == 7){
-                    break;
-                }
-            }
+        else{
+            moveBlackAI(i,i2,data);
         }
     }
-    if(i < 55){
-        if((i & 7) != 7){
-            for(int i2 = i + 9;board[i2] < 'a' || board[i2] > 'z';i2+=9){
-                if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureBlackAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveBlackAI(i,i2,data);
-                }
-                if(i2 > 55 || (i2 & 7) == 7){
-                    break;
-                }
-            }
+    for(int i2 = i - 7;(board[i2] < 'a' || board[i2] > 'z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
         }
-        if((i & 7) != 0){
-            for(int i2 = i + 7;board[i2] < 'a' || board[i2] > 'z';i2+=7){
-                if(board[i2] > 'A' && board[i2] < 'Z'){
-                    captureBlackAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveBlackAI(i,i2,data);
-                }
-                if(i2 > 55  || (i2 & 7) == 0){
-                    break;
-                }
-            }
+        else{
+            moveBlackAI(i,i2,data);
+        }
+    }
+    for(int i2 = i + 9;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
+        }
+        else{
+            moveBlackAI(i,i2,data);
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'a' || board[i2] > 'z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'A' && board[i2] < 'Z'){
+            captureBlackAI(i,i2,data);
+            break;
+        }
+        else{
+            moveBlackAI(i,i2,data);
         }
     }
 }
 
 void diagonalWhiteAI(u8 i,AIMOVEDATA *data){
-    if(i > 7){
-        if((i & 7) != 0){
-            for(int i2 = i - 9;board[i2] < 'A' || board[i2] > 'Z';i2-=9){
-                if(board[i2] > 'a' && board[i2] < 'z'){
-                    captureWhiteAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveWhiteAI(i,i2,data);
-                }
-                if(i2 < 8 || (i2 & 7) == 0){
-                    break;
-                }
-            }
+    for(int i2 = i - 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 7;i2-=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
         }
-        if((i & 7) != 7){
-            for(int i2 = i - 7;board[i2] < 'A' || board[i2] > 'Z';i2-=7){
-                if(board[i2] > 'a' && board[i2] < 'z'){
-                    captureWhiteAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveWhiteAI(i,i2,data);
-                }
-                if(i2 < 8 || (i2 & 7) == 7){
-                    break;
-                }
-            }
+        else{
+            moveWhiteAI(i,i2,data);
         }
     }
-    if(i < 55){
-        if((i & 7) != 7){
-            for(int i2 = i + 9;board[i2] < 'A' || board[i2] > 'Z';i2+=9){
-                if(board[i2] > 'a' && board[i2] < 'z'){
-                    captureWhiteAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveWhiteAI(i,i2,data);
-                }
-                if(i2 > 55 || (i2 & 7) == 7){
-                    break;
-                }
-            }
+    for(int i2 = i - 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 >= 0 && (i2 & 7) != 0;i2-=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
         }
-        if((i & 7) != 0){
-            for(int i2 = i + 7;board[i2] < 'A' || board[i2] > 'Z';i2+=7){
-                if(board[i2] > 'a' && board[i2] < 'z'){
-                    captureWhiteAI(i,i2,data);
-                    break;
-                }
-                else{
-                    moveWhiteAI(i,i2,data);
-                }
-                if(i2 > 55  || (i2 & 7) == 0){
-                    break;
-                }
-            }
+        else{
+            moveWhiteAI(i,i2,data);
+        }
+    }
+    for(int i2 = i + 9;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 0;i2+=9){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
+        }
+        else{
+            moveWhiteAI(i,i2,data);
+        }
+    }
+    for(int i2 = i + 7;(board[i2] < 'A' || board[i2] > 'Z') && i2 < 64 && (i2 & 7) != 7;i2+=7){
+        if(board[i2] > 'a' && board[i2] < 'z'){
+            captureWhiteAI(i,i2,data);
+            break;
+        }
+        else{
+            moveWhiteAI(i,i2,data);
         }
     }
 }
@@ -3072,38 +2919,48 @@ void diagonalWhiteAI(u8 i,AIMOVEDATA *data){
 u8 checkDiagonal(int SX,int SY,int DX,int DY){
     if(SX-DX==SY-DY){
         if(SX<DX){
-            for(int i = 1;i < (DX-SX)+1;i++){
+            for(int i = 1;i < (DX-SX);i++){
                 if(board[(SX+i)*8+(SY+i)] != '*'){
                     return 0;
                 }
             }
         }
         else{
-            for(int i = 0;i < (SX-DX);i++){
+            for(int i = 1;i < (SX-DX);i++){
                 if(board[(DX+i)*8+(DY+i)] != '*'){
                     return 0;
                 }
             }
         }
-        movePiece(SX,SY,DX,DY);
+        if(board[DX*8+DY] == '*'){
+            movePiece(SX,SY,DX,DY);
+        }
+        else{
+            capturePiece(SX,SY,DX,DY);
+        }
         return 1;
     }
-    else if(SX-DX==DY-SY){
+    else{
         if(SX<DX){
-            for(int i = 1;i < (DX-SX)+1;i++){
+            for(int i = 1;i < (DX-SX);i++){
                 if(board[(SX+i)*8+(SY-i)] != '*'){
                     return 0;
                 }
             }
         }
         else{
-            for(int i = 0;i < (SX-DX);i++){
+            for(int i = 1;i < (SX-DX);i++){
                 if(board[(DX+i)*8+(DY-i)] != '*'){
                     return 0;
                 }
             }
         }
-        movePiece(SX,SY,DX,DY);
+        if(board[DX*8+DY] == '*'){
+            movePiece(SX,SY,DX,DY);
+        }
+        else{
+            capturePiece(SX,SY,DX,DY);
+        }
         return 1;
     }
     return 0;
@@ -3125,7 +2982,12 @@ u8 checkStraight(int SX,int SY,int DX,int DY){
                 }
             }
         }
-        movePiece(SX,SY,DX,DY);
+        if(board[DX*8+DY] == '*'){
+            movePiece(SX,SY,DX,DY);
+        }
+        else{
+            capturePiece(SX,SY,DX,DY);
+        }
         return 1;
     }
     else if(SY == DY){
@@ -3143,7 +3005,12 @@ u8 checkStraight(int SX,int SY,int DX,int DY){
                 }
             }
         }
-        movePiece(SX,SY,DX,DY);
+        if(board[DX*8+DY] == '*'){
+            movePiece(SX,SY,DX,DY);
+        }
+        else{
+            capturePiece(SX,SY,DX,DY);
+        }
         return 1;
     }
     return 0;
@@ -3333,7 +3200,7 @@ input:
     u8 SY = inp[0] - 'A';
     u8 DX = inp[4] - '0';
     u8 DY = inp[3] - 'A';
-    if(SX*8+SY < 0 || SX*8+SY > 63 || DX*8+DY < 0 || DX*8+DY > 63){
+    if(SX*8+SY < 0 || SX*8+SY > 63 || DX*8+DY < 0 || DX*8+DY > 63 || (board[DX*8+DY] > 'A' && board[DX*8+DY] < 'Z')){
         goto input;
     }
     switch(board[SX*8+SY]){
@@ -3460,20 +3327,157 @@ input:
     }
 }
 
+void blackPlayer(){
+    char inp[5];
+input:
+    scanf("%s",inp);
+    u8 SX = inp[1] - '0';
+    u8 SY = inp[0] - 'A';
+    u8 DX = inp[4] - '0';
+    u8 DY = inp[3] - 'A';
+    if(SX*8+SY < 0 || SX*8+SY > 63 || DX*8+DY < 0 || DX*8+DY > 63 || (board[DX*8+DY] > 'a' && board[DX*8+DY] < 'z')){
+        goto input;
+    }
+    switch(board[SX*8+SY]){
+    case '*':
+        goto input;
+    case 'k': {
+        int MNX = abs(SX - DX);
+        int MNY = abs(SY - DY);
+        if(MNX == 1 || MNY == 1) {
+            if(board[DX*8+DY] == '*'){
+                movePiece(SX,SY,DX,DY);
+            }
+            else{
+                capturePiece(SX,SY,DX,DY);
+            }
+            castleRights &= ~0b1100;
+        }
+        else if(DY == 6 && (castleRights & 0b0100) == 0b0100){
+            for(int i = 5;i < 7;i++){
+                if(board[DX*8+i] != '*'){
+                    goto input;
+                }
+            }
+            movePiece(SX,SY,DX,DY);
+            movePiece(7,7,7,5);
+        }
+        else if(DY == 1 && (castleRights & 0b1000) == 0b1000){
+            for(int i = 3;i > 0;i--){
+                if(board[DX*8+i] != '*'){
+                     goto input;
+                }
+            }
+            movePiece(SX,SY,DX,DY);
+            movePiece(0,0,0,2);
+        }
+        else{
+            goto input;
+        }
+        break;
+    }
+    case 'q':
+        if(SX==DX||SY==DY){
+            if(!checkStraight(SX,SY,DX,DY)){ goto input; }
+        }
+        else{
+            if(!checkDiagonal(SX,SY,DX,DY)){ goto input; }
+        }
+        break;
+    case 'n': {
+        int MNX = abs(SX - DX);
+        int MNY = abs(SY - DY);
+        if((MNX == 1 && MNY == 2) || (MNX == 2 && MNY == 1)) {
+            if(board[DX*8+DY] == '*'){
+                movePiece(SX,SY,DX,DY);
+            }
+            else if(board[DX*8+DY] < 'Z' && board[DX*8+DY] > 'A'){
+                capturePiece(SX,SY,DX,DY);
+            }
+        }
+        break;
+    }
+    case 'b':
+        if(!checkDiagonal(SX,SY,DX,DY)){ goto input; }
+        break;
+    case 'r':
+        if(DY == 0){
+            castleRights &= ~0b0010;
+        }
+        if(DY == 7){
+            castleRights &= ~0b0001;
+        }
+        if(!checkStraight(SX,SY,DX,DY)){ goto input; }
+        break;
+    case 'p':
+        if(SX == DX - 1) {
+            if(SY == DY) {
+                if(board[DX*8+DY] == '*') {
+                    if(DX == 0){
+                        printf("promotion");
+                        do{
+                            scanf("%s",inp);
+                        } while(inp[0]!='q'&&inp[0]!='r'&&inp[0]!='n'&&inp[0]!='b');
+                        board[SX*8+SY] = inp[0];
+                    }
+                    movePiece(SX,SY,DX,DY);
+                }
+                else{
+                    goto input;
+                }
+            }
+            else if(SY == DY + 1 || SY == DY - 1) {
+                if(board[DX*8+DY] >= 'A' && board[DX*8+DY] <= 'Z') {
+                    if(DX == 0){
+                        printf("promotion");
+                        do{
+                            scanf("%s",inp);
+                        } while(inp[0]!='q'&&inp[0]!='r'&&inp[0]!='n'&&inp[0]!='b');
+                        board[SX*8+SY] = inp[0];
+                    }
+                    capturePiece(SX,SY,DX,DY);
+                }
+                else{
+                    goto input;
+                }
+            }
+        }
+        else if(SX == DX - 2){
+            if(SX == 1){
+                if(board[(DX-1)*8+DY] == '*' && board[DX*8+DY] == '*') {
+                    movePiece(SX,SY,DX,DY);
+                }
+                else{
+                    goto input;
+                }
+            }
+            else{
+                goto input;
+            }
+        }
+        else{
+            goto input;
+        }
+        break;
+    }
+}
+
 void main(){
     master.mov = malloc(sizeof(CHESSMOVE)*64);
     printf("welcome to chessTM\n");
-    printBoard();
     printf("which gamemode?\n");
     printf("0 = player vs AI\n");
     printf("1 = AI vs AI\n");
+    printf("2 = AI vs player\n");
+    printf("3 = player vs player\n");
     char gameMode;
     scanf("%i",&gameMode);
     switch(gameMode){
     case 0:
+        printBoardWhite();
         for(;;) {
             whitePlayer();
-            printBoard();
+            printBoardWhite();
             u64 mTime = __rdtsc();
             AIMOVEDATA data = blackAI();
             printf("total time elapsed = %i\n",__rdtsc()-mTime>>16);
@@ -3502,12 +3506,80 @@ void main(){
             printf("%c",(mvdst&7)+'A');
             printf("%c = ",(mvdst>>3)+'0');
             printf("%hhi\n",data.pts);
-            printBoard();
+            printBoardWhite();
         }
         break;
     case 1:
-        for(;;) {
+        printBoardWhite();
+        for(;;){
             pcsValWhite();
+            u64 mTime = __rdtsc();
+            AIMOVEDATA data = whiteAI();
+            printf("total time elapsed = %i\n",__rdtsc()-mTime>>16);
+            if(!data.movC){
+                printf("stalemate");
+                scanf("");
+                exit(0);
+            }
+            if(data.pts > 50){
+                printf("White AI has won!");
+                exit(0);
+            }
+            if(data.pts < -50){
+                printf("Black AI has won!");;
+                exit(0);
+            }
+            u8 mv = __rdtsc()%data.movC;
+            u8 mvsrc = master.mov[mv].src;
+            u8 mvdst = master.mov[mv].dst;
+            movePieceWhite(mvsrc>>3,mvsrc&7,mvdst>>3,mvdst&7);
+            if(master.mov[mv].dst < 8 && board[master.mov[mv].dst] == 'P'){
+                board[master.mov[mv].dst] = 'Q';
+            }
+            printf("\n%c",(mvsrc&7)+'A');
+            printf("%c",(mvsrc>>3)+'0');
+            printf("%c",'-');
+            printf("%c",(mvdst&7)+'A');
+            printf("%c = ",(mvdst>>3)+'0');
+            printf("%hhi\n",data.pts);
+            printBoardWhite();
+
+            pcsValBlack();
+            mTime = __rdtsc();
+            data = blackAI();
+            printf("total time elapsed = %i\n",__rdtsc()-mTime>>16);
+            if(!data.movC){
+                printf("stalemate");
+                scanf("");
+                exit(0);
+            }
+            if(data.pts > 50){
+                printf("Black AI has won!");
+                exit(0);
+            }
+            if(data.pts < -50){
+                printf("White AI has won!");;
+                exit(0);
+            }
+            mv = __rdtsc()%data.movC;
+            mvsrc = master.mov[mv].src;
+            mvdst = master.mov[mv].dst;
+            movePieceBlack(mvsrc>>3,mvsrc&7,mvdst>>3,mvdst&7);
+            if(master.mov[mv].dst > 54 && board[master.mov[mv].dst] == 'p'){
+                board[master.mov[mv].dst] = 'q';
+            }
+            printf("\n%c",(mvsrc&7)+'A');
+            printf("%c",(mvsrc>>3)+'0');
+            printf("%c",'-');
+            printf("%c",(mvdst&7)+'A');
+            printf("%c = ",(mvdst>>3)+'0');
+            printf("%hhi\n",data.pts);
+            printBoardWhite();
+        }
+        break;
+    case 2:
+        pcsValWhite();
+        for(;;){
             u64 mTime = __rdtsc();
             AIMOVEDATA data = whiteAI();
             printf("total time elapsed = %i\n",__rdtsc()-mTime>>16);
@@ -3534,36 +3606,18 @@ void main(){
             printf("%c",(mvdst&7)+'A');
             printf("%c = ",(mvdst>>3)+'0');
             printf("%hhi\n",data.pts);
-            printBoard();
-
-            pcsValBlack();
-            mTime = __rdtsc();
-            data = blackAI();
-            printf("total time elapsed = %i\n",__rdtsc()-mTime>>16);
-            if(!data.movC){
-                printf("stalemate");
-                scanf("");
-                exit(0);
-            }
-            if(!data.minDpt){
-                printf("Black has won the game!");
-                scanf("");
-                exit(0);
-            }
-            mv = __rdtsc()%data.movC;
-            mvsrc = master.mov[mv].src;
-            mvdst = master.mov[mv].dst;
-            movePieceBlack(mvsrc>>3,mvsrc&7,mvdst>>3,mvdst&7);
-            if(master.mov[mv].dst > 54 && board[master.mov[mv].dst] == 'p'){
-                board[master.mov[mv].dst] = 'q';
-            }
-            printf("\n%c",(mvsrc&7)+'A');
-            printf("%c",(mvsrc>>3)+'0');
-            printf("%c",'-');
-            printf("%c",(mvdst&7)+'A');
-            printf("%c = ",(mvdst>>3)+'0');
-            printf("%hhi\n",data.pts);
-            printBoard();
+            printBoardWhite();
+            blackPlayer();
+            printBoardWhite();
+        }
+        break;
+    case 3:
+        printBoardWhite();
+        for(;;){
+            whitePlayer();
+            printBoardWhite();
+            blackPlayer();
+            printBoardWhite();
         }
         break;
     }
