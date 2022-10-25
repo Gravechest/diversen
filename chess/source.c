@@ -31,8 +31,7 @@ char pcsVal[122] ={
     ['P'] =  1,['B'] =  3,['N'] =  3,['R'] =  5,['Q'] =  9,['K'] =  75
 };
 
-char turn;
-char castleRights = 0b00001111;
+u8 castleRights = 0b00001111;
 
 i8 minBlackAI(u8 depth,EVAL eval);
 i8 minWhiteAI(u8 depth,EVAL eval);
