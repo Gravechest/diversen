@@ -1579,8 +1579,11 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                             if(board[i+i2+i3] < 'Z' && board[i+i2+i3] > 'A'){
                                 eval.pts += pcsVal[board[i+i2+i3]];
                                 char tpcs = board[i+i2+i3];
+                                u8 castleRB = castleRights;
+                                castleRights &= ~3;
                                 capturePieceD(i,i+i2+i3);
                                 tpts = i8max(tpts,minBlackAI(depth-1,eval));
+                                castleRights = castleRB;
                                 board[i] = board[i+i2+i3];
                                 board[i+i2+i3] = tpcs;
                                 eval.pts -= pcsVal[board[i+i2+i3]];
@@ -1590,9 +1593,12 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                                 }
                             }
                             else if(board[i+i2+i3] == '_'){
+                                u8 castleRB = castleRights;
+                                castleRights &= ~3;
                                 movePieceD(i,i+i2+i3);
                                 tpts = i8max(tpts,minBlackAI(depth-1,eval));
                                 movePieceD(i+i2+i3,i);
+                                castleRights = castleRB;
                                 eval.ab.alpha = i8max(eval.ab.alpha,tpts);
                                 if(eval.ab.beta <= eval.ab.alpha){
                                     return tpts;
@@ -1605,11 +1611,12 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                     if(castleRights & 1 && board[5] == '_' && board[6] == '_'){
                         movePieceD(4,6);
                         movePieceD(7,5);
+                        u8 castleRB = castleRights;
                         castleRights &= ~3;
                         tpts = i8max(tpts,minBlackAI(depth-1,eval));
+                        castleRights = castleRB;
                         movePieceD(6,4);
                         movePieceD(5,7);
-                        castleRights |= 3;
                         eval.ab.alpha = i8max(eval.ab.alpha,tpts);
                         if(eval.ab.beta <= eval.ab.alpha){
                             return tpts;;
@@ -1618,11 +1625,11 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                     if(castleRights & 2 && board[3] == '_' && board[2] == '_' && board[1] == '_'){
                         movePieceD(4,2);
                         movePieceD(0,3);
+                        u8 castleRB = castleRights;
                         castleRights &= ~3;
                         tpts = i8max(tpts,minBlackAI(depth-1,eval));
+                        castleRights = castleRB;
                         movePieceD(2,4);
-                        movePieceD(3,0);
-                        castleRights |= 3;
                         eval.ab.alpha = i8max(eval.ab.alpha,tpts);
                         if(eval.ab.beta <= eval.ab.alpha){
                             return tpts;;
@@ -2267,8 +2274,11 @@ i8 minBlackAI(u8 depth,EVAL eval){
                             if(board[i+i2+i3] < 'z' && board[i+i2+i3] > 'a'){
                                 eval.pts += pcsVal[board[i+i2+i3]];
                                 char tpcs = board[i+i2+i3];
+                                u8 castleRB = castleRights;
                                 capturePieceD(i,i+i2+i3);
+                                castleRights &= ~12;
                                 tpts = i8min(tpts,maxBlackAI(depth-1,eval));
+                                castleRights = castleRB;
                                 board[i] = board[i+i2+i3];
                                 board[i+i2+i3] = tpcs;
                                 eval.pts -= pcsVal[board[i+i2+i3]];
@@ -2278,9 +2288,12 @@ i8 minBlackAI(u8 depth,EVAL eval){
                                 }
                             }
                             else if(board[i+i2+i3] == '_'){
+                                u8 castleRB = castleRights;
+                                castleRights &= ~12;
                                 movePieceD(i,i+i2+i3);
                                 tpts = i8min(tpts,maxBlackAI(depth-1,eval));
                                 movePieceD(i+i2+i3,i);
+                                castleRights = castleRB;
                                 eval.ab.beta = i8min(eval.ab.beta,tpts);
                                 if(eval.ab.beta <= eval.ab.alpha){
                                     return tpts;;
@@ -2293,11 +2306,12 @@ i8 minBlackAI(u8 depth,EVAL eval){
                     if(castleRights & 4 && board[61] == '_' && board[62] == '_'){
                         movePieceD(60,62);
                         movePieceD(63,61);
+                        u8 castleRB = castleRights;
                         castleRights &= ~12;
                         tpts = i8min(tpts,maxBlackAI(depth-1,eval));
+                        castleRights = castleRB;
                         movePieceD(62,60);
                         movePieceD(61,63);
-                        castleRights |= 12;
                         eval.ab.beta = i8min(eval.ab.beta,tpts);
                         if(eval.ab.beta <= eval.ab.alpha){
                             return tpts;;
@@ -2306,11 +2320,12 @@ i8 minBlackAI(u8 depth,EVAL eval){
                     if(castleRights & 8 && board[59] == '_' && board[58] == '_' && board[57] == '_'){
                         movePieceD(60,58);
                         movePieceD(56,59);
+                        u8 castleRB = castleRights;
                         castleRights &= ~12;
                         tpts = i8max(tpts,maxBlackAI(depth-1,eval));
+                        castleRights = castleRB;
                         movePieceD(58,60);
                         movePieceD(59,56);
-                        castleRights |= 12;
                          eval.ab.beta = i8min(eval.ab.beta,tpts);
                         if(eval.ab.beta <= eval.ab.alpha){
                             return tpts;;
