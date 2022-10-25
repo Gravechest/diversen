@@ -2,7 +2,7 @@
 
 #define AIMAXTHINKINGTIME 999999999
 #define MTIME AIMAXTHINKINGTIME << 16
-#define DEPTH 6
+#define DEPTH 5
 
 #pragma warning(disable:4996)
 
