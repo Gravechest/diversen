@@ -1454,7 +1454,7 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                             }
                         }
                     }
-                    if(board[i+9] > 'A' && board[i+9] < 'Z' && (i & 7) != 7){
+                    if((i & 7) != 7 && board[i+9] < 'Z'){
                         eval.pts += pcsVal[board[i+9]];
                         char tpcs = board[i+9];
                         capturePieceD(i,i+9);
@@ -1467,7 +1467,7 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                             return tpts;
                         }
                     }
-                    if(board[i+7] > 'A' && board[i+7] < 'Z' && (i & 7) != 0){
+                    if( (i & 7) != 0 && board[i+7] < 'Z'){
                         eval.pts += pcsVal[board[i+7]];
                         char tpcs = board[i+7];
                         capturePieceD(i,i+7);
@@ -1576,7 +1576,7 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                 for(;i2 < lm;i2++){
                     for(int i3 = -8;i3 < 9;i3+=8){
                         if(i2+i3!=0&&i+i2+i3>=0&&i+i2+i3<64){
-                            if(board[i+i2+i3] < 'Z' && board[i+i2+i3] > 'A'){
+                            if(board[i+i2+i3] < 'Z'){
                                 eval.pts += pcsVal[board[i+i2+i3]];
                                 char tpcs = board[i+i2+i3];
                                 u8 castleRB = castleRights;
@@ -1630,6 +1630,7 @@ i8 maxBlackAI(u8 depth,EVAL eval){
                         tpts = i8max(tpts,minBlackAI(depth-1,eval));
                         castleRights = castleRB;
                         movePieceD(2,4);
+                        movePieceD(3,0);
                         eval.ab.alpha = i8max(eval.ab.alpha,tpts);
                         if(eval.ab.beta <= eval.ab.alpha){
                             return tpts;;
@@ -3668,11 +3669,7 @@ void main(){
                 }
                 break;
             }
-            printf("\n%c",(mvsrc&7)+'A');
-            printf("%c",(mvsrc>>3)+'0');
-            printf("%c",'-');
-            printf("%c",(mvdst&7)+'A');
-            printf("%c = ",(mvdst>>3)+'0');
+            printMove(mvsrc,mvdst);
             printf("%hhi\n",data.pts);
             printBoardWhite();
         }
@@ -3726,11 +3723,7 @@ void main(){
                 }
                 break;
             }
-            printf("\n%c",(mvsrc&7)+'A');
-            printf("%c",(mvsrc>>3)+'0');
-            printf("%c",'-');
-            printf("%c",(mvdst&7)+'A');
-            printf("%c = ",(mvdst>>3)+'0');
+            printMove(mvsrc,mvdst);
             printf("%hhi\n",data.pts);
             printBoardWhite();
 
@@ -3780,11 +3773,7 @@ void main(){
                 }
                 break;
             }
-            printf("\n%c",(mvsrc&7)+'A');
-            printf("%c",(mvsrc>>3)+'0');
-            printf("%c",'-');
-            printf("%c",(mvdst&7)+'A');
-            printf("%c = ",(mvdst>>3)+'0');
+            printMove(mvsrc,mvdst);
             printf("%hhi\n",data.pts);
             printBoardWhite();
         }
@@ -3834,11 +3823,7 @@ void main(){
                 }
                 break;
             }
-            printf("\n%c",(mvsrc&7)+'A');
-            printf("%c",(mvsrc>>3)+'0');
-            printf("%c",'-');
-            printf("%c",(mvdst&7)+'A');
-            printf("%c = ",(mvdst>>3)+'0');
+            printMove(mvsrc,mvdst);
             printf("%hhi\n",data.pts);
             printBoardWhite();
             blackPlayer();
