@@ -1,6 +1,10 @@
 #include <windows.h>
 #include <stdio.h>
 
+#define INS_JNTM 15
+#define INS_JNT  14
+#define INS_DEC  13
+#define INS_INC  12
 #define INS_JMPM 11
 #define INS_JEQM 10
 #define INS_JEQ  9
@@ -107,8 +111,9 @@ void parseVal(i8* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 	}
 	else if(script[*ptr] >= 'a' && script[*ptr] <= 'z'){
 		u32 wsz = getWordSz(script+*ptr);
-		for(u32 i = 0;i < valdefC;i++){
+		for(u32 i = 0;i < *valdefC;i++){
 			if(!memcmp(script+*ptr,valdef[i].name,wsz)){
+				printf("%i\n",*codeC);
 				code[(*codeC)++] = valdef[i].data;
 				break;
 			}
@@ -116,7 +121,7 @@ void parseVal(i8* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 		ptr+=wsz;
 	}
 	else{
-		code[(*codeC)++] = strToU32(script+*ptr,ptr);
+		code[0] = strToU32(script+*ptr,ptr);
 	}
 }
 
@@ -134,19 +139,70 @@ void main(){
 	u8 varC = 0,codeC = 0,valdefC = 0;
 	u32 wordSz = 0,ptr = 0;
 	for(;ptr < size;ptr++){
+		if(!memcmp("hlt",script+ptr,3)){
+			codeC++;
+		}
+		if(!memcmp("dec",script+ptr,3) || !memcmp("inc",script+ptr,3)){
+			codeC+=2;
+		}
+		if(!memcmp("jnt",script+ptr,3) || !memcmp("jeq",script+ptr,3)){
+			codeC+=4;
+		}
+		if(!memcmp("inp",script+ptr,3) || !memcmp("otp",script+ptr,3)){
+			codeC+=2;
+		}
+		if(!memcmp("jmp",script+ptr,3)){
+			codeC+=2;
+		}
+		if(!memcmp("add",script+ptr,3)){
+			codeC+=3;
+		}
+		if(!memcmp("psz",script+ptr,3)){
+			codeC+=2;
+		}
+		if(!memcmp("mov",script+ptr,3)){
+			codeC+=3;
+		}
 		if(!memcmp("lbl",script+ptr,3)){
 			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			u32 wsz = getWordSz(script+ptr);
 			valdef[valdefC].name = HeapAlloc(GetProcessHeap(),8,wsz+1);
-			memcpy(valdef[valdefC++].name,script+ptr,wsz);
-			valdef[valdefC].data = strToU32(script+ptr,&ptr);
+			memcpy(valdef[valdefC].name,script+ptr,wsz);
+			valdef[valdefC++].data = codeC;
 			ptr += wsz;
 		}
 	}
-	
+	codeC = 0;
 	ptr = 0;
 	for(;ptr < size;ptr++){
+		if(!memcmp("dec",script+ptr,3)){
+			ptr += 3;
+			ptr += skipEmptyness(script+ptr);
+			code[codeC++] = INS_DEC;
+			code[codeC++] = strToU32(script+ptr,&ptr);
+		}
+		if(!memcmp("inc",script+ptr,3)){
+			ptr += 3;
+			ptr += skipEmptyness(script+ptr);
+			code[codeC++] = INS_INC;
+			code[codeC++] = strToU32(script+ptr,&ptr);
+		}
+		if(!memcmp("jnt",script+ptr,3)){
+			ptr += 3;
+			ptr += skipEmptyness(script+ptr);
+			code[codeC++] = INS_JNT;
+			code[codeC++] = strToU32(script+ptr,&ptr);
+			parseVal(&ptr,&codeC,&valdefC,INS_JNTM,2);
+			u32 wsz = getWordSz(script+ptr);
+			for(u32 i = 0;i < valdefC;i++){
+				if(!memcmp(script+ptr,valdef[i].name,wsz)){
+					code[codeC++] = valdef[i].data;
+					break;
+				}
+			}
+			ptr+=wsz;
+		}
 		if(!memcmp("jeq",script+ptr,3)){
 			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
@@ -155,7 +211,7 @@ void main(){
 			parseVal(&ptr,&codeC,&valdefC,INS_JEQM,2);
 			u32 wsz = getWordSz(script+ptr);
 			for(u32 i = 0;i < valdefC;i++){
-				if(!memcmp(script,valdef[i].name,wsz)){
+				if(!memcmp(script+ptr,valdef[i].name,wsz)){
 					code[codeC++] = valdef[i].data;
 					break;
 				}
@@ -205,13 +261,24 @@ void main(){
 			parseVal(&ptr,&codeC,&valdefC,INS_MOVM,2);
 		}
 	}
-	for(u32 i = 0;i < codeC;i++){
-		printf("%i\n",code[i]);
-	}
 	for(u32 i = 0;i < codeC;){
 		switch(code[i++]){
+		case INS_INC:
+			((i8*)programMem)[code[i++]]++;
+			break;
+		case INS_DEC:
+			((i8*)programMem)[code[i++]]--;
+			break;
 		case INS_JMPM:
 			i = ((i8*)programMem)[code[i]];
+			break;
+		case INS_JNT:
+			if(((i8*)programMem)[code[i]] != code[i+1]){
+				i = code[i+2];
+			}
+			else{
+				i+=3;
+			}
 			break;
 		case INS_JEQ:
 			if(((i8*)programMem)[code[i]] == code[i+1]){
