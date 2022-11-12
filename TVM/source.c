@@ -1,6 +1,10 @@
 #include <windows.h>
 #include <stdio.h>
 
+#define INS_DIVM 19
+#define INS_MULM 18
+#define INS_DIV  17
+#define INS_MUL  16
 #define INS_JNTM 15
 #define INS_JNT  14
 #define INS_DEC  13
@@ -58,6 +62,12 @@ u32 strToU32(i8* p,u32* itt){
 	switch(p[0]){
 	case '\'':
 		itt+=2;
+		if(p[1] == '\\'){
+			switch(p[2]){
+			case 'n':
+				return '\n';
+			}
+		}
 		r = p[1];
 		return r;
 	default:
@@ -96,14 +106,14 @@ u32 skipWord(i8* p){
 }
 
 u32 skipEmptyness(i8* p){
-	u32 r = 0;
+	u32 r = 3;
 	while(p[r] == ' ' || p[r] == '\t'){
 		r++;
 	}
 	return r;
 }
 
-void parseVal(i8* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
+void parseVal(u32* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 	if(script[*ptr] == '@'){
 		code[*codeC-bptr] = ins;
 	    (*ptr)++;
@@ -113,7 +123,6 @@ void parseVal(i8* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 		u32 wsz = getWordSz(script+*ptr);
 		for(u32 i = 0;i < *valdefC;i++){
 			if(!memcmp(script+*ptr,valdef[i].name,wsz)){
-				printf("%i\n",*codeC);
 				code[(*codeC)++] = valdef[i].data;
 				break;
 			}
@@ -121,14 +130,15 @@ void parseVal(i8* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 		ptr+=wsz;
 	}
 	else{
-		code[0] = strToU32(script+*ptr,ptr);
+		code[(*codeC)++] = strToU32(script+*ptr,ptr);
 	}
 }
 
 
 void main(){
-	code    = HeapAlloc(GetProcessHeap(),8,255);
-	valdef  = HeapAlloc(GetProcessHeap(),8,sizeof(VALDEF)*255);
+	code       = HeapAlloc(GetProcessHeap(),8,255);
+	valdef	   = HeapAlloc(GetProcessHeap(),8,sizeof(VALDEF)*255);
+	programMem = HeapAlloc(GetProcessHeap(),8,255);
 
 	HANDLE file = CreateFileA("main.ts",GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 	HANDLE conHdl  = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -136,8 +146,8 @@ void main(){
 	u32 size = GetFileSize(file,0);
 	script = HeapAlloc(GetProcessHeap(),8,size);
 	ReadFile(file,script,size,0,0);
-	u8 varC = 0,codeC = 0,valdefC = 0;
-	u32 wordSz = 0,ptr = 0;
+	u8 varC = 0;
+	u32 wordSz = 0,ptr = 0,codeC = 0,valdefC = 0;
 	for(;ptr < size;ptr++){
 		if(!memcmp("hlt",script+ptr,3)){
 			codeC++;
@@ -154,7 +164,7 @@ void main(){
 		if(!memcmp("jmp",script+ptr,3)){
 			codeC+=2;
 		}
-		if(!memcmp("add",script+ptr,3)){
+		if(!memcmp("add",script+ptr,3) || !memcmp("mul",script+ptr,3) || !memcmp("div",script+ptr,3)){
 			codeC+=3;
 		}
 		if(!memcmp("psz",script+ptr,3)){
@@ -164,7 +174,6 @@ void main(){
 			codeC+=3;
 		}
 		if(!memcmp("lbl",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			u32 wsz = getWordSz(script+ptr);
 			valdef[valdefC].name = HeapAlloc(GetProcessHeap(),8,wsz+1);
@@ -172,24 +181,43 @@ void main(){
 			valdef[valdefC++].data = codeC;
 			ptr += wsz;
 		}
+		if(!memcmp("bdt",script+ptr,3)){
+			ptr += skipEmptyness(script+ptr);
+			u32 memLoc = strToU32(script+ptr,&ptr);
+			if(script[ptr] == '"'){
+				ptr++;
+				for(;script[ptr] != '"';ptr++,memLoc++){
+					((i8*)programMem)[memLoc] = script[ptr];
+				}
+			}
+		}
 	}
 	codeC = 0;
 	ptr = 0;
 	for(;ptr < size;ptr++){
+		if(!memcmp("mul",script+ptr,3)){
+			ptr += skipEmptyness(script+ptr);
+			code[codeC++] = INS_MUL;
+			code[codeC++] = strToU32(script+ptr,&ptr);
+			parseVal(&ptr,&codeC,&valdefC,INS_MULM,2);
+		}
+		if(!memcmp("div",script+ptr,3)){
+			ptr += skipEmptyness(script+ptr);
+			code[codeC++] = INS_DIV;
+			code[codeC++] = strToU32(script+ptr,&ptr);
+			parseVal(&ptr,&codeC,&valdefC,INS_DIVM,2);
+		}
 		if(!memcmp("dec",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_DEC;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 		}
 		if(!memcmp("inc",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_INC;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 		}
 		if(!memcmp("jnt",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_JNT;
 			code[codeC++] = strToU32(script+ptr,&ptr);
@@ -204,7 +232,6 @@ void main(){
 			ptr+=wsz;
 		}
 		if(!memcmp("jeq",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_JEQ;
 			code[codeC++] = strToU32(script+ptr,&ptr);
@@ -219,33 +246,23 @@ void main(){
 			ptr+=wsz;
 		}
 		if(!memcmp("hlt",script+ptr,3)){
-			ptr += 3;
 			codeC++;
 		}
 		if(!memcmp("inp",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_INP;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 		}
 		if(!memcmp("jmp",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_JMP;
 			parseVal(&ptr,&codeC,&valdefC,INS_JMPM,1);
 		}
 		if(!memcmp("add",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_ADD;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_ADDM,2);
-		}
-		if(!memcmp("psz",script+ptr,3)){
-			ptr += 3;
-			ptr += skipEmptyness(script+ptr);
-			code[codeC++] = INS_PSZ;
-			code[codeC++] = strToU32(script+ptr,&ptr);
 		}
 		if(!memcmp("otp",script+ptr,3)){
 			ptr += 3;
@@ -254,15 +271,34 @@ void main(){
 			code[codeC++] = strToU32(script+ptr,&ptr);
 		}
 		if(!memcmp("mov",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_MOV;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_MOVM,2);
 		}
 	}
+	for(u32 i = 0;i < codeC;i++){
+		printf("%i\n",code[i]);
+	}
+	printf("the program:\n");
 	for(u32 i = 0;i < codeC;){
 		switch(code[i++]){
+		case INS_DIVM:
+			((i8*)programMem)[code[i]] /= ((i8*)programMem)[code[i+1]];
+			i+=2;
+			break;
+		case INS_MULM:
+			((i8*)programMem)[code[i]] *= ((i8*)programMem)[code[i+1]];
+			i+=2;
+			break;
+		case INS_DIV:
+			((i8*)programMem)[code[i]] /= code[i+1];
+			i+=2;
+			break;
+		case INS_MUL:
+			((i8*)programMem)[code[i]] *= code[i+1];
+			i+=2;
+			break;
 		case INS_INC:
 			((i8*)programMem)[code[i++]]++;
 			break;
@@ -300,7 +336,7 @@ void main(){
 			scanf_s("%s",(i8*)programMem+code[i++]);
 			break;
 		case INS_JMP:
-			i = code[i++];
+			i = code[i];
 			break;
 		case INS_ADD:
 			((i8*)programMem)[code[i]] += code[i+1];
@@ -317,7 +353,7 @@ void main(){
 		case INS_HLT:
 			ExitProcess(0);
 		case INS_PSZ:
-			programMem = HeapAlloc(GetProcessHeap(),8,code[i++]);
+			programMem = HeapReAlloc(GetProcessHeap(),8,programMem,code[i++]);
 			break;
 		}
 	}
