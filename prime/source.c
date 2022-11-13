@@ -1,7 +1,13 @@
 #include <windows.h>
 
+#define STRBUF 10000
+
 int strC;
-char str[1000];
+char str[STRBUF];
+int rstrC;
+char rstr[STRBUF];
+HANDLE ch;
+HANDLE renderThread;
 
 void u32ToStr(int p){
     int sz = 0;
@@ -13,17 +19,17 @@ void u32ToStr(int p){
 	}
 	str[strC+sz+1] = '\n';
     strC+=sz+1;
-}   
+}
+
+void print(){
+    WriteConsoleA(ch,rstr,rstrC+1,0,0);
+}
 
 void main(){
-    HANDLE ch = GetStdHandle(STD_OUTPUT_HANDLE);
+    ch = GetStdHandle(STD_OUTPUT_HANDLE);
     for(int num = 0;;num++){
         if (num == 2 || num == 3){
 			u32ToStr(num);
-            if(strC > 200){
-                WriteConsoleA(ch,str,strC+1,0,0);
-                strC = 0;
-            }
         }
         if (num <= 1 || num % 2 == 0 || num % 3 == 0){
             continue;
@@ -34,11 +40,16 @@ void main(){
             }
         }
 		u32ToStr(num);
-        if(strC > 200){
-            WriteConsoleA(ch,str,strC+1,0,0);
+        if(strC > STRBUF - 40){
+            rstrC = strC;
+            memcpy(rstr,str,strC);
+            WaitForSingleObject(renderThread,INFINITE);
+            renderThread = CreateThread(0,0,print,0,0,0);
             strC = 0;
         }
     con:
         continue;
+
     }
 }
+
