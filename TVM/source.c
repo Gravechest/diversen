@@ -1,25 +1,31 @@
 #include <windows.h>
 #include <stdio.h>
 
-#define INS_DIVM 19
-#define INS_MULM 18
-#define INS_DIV  17
-#define INS_MUL  16
+#define INS_ANDM 21
+#define INS_AND  20
+#define INS_DEC  13
+#define INS_INCM 23
+#define INS_INC  12
+#define INS_JEQM 10
 #define INS_JNTM 15
 #define INS_JNT  14
-#define INS_DEC  13
-#define INS_INC  12
-#define INS_JMPM 11
-#define INS_JEQM 10
 #define INS_JEQ  9
-#define INS_MOVM 8
-#define INS_ADDM 7
-#define INS_INP  6
+#define INS_JMPM 11
 #define INS_JMP  5
+#define INS_DIVM 19
+#define INS_DIV  17
+#define INS_MULM 18
+#define INS_MUL  16
+#define INS_SUBM 25
+#define INS_SUB  24
+#define INS_ADDM 7
 #define INS_ADD  4
-#define INS_PSZ  3
+#define INS_MOVM 8
 #define INS_MOV  2
-#define INS_OUT  1
+#define INS_INP  6
+#define INS_OTPM 22
+#define INS_OTP  1
+#define INS_PSZ  3
 #define INS_HLT  0
 
 #define TYPE_FLOAT 0x04
@@ -116,7 +122,7 @@ u32 skipEmptyness(i8* p){
 void parseVal(u32* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 	if(script[*ptr] == '@'){
 		code[*codeC-bptr] = ins;
-	    (*ptr)++;
+		(*ptr)++;
 		code[(*codeC)++] = strToU32(script+*ptr,ptr);
 	}
 	else if(script[*ptr] >= 'a' && script[*ptr] <= 'z'){
@@ -164,7 +170,10 @@ void main(){
 		if(!memcmp("jmp",script+ptr,3)){
 			codeC+=2;
 		}
-		if(!memcmp("add",script+ptr,3) || !memcmp("mul",script+ptr,3) || !memcmp("div",script+ptr,3)){
+		if(!memcmp("add",script+ptr,3) || !memcmp("mul",script+ptr,3) || !memcmp("div",script+ptr,3) || !memcmp("sub",script+ptr,3)){
+			codeC+=3;
+		}
+		if(!memcmp("and",script+ptr,3)){
 			codeC+=3;
 		}
 		if(!memcmp("psz",script+ptr,3)){
@@ -173,7 +182,7 @@ void main(){
 		if(!memcmp("mov",script+ptr,3)){
 			codeC+=3;
 		}
-		if(!memcmp("lbl",script+ptr,3)){
+		if(!memcmp("#lb",script+ptr,3)){
 			ptr += skipEmptyness(script+ptr);
 			u32 wsz = getWordSz(script+ptr);
 			valdef[valdefC].name = HeapAlloc(GetProcessHeap(),8,wsz+1);
@@ -181,7 +190,7 @@ void main(){
 			valdef[valdefC++].data = codeC;
 			ptr += wsz;
 		}
-		if(!memcmp("bdt",script+ptr,3)){
+		if(!memcmp("#db",script+ptr,3)){
 			ptr += skipEmptyness(script+ptr);
 			u32 memLoc = strToU32(script+ptr,&ptr);
 			if(script[ptr] == '"'){
@@ -195,6 +204,18 @@ void main(){
 	codeC = 0;
 	ptr = 0;
 	for(;ptr < size;ptr++){
+		if(!memcmp("sub",script+ptr,3)){
+			ptr += skipEmptyness(script+ptr);
+			code[codeC++] = INS_SUB;
+			code[codeC++] = strToU32(script+ptr,&ptr);
+			parseVal(&ptr,&codeC,&valdefC,INS_SUBM,2);
+		}
+		if(!memcmp("and",script+ptr,3)){
+			ptr += skipEmptyness(script+ptr);
+			code[codeC++] = INS_AND;
+			code[codeC++] = strToU32(script+ptr,&ptr);
+			parseVal(&ptr,&codeC,&valdefC,INS_ANDM,2);
+		}
 		if(!memcmp("mul",script+ptr,3)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_MUL;
@@ -215,7 +236,7 @@ void main(){
 		if(!memcmp("inc",script+ptr,3)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_INC;
-			code[codeC++] = strToU32(script+ptr,&ptr);
+			parseVal(&ptr,&codeC,&valdefC,INS_INCM,1);
 		}
 		if(!memcmp("jnt",script+ptr,3)){
 			ptr += skipEmptyness(script+ptr);
@@ -265,10 +286,9 @@ void main(){
 			parseVal(&ptr,&codeC,&valdefC,INS_ADDM,2);
 		}
 		if(!memcmp("otp",script+ptr,3)){
-			ptr += 3;
 			ptr += skipEmptyness(script+ptr);
-			code[codeC++] = INS_OUT;
-			code[codeC++] = strToU32(script+ptr,&ptr);
+			code[codeC++] = INS_OTP;
+			parseVal(&ptr,&codeC,&valdefC,INS_OTPM,1);
 		}
 		if(!memcmp("mov",script+ptr,3)){
 			ptr += skipEmptyness(script+ptr);
@@ -277,12 +297,30 @@ void main(){
 			parseVal(&ptr,&codeC,&valdefC,INS_MOVM,2);
 		}
 	}
-	for(u32 i = 0;i < codeC;i++){
-		printf("%i\n",code[i]);
-	}
-	printf("the program:\n");
 	for(u32 i = 0;i < codeC;){
 		switch(code[i++]){
+		case INS_SUB:
+			((i8*)programMem)[code[i]] -= code[i+1];
+			i+=2;
+			break;
+		case INS_SUBM:
+			((i8*)programMem)[code[i]] -= ((i8*)programMem)[code[i+1]];
+			i+=2;
+			break;
+		case INS_INCM:
+			((i8*)programMem)[((i8*)programMem)[code[i++]]]++;
+			break;
+		case INS_OTPM:
+			WriteConsoleA(conHdl,&((i8*)programMem)[((i8*)programMem)[code[i++]]],1,0,0);
+			break;
+		case INS_ANDM:
+			((i8*)programMem)[code[i]] &= ((i8*)programMem)[code[i+1]];
+			i+=2;
+			break;
+		case INS_AND:
+			((i8*)programMem)[code[i]] &= code[i+1];
+			i+=2;
+			break;
 		case INS_DIVM:
 			((i8*)programMem)[code[i]] /= ((i8*)programMem)[code[i+1]];
 			i+=2;
@@ -332,9 +370,13 @@ void main(){
 			((i8*)programMem)[code[i]] += ((i8*)programMem)[code[i+1]];
 			i+=2;
 			break;
-		case INS_INP:
-			scanf_s("%s",(i8*)programMem+code[i++]);
+		case INS_INP:{
+			i8 b[4];
+			int n;
+			ReadConsoleA(conHdli,b,4,&n,0);
+			((i8*)programMem)[code[i++]] = b[0];
 			break;
+		}
 		case INS_JMP:
 			i = code[i];
 			break;
@@ -346,9 +388,8 @@ void main(){
 			((i8*)programMem)[code[i]] = code[i+1];
 			i+=2;
 			break;
-		case INS_OUT:
-			WriteConsoleA(conHdl,(i8*)programMem+code[i],strlen((i8*)programMem+code[i]),0,0);
-			i++;
+		case INS_OTP:
+			WriteConsoleA(conHdl,(i8*)programMem+code[i++],1,0,0);
 			break;
 		case INS_HLT:
 			ExitProcess(0);
