@@ -1,0 +1,47 @@
+#db   0,"#####"
+#db   5,"#...#"
+#db  10,"#.@.#"
+#db  15,"#...#"
+#db  20,"#####"
+#df  input 1
+    
+    mov   30,12
+    mov   29,'\n'
+    mov   33,5
+#lb  print:
+    otp   @31
+    inc   31
+    jnt   31,@33,print
+    otp   29
+    add   33,5
+    jnt   31,25,print
+#lb  input:
+    inp   34
+    jeq   34,'w',up
+    jeq   34,'s',down
+    jeq   34,'a',left
+    jeq   34,'d',right
+    jmp   input
+#lb  up:
+    mov   @30,'.'
+    sub   30,5
+    mov   @30,'@'
+    jmp   printinit
+#lb  down:
+    mov   @30,'.'
+    add   30,5
+    mov   @30,'@'
+    jmp   printinit
+#lb  left:
+    mov   @30,'.'
+    dec   30
+    mov   @30,'@'
+    jmp   printinit
+#lb  right: 
+    mov   @30,'.'
+    inc   30
+    mov   @30,'@'
+#lb  printinit:
+    mov   31,0
+    mov   33,5
+    jmp   print
