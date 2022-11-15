@@ -1,32 +1,33 @@
 #include <windows.h>
 #include <stdio.h>
 
-#define INS_ANDM 21
-#define INS_AND  20
-#define INS_DEC  13
-#define INS_INCM 23
-#define INS_INC  12
-#define INS_JEQM 10
-#define INS_JNTM 15
-#define INS_JNT  14
-#define INS_JEQ  9
-#define INS_JMPM 11
-#define INS_JMP  5
-#define INS_DIVM 19
-#define INS_DIV  17
-#define INS_MULM 18
-#define INS_MUL  16
-#define INS_SUBM 25
-#define INS_SUB  24
-#define INS_ADDM 7
-#define INS_ADD  4
-#define INS_MOVM 8
-#define INS_MOV  2
-#define INS_INP  6
-#define INS_OTPM 22
-#define INS_OTP  1
-#define INS_PSZ  3
-#define INS_HLT  0
+#define INS_MOVMI 26
+#define INS_ANDM  25
+#define INS_AND   24
+#define INS_DEC   23
+#define INS_INCM  22
+#define INS_INC   21
+#define INS_JEQM  20
+#define INS_JNTM  19
+#define INS_JNT   18
+#define INS_JEQ   17
+#define INS_JMPM  16
+#define INS_JMP   15
+#define INS_DIVM  14
+#define INS_DIV   13
+#define INS_MULM  12
+#define INS_MUL   11
+#define INS_SUBM  10
+#define INS_SUB   9
+#define INS_ADDM  8
+#define INS_ADD   7
+#define INS_MOVRR 6
+#define INS_MOV   5
+#define INS_INP   4
+#define INS_OTPM  3
+#define INS_OTP   2
+#define INS_PSZ   1
+#define INS_HLT   0
 
 #define TYPE_FLOAT 0x04
 #define TYPE_ARRAY 0x08
@@ -67,7 +68,7 @@ u32 strToU32(i8* p,u32* itt){
 	u32 r = 0;
 	switch(p[0]){
 	case '\'':
-		itt+=2;
+		*itt+=4;
 		if(p[1] == '\\'){
 			switch(p[2]){
 			case 'n':
@@ -80,9 +81,9 @@ u32 strToU32(i8* p,u32* itt){
 		for(u32 i = 0;p[i] >= '0' && p[i] <= '9';i++){
 			r *= 10;
 			r += p[i] - '0';
-			++*itt;
+			*itt+=1;
 		}
-		++*itt;
+		*itt+=1;
 		return r;
 	}
 }
@@ -123,6 +124,16 @@ void parseVal(u32* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 	if(script[*ptr] == '@'){
 		code[*codeC-bptr] = ins;
 		(*ptr)++;
+		if(script[*ptr] >= 'a' && script[*ptr] <= 'z'){
+			u32 wsz = getWordSz(script+*ptr);
+			for(u32 i = 0;i < *valdefC;i++){
+				if(!memcmp(script+*ptr,valdef[i].name,wsz)){
+					code[(*codeC)++] = valdef[i].data;
+					break;
+				}
+			}
+			ptr+=wsz+1;
+		}
 		code[(*codeC)++] = strToU32(script+*ptr,ptr);
 	}
 	else if(script[*ptr] >= 'a' && script[*ptr] <= 'z'){
@@ -133,7 +144,7 @@ void parseVal(u32* ptr,u32* codeC,u32* valdefC,u8 ins,u8 bptr){
 				break;
 			}
 		}
-		ptr+=wsz;
+		ptr+=wsz+1;
 	}
 	else{
 		code[(*codeC)++] = strToU32(script+*ptr,ptr);
@@ -155,34 +166,43 @@ void main(){
 	u8 varC = 0;
 	u32 wordSz = 0,ptr = 0,codeC = 0,valdefC = 0;
 	for(;ptr < size;ptr++){
-		if(!memcmp("hlt",script+ptr,3)){
+		if(!memcmp("hlt ",script+ptr,4)){
 			codeC++;
 		}
-		if(!memcmp("dec",script+ptr,3) || !memcmp("inc",script+ptr,3)){
+		if(!memcmp("dec ",script+ptr,4) || !memcmp("inc ",script+ptr,4)){
 			codeC+=2;
 		}
-		if(!memcmp("jnt",script+ptr,3) || !memcmp("jeq",script+ptr,3)){
+		if(!memcmp("jnt ",script+ptr,4) || !memcmp("jeq ",script+ptr,4)){
 			codeC+=4;
 		}
-		if(!memcmp("inp",script+ptr,3) || !memcmp("otp",script+ptr,3)){
+		if(!memcmp("inp ",script+ptr,4) || !memcmp("otp ",script+ptr,4)){
 			codeC+=2;
 		}
-		if(!memcmp("jmp",script+ptr,3)){
+		if(!memcmp("jmp ",script+ptr,4)){
 			codeC+=2;
 		}
-		if(!memcmp("add",script+ptr,3) || !memcmp("mul",script+ptr,3) || !memcmp("div",script+ptr,3) || !memcmp("sub",script+ptr,3)){
+		if(!memcmp("add ",script+ptr,4) || !memcmp("mul ",script+ptr,4) || !memcmp("div ",script+ptr,4) || !memcmp("sub ",script+ptr,4)){
 			codeC+=3;
 		}
-		if(!memcmp("and",script+ptr,3)){
+		if(!memcmp("and ",script+ptr,4)){
 			codeC+=3;
 		}
-		if(!memcmp("psz",script+ptr,3)){
+		if(!memcmp("psz ",script+ptr,4)){
 			codeC+=2;
 		}
-		if(!memcmp("mov",script+ptr,3)){
+		if(!memcmp("mov ",script+ptr,4)){
 			codeC+=3;
 		}
-		if(!memcmp("#lb",script+ptr,3)){
+		if(!memcmp("#df ",script+ptr,4)){
+			ptr += skipEmptyness(script+ptr);
+			u32 wsz = getWordSz(script+ptr);
+			valdef[valdefC].name = HeapAlloc(GetProcessHeap(),8,wsz+1);
+			memcpy(valdef[valdefC].name,script+ptr,wsz);
+			ptr += wsz;
+			ptr += skipEmptyness(script+ptr);
+			valdef[valdefC++].data = strToU32(script+ptr,&ptr);
+		}
+		if(!memcmp("#lb ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			u32 wsz = getWordSz(script+ptr);
 			valdef[valdefC].name = HeapAlloc(GetProcessHeap(),8,wsz+1);
@@ -190,7 +210,7 @@ void main(){
 			valdef[valdefC++].data = codeC;
 			ptr += wsz;
 		}
-		if(!memcmp("#db",script+ptr,3)){
+		if(!memcmp("#db ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			u32 memLoc = strToU32(script+ptr,&ptr);
 			if(script[ptr] == '"'){
@@ -204,41 +224,41 @@ void main(){
 	codeC = 0;
 	ptr = 0;
 	for(;ptr < size;ptr++){
-		if(!memcmp("sub",script+ptr,3)){
+		if(!memcmp("sub ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_SUB;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_SUBM,2);
 		}
-		if(!memcmp("and",script+ptr,3)){
+		if(!memcmp("and ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_AND;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_ANDM,2);
 		}
-		if(!memcmp("mul",script+ptr,3)){
+		if(!memcmp("mul ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_MUL;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_MULM,2);
 		}
-		if(!memcmp("div",script+ptr,3)){
+		if(!memcmp("div ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_DIV;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_DIVM,2);
 		}
-		if(!memcmp("dec",script+ptr,3)){
+		if(!memcmp("dec ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_DEC;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 		}
-		if(!memcmp("inc",script+ptr,3)){
+		if(!memcmp("inc ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_INC;
 			parseVal(&ptr,&codeC,&valdefC,INS_INCM,1);
 		}
-		if(!memcmp("jnt",script+ptr,3)){
+		if(!memcmp("jnt ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_JNT;
 			code[codeC++] = strToU32(script+ptr,&ptr);
@@ -252,49 +272,42 @@ void main(){
 			}
 			ptr+=wsz;
 		}
-		if(!memcmp("jeq",script+ptr,3)){
+		if(!memcmp("jeq ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_JEQ;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_JEQM,2);
-			u32 wsz = getWordSz(script+ptr);
-			for(u32 i = 0;i < valdefC;i++){
-				if(!memcmp(script+ptr,valdef[i].name,wsz)){
-					code[codeC++] = valdef[i].data;
-					break;
-				}
-			}
-			ptr+=wsz;
+			parseVal(&ptr,&codeC,&valdefC,0,3);
 		}
-		if(!memcmp("hlt",script+ptr,3)){
+		if(!memcmp("hlt ",script+ptr,4)){
 			codeC++;
 		}
-		if(!memcmp("inp",script+ptr,3)){
+		if(!memcmp("inp ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_INP;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 		}
-		if(!memcmp("jmp",script+ptr,3)){
+		if(!memcmp("jmp ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_JMP;
 			parseVal(&ptr,&codeC,&valdefC,INS_JMPM,1);
 		}
-		if(!memcmp("add",script+ptr,3)){
+		if(!memcmp("add ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_ADD;
 			code[codeC++] = strToU32(script+ptr,&ptr);
 			parseVal(&ptr,&codeC,&valdefC,INS_ADDM,2);
 		}
-		if(!memcmp("otp",script+ptr,3)){
+		if(!memcmp("otp ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_OTP;
 			parseVal(&ptr,&codeC,&valdefC,INS_OTPM,1);
 		}
-		if(!memcmp("mov",script+ptr,3)){
+		if(!memcmp("mov ",script+ptr,4)){
 			ptr += skipEmptyness(script+ptr);
 			code[codeC++] = INS_MOV;
-			code[codeC++] = strToU32(script+ptr,&ptr);
-			parseVal(&ptr,&codeC,&valdefC,INS_MOVM,2);
+			parseVal(&ptr,&codeC,&valdefC,INS_MOVMI,1);
+			parseVal(&ptr,&codeC,&valdefC,INS_MOVRR,2);
 		}
 	}
 	for(u32 i = 0;i < codeC;){
@@ -346,6 +359,22 @@ void main(){
 		case INS_JMPM:
 			i = ((i8*)programMem)[code[i]];
 			break;
+		case INS_JEQM:
+			if(((i8*)programMem)[code[i]] == ((i8*)programMem)[code[i+1]]){
+				i = code[i+2];
+			}
+			else{
+				i+=3;
+			}
+			break;
+		case INS_JNTM:
+			if(((i8*)programMem)[code[i]] != ((i8*)programMem)[code[i+1]]){
+				i = code[i+2];
+			}
+			else{
+				i+=3;
+			}
+			break;
 		case INS_JNT:
 			if(((i8*)programMem)[code[i]] != code[i+1]){
 				i = code[i+2];
@@ -362,7 +391,11 @@ void main(){
 				i+=3;
 			}
 			break;
-		case INS_MOVM:
+		case INS_MOVMI:
+			((i8*)programMem)[((i8*)programMem)[code[i]]] = code[i+1];
+			i+=2;
+			break;
+		case INS_MOVRR:
 			((i8*)programMem)[code[i]] = ((i8*)programMem)[code[i+1]];
 			i+=2;
 			break;
