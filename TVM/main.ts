@@ -3,7 +3,7 @@
 #db  10,"#.@.#"
 #db  15,"#...#"
 #db  20,"#####"
-#df  input 1
+#df  movement 34
     
     mov   30,12
     mov   29,'\n'
@@ -16,7 +16,7 @@
     add   33,5
     jnt   31,25,print
 #lb  input:
-    inp   34
+    inp   movement
     jeq   34,'w',up
     jeq   34,'s',down
     jeq   34,'a',left
