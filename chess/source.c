@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <intrin.h>
 
-#pragma once
-
 #pragma warning(disable:4996)
 
 #define AIMAXTHINKINGTIME 999999999
