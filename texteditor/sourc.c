@@ -15,13 +15,18 @@ typedef double             f8;
 typedef struct{
 	u4 x;
 	u4 y;
-}TEXTPOINTER;
+}IVEC2;
 
 typedef struct{
 	u1 b;
 	u1 g;
 	u1 r;
 }RGB;
+
+typedef struct{
+	IVEC2 space;
+	u4 size;
+}FONT;
 
 int proc(HWND hwnd,MSG msgl,LPARAM lparam,WPARAM wparam);
 
@@ -32,11 +37,11 @@ HWND wnd;
 HDC dc;
 MSG msg;
 
-u1 fontSize = 16;
+FONT font = {2,5,16};
 
-TEXTPOINTER textPointer;
+IVEC2 textPointer;
 
-u1*  fontAtlas;
+RGB* fontAtlas;
 u1*  fontTexture;
 u2*  lineSize;
 RGB* fontCharRam;
@@ -44,37 +49,30 @@ RGB* fontCharRam;
 int proc(HWND hwnd,UINT msgl,WPARAM wparam,LPARAM lparam){
 	switch(msgl){
 	case WM_KEYDOWN:
-		if(wparam > 0x40 && wparam < 0x5b){
-			u4 offset = (wparam-1)/10*80*8 + (wparam-1)%10*8;
-			for(u4 i = 0;i < 8;i++){
-				for(u4 j = 0;j < 8;j++){
-					if(fontTexture[offset+i*80+j]){
-						fontCharRam[(7-i)*8+j].r = 255;
-					}
-					else{
-						fontCharRam[(7-i)*8+j].r = 0;
-					}
-				}
-			}
-			StretchDIBits(dc,textPointer.x*fontSize,textPointer.y*fontSize,fontSize,fontSize,0,0,8,8,fontCharRam,&bmi,DIB_RGB_COLORS,SRCCOPY);
+		switch(wparam){
+		case VK_RETURN:
+			textPointer.y++;
+			textPointer.x = 0;
+			break;
+		case VK_SPACE:
 			textPointer.x++;
-		}
-		else{
-			switch(wparam){
-			case VK_RETURN:
-				textPointer.y++;
-				textPointer.x = 0;
-				break;
-			case VK_SPACE:
-				textPointer.x++;
-				break;
-			case VK_BACK:
-				if(textPointer.x)      textPointer.x--;
-				else if(textPointer.y) textPointer.y--;
-				memset(fontCharRam,0,8*8*sizeof(RGB));
-				StretchDIBits(dc,textPointer.x*fontSize,textPointer.y*fontSize,fontSize,fontSize,0,0,8,8,fontCharRam,&bmi,DIB_RGB_COLORS,SRCCOPY);
-				break;
+			break;
+		case VK_BACK:
+			if(textPointer.x)      textPointer.x--;
+			else if(textPointer.y) textPointer.y--;
+			memset(fontCharRam,0,8*8*sizeof(RGB));
+			StretchDIBits(dc,textPointer.x*(font.space.x+font.size),textPointer.y*(font.space.y+font.size),font.size,font.size,0,0,1,1,fontCharRam,&bmi,DIB_RGB_COLORS,SRCCOPY);
+			break;
+		case VK_SHIFT:
+			break;
+		default:
+			if(GetKeyState(VK_SHIFT)&0x80){
+				StretchDIBits(dc,textPointer.x*(font.space.x+font.size),textPointer.y*(font.space.y+font.size),font.size,font.size,0,0,8,8,fontAtlas+wparam*8*8+0x100*8*8,&bmi,DIB_RGB_COLORS,SRCCOPY);
 			}
+			else{
+				StretchDIBits(dc,textPointer.x*(font.space.x+font.size),textPointer.y*(font.space.y+font.size),font.size,font.size,0,0,8,8,fontAtlas+wparam*8*8,&bmi,DIB_RGB_COLORS,SRCCOPY);
+			}
+			textPointer.x++;
 		}
 		break;
 	}
@@ -82,9 +80,10 @@ int proc(HWND hwnd,UINT msgl,WPARAM wparam,LPARAM lparam){
 }
 
 void main(){
+	fontAtlas   = HeapAlloc(GetProcessHeap(),0,256*2*8*8*sizeof(RGB));
 	fontCharRam = HeapAlloc(GetProcessHeap(),8,8*8*sizeof(RGB));
 	fontTexture = HeapAlloc(GetProcessHeap(),0,80*80);
-	lineSize = HeapAlloc(GetProcessHeap(),8,1024);
+	lineSize    = HeapAlloc(GetProcessHeap(),8,1024);
 	wndclass.hInstance = GetModuleHandleA(0);
 	RegisterClassA(&wndclass);
 	wnd = CreateWindowExA(0,"class","gravechest text editor",WS_VISIBLE | WS_SYSMENU,0,0,500,500,0,0,wndclass.hInstance,0);
@@ -93,6 +92,42 @@ void main(){
 	SetFilePointer(font,1078,0,FILE_CURRENT);
 	ReadFile(font,fontTexture,80*80,0,0);
 	CloseHandle(font);
+	for(u4 i = 0;i < 10;i++){
+		u4 offset = (i+15)/10*8*80 + (i+15)%10*8;
+		for(u4 j = 0;j < 8;j++){
+			for(u4 k = 0;k < 8;k++){
+				if(fontTexture[offset+(7-j)*80+k]){
+					fontAtlas[(i+0x30)*64+j*8+k].r = 255;
+					fontAtlas[(i+0x30)*64+j*8+k].g = 255;
+					fontAtlas[(i+0x30)*64+j*8+k].b = 255;
+				}
+			}
+		}
+	}
+	for(u4 i = 0;i < 27;i++){
+		u4 offset = (i+31)/10*8*80 + (i+31)%10*8;
+		for(u4 j = 0;j < 8;j++){
+			for(u4 k = 0;k < 8;k++){
+				if(fontTexture[offset+(7-j)*80+k]){
+					fontAtlas[(i+0x40+0x100)*64+j*8+k].r = 255;
+					fontAtlas[(i+0x40+0x100)*64+j*8+k].g = 255;
+					fontAtlas[(i+0x40+0x100)*64+j*8+k].b = 255;
+				}
+			}
+		}
+	}
+	for(u4 i = 0;i < 27;i++){
+		u4 offset = (i+63)/10*8*80 + (i+63)%10*8;
+		for(u4 j = 0;j < 8;j++){
+			for(u4 k = 0;k < 8;k++){
+				if(fontTexture[offset+(7-j)*80+k]){
+					fontAtlas[(i+0x40)*64+j*8+k].r = 255;
+					fontAtlas[(i+0x40)*64+j*8+k].g = 255;
+					fontAtlas[(i+0x40)*64+j*8+k].b = 255;
+				}
+			}
+		}
+	}
 	StretchDIBits(dc,0,0,500,500,0,0,1,1,fontCharRam,&bmi,DIB_RGB_COLORS,SRCCOPY);
 	while(GetMessageA(&msg,wnd,0,0)){
 		TranslateMessage(&msg);
