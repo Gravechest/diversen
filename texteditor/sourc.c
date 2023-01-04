@@ -92,6 +92,18 @@ void main(){
 	SetFilePointer(font,1078,0,FILE_CURRENT);
 	ReadFile(font,fontTexture,80*80,0,0);
 	CloseHandle(font);
+	for(u4 i = 0;i < 6;i++){
+		u4 offset = (i+9)/10*8*80 + (i+9)%10*8;
+		for(u4 j = 0;j < 8;j++){
+			for(u4 k = 0;k < 8;k++){
+				if(fontTexture[offset+(7-j)*80+k]){
+					fontAtlas[(i+0x6A)*64+j*8+k].r = 255;
+					fontAtlas[(i+0x6A)*64+j*8+k].g = 255;
+					fontAtlas[(i+0x6A)*64+j*8+k].b = 255;
+				}
+			}
+		}
+	}
 	for(u4 i = 0;i < 10;i++){
 		u4 offset = (i+15)/10*8*80 + (i+15)%10*8;
 		for(u4 j = 0;j < 8;j++){
