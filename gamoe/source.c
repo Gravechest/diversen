@@ -1,25 +1,29 @@
 #include <windows.h>
+#include <GL/gl.h>
 #include <intrin.h>
 #include <stdio.h>
-
-#include "ivec2.h"
-#include "vec2.h"
-#include "vec3.h"
+#include <math.h>
 
 #pragma comment(lib,"Winmm.lib")
+#pragma comment(lib,"opengl32.lib")
 
-#define PR_FRICTION 0.95f
+#define GL_FRAGMENT_SHADER 0x8B30
+#define GL_VERTEX_SHADER 0x8B31
+#define GL_ARRAY_BUFFER 0x8892
+#define GL_DYNAMIC_DRAW 0x88E8
+
+#define PR_FRICTION 0.9f
 
 #define VK_W 0x57
 #define VK_S 0x53
 #define VK_A 0x41
 #define VK_D 0x44
 
-#define WNDOFFX 500
-#define WNDOFFY 250
+#define WNDOFFX 300
+#define WNDOFFY 0
 
-#define WNDX 512
-#define WNDY 512
+#define WNDX 512*2
+#define WNDY 512*2
 
 #define RESX 512/4
 #define RESY 512/4
@@ -38,16 +42,85 @@ typedef long long          i8;
 typedef float		       f4;
 typedef double             f8;
 
+u4 (*glCreateProgram)();
+u4 (*glCreateShader)(u4 shader);
+u4 (*wglSwapIntervalEXT)(u4 status);
+
+void (*glShaderSource)(u4 shader,i4 count,i1** string,i4* length);
+void (*glCompileShader)(u4 shader);
+void (*glAttachShader)(u4 program,u4 shader);
+void (*glLinkProgram)(u4 program);
+void (*glUseProgram)(u4 program);
+void (*glEnableVertexAttribArray)(u4 index);
+void (*glVertexAttribPointer)(u4 index,i4 size,u4 type,u1 normalized,u4 stride,void* pointer);
+void (*glBufferData)(u4 target,u4 size,void* data,u4 usage);
+void (*glCreateBuffers)(u4 n,u4 *buffers);
+void (*glBindBuffer)(u4 target,u4 buffer);
+void (*glGetShaderInfoLog)(u4 shader,u4 maxlength,u4 *length,u1 *infolog);
+void (*glGenerateMipmap)(u4 target);
+
 typedef struct{
-	VEC2 vel;
-	VEC2 pos;
-}PLAYER;
+	f4 x;
+	f4 y;
+}VEC2;
+
+typedef struct{
+	u4 x;
+	u4 y;
+}IVEC2;
+
+typedef struct{
+	union{
+		f4 r;
+		f4 x;
+	};
+	union{
+		f4 g;
+		f4 y;
+	};
+	union{
+		f4 b;
+		f4 z;
+	};
+}VEC3;
+
+typedef struct{
+	VEC2 p1;
+	VEC2 tc1;
+	VEC2 p2;
+	VEC2 tc2;
+	VEC2 p3;
+	VEC2 tc3;
+	VEC2 p4;
+	VEC2 tc4;
+	VEC2 p5;
+	VEC2 tc5;
+	VEC2 p6;
+	VEC2 tc6;
+}QUAD;
 
 typedef struct{
 	u1 r;
 	u1 g;
 	u1 b;
 }RGB;
+
+typedef struct{
+	VEC2 vel;
+	VEC2 pos;
+	RGB* texture;
+}PLAYER;
+
+typedef struct{
+	VEC2 vel;
+	VEC2 pos;
+}BULLET;
+
+typedef struct{
+	u4 count;
+	BULLET* state;
+	RGB* texture;
+}BULLETHUB;
 
 typedef struct{
 	VEC2 pos;
@@ -63,19 +136,57 @@ typedef struct{
 
 i4 proc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 
-BITMAPINFO bmi ={sizeof(BITMAPINFOHEADER),RESY,RESX,1,24,BI_RGB};
+PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1,
+PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+24,0, 0, 0, 0, 0, 0,0,0,0,
+0,0,0,0,32,0,0,PFD_MAIN_PLANE,
+0,0,0,0	};
 
 HINSTANCE hinstance;
-WNDCLASS wndclass ={.lpfnWndProc = proc,.lpszClassName = "class",.lpszMenuName = "class"};
+WNDCLASS wndclass = {.lpfnWndProc = proc,.lpszClassName = "class",.lpszMenuName = "class"};
 HWND window;
 HDC dc;
 MSG Msg;
+u4 VBO;
+u4 texture;
 
+QUAD quad = {.tc1={0.0f,0.0f},.tc2={0.0f,1.0f},.tc3={1.0f,0.0f},.tc4={1.0f,1.0f},.tc5={0.0f,1.0f},.tc6={1.0f,0.0f}};
+
+VEC3* vramf;
 RGB*  vram;
-VEC3* colbuf;
 
 u1* map;
 PLAYER player = {.pos = {RESX/2,RESY/2}};
+
+BULLETHUB bullethub;
+
+VEC2 VEC2absR(VEC2 p){
+	p.x = p.x < 0.0f ? -p.x : p.x;
+	p.y = p.y < 0.0f ? -p.y : p.y;
+	return p;
+}
+
+VEC2 VEC2divFR(VEC2 p,f4 d){
+	return (VEC2){d/p.x,d/p.y};
+}
+
+VEC2 VEC2subVEC2R(VEC2 p,VEC2 p2){
+	return (VEC2){p.x - p2.x,p.y - p2.y};
+}
+
+VEC2 VEC2divR(VEC2 p,f4 d){
+	return (VEC2){p.x/d,p.y/d};
+}
+
+void VEC2addVEC2(VEC2* p,VEC2 p2){
+	p->x += p2.x;
+	p->y += p2.y;
+}
+
+void VEC2mul(VEC2* p,f4 m){
+	p->x *= m;
+	p->y *= m;
+}
 
 RAY2D ray2dCreate(VEC2 pos,VEC2 dir){
 	RAY2D ray;
@@ -146,65 +257,191 @@ f4 fract(f4 p){
 	return p - floorf(p);
 }
 
+f4 tmaxf(f4 p,f4 p2){
+	return p > p2 ? p : p2;
+}
+
+f4 tminf(f4 p,f4 p2){
+	return p < p2 ? p : p2;
+}
+
+f4 length(VEC2 p){
+	return sqrtf(p.x*p.x+p.y*p.y);
+}
+
+VEC2 mapCoordsToRenderCoords(VEC2 p){
+	return (VEC2){p.x/(MAPX*2.0f)-1.0f,p.y/(MAPY*2.0f)-1.0f};
+}
+
+u1* loadFile(u1* name){
+	HANDLE h = CreateFileA(name,GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
+	u4 fsize = GetFileSize(h,0);
+	u1* r = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,fsize+1);
+	ReadFile(h,r,fsize+1,0,0);
+	CloseHandle(h);
+	return r;
+}
+
 i4 proc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam){
 	switch(msg){
+	case WM_LBUTTONDOWN:{
+	    POINT cursor;
+		GetCursorPos(&cursor);
+		ScreenToClient(window,&cursor);
+		VEC2 vel = VEC2subVEC2R((VEC2){cursor.x/8,RESX-cursor.y/8},player.pos);
+		bullethub.state[bullethub.count].pos = player.pos;
+		bullethub.state[bullethub.count++].vel = VEC2divR(vel,300.0f);
+		break;
+	}
 	}
 	return DefWindowProcA(hwnd,msg,wParam,lParam);
 }
 
+void illuminateMap(VEC3 color,VEC2 pos,u4 ammount){
+	for(u4 i = 0;i < ammount;i++){
+		RAY2D ray = ray2dCreate(pos,(VEC2){rnd()+rnd()-3.0f,rnd()+rnd()-3.0f});
+		while(ray.roundPos.x > 0.0f && ray.roundPos.x < RESX && ray.roundPos.y > 0.0f && ray.roundPos.y < RESY){
+			if(map[(u4)(ray.roundPos.y/2.0f)*MAPX/2+(u4)(ray.roundPos.x/2.0f)]){
+				vramf[(u4)ray.roundPos.y*RESX+(u4)ray.roundPos.x].r+=color.r;
+				vramf[(u4)ray.roundPos.y*RESX+(u4)ray.roundPos.x].g+=color.g;
+				vramf[(u4)ray.roundPos.y*RESX+(u4)ray.roundPos.x].b+=color.b;
+				break;
+			}
+			ray2dIterate(&ray);
+		}
+	}
+}
+
 void physics(){
 	for(;;){
-		if(GetKeyState(VK_W) & 0x80){
-			player.vel.x+=0.02f;
+		u1 key_w = GetKeyState(VK_W) & 0x80;
+		u1 key_a = GetKeyState(VK_A) & 0x80;
+		u1 key_s = GetKeyState(VK_S) & 0x80;
+		u1 key_d = GetKeyState(VK_D) & 0x80;
+		if(key_w){
+			if(key_d || key_a) player.vel.y+=0.04f * 0.7f;
+			else               player.vel.y+=0.04f;
 		}
-		if(GetKeyState(VK_S) & 0x80){
-			player.vel.x-=0.02f;
+		if(key_s){
+			if(key_d || key_a) player.vel.y-=0.04f * 0.7f;
+			else               player.vel.y-=0.04f;
 		}
-		if(GetKeyState(VK_D) & 0x80){
-			player.vel.y+=0.02f;
+		if(key_d){
+			if(key_s || key_w) player.vel.x+=0.04f * 0.7f;
+			else               player.vel.x+=0.04f;
 		}
-		if(GetKeyState(VK_A) & 0x80){
-			player.vel.y-=0.02f;
+		if(key_a){
+			if(key_s || key_w) player.vel.x-=0.04f * 0.7f;
+			else               player.vel.x-=0.04f;
 		}
 		VEC2addVEC2(&player.pos,player.vel);
 		VEC2mul(&player.vel,PR_FRICTION);
+		for(u4 i = 0;i < bullethub.count;i++){
+			VEC2addVEC2(&bullethub.state[i].pos,bullethub.state[i].vel);
+		}
 		Sleep(15);
 	}
 }
 
+void drawSprite(VEC2 pos,VEC2 size,IVEC2 textureSize,RGB* texture){
+	quad.p1 = (VEC2){pos.x-size.x,pos.y-size.y};
+	quad.p2 = (VEC2){pos.x-size.x,pos.y+size.y};
+	quad.p3 = (VEC2){pos.x+size.x,pos.y-size.y};
+	quad.p4 = (VEC2){pos.x+size.x,pos.y+size.y};
+	quad.p5 = (VEC2){pos.x-size.x,pos.y+size.y};
+	quad.p6 = (VEC2){pos.x+size.x,pos.y-size.y};
+	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,textureSize.x,textureSize.y,0,GL_RGB,GL_UNSIGNED_BYTE,texture);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBufferData(GL_ARRAY_BUFFER,24 * sizeof(float),&quad,GL_DYNAMIC_DRAW);
+	glDrawArrays(GL_TRIANGLES,0,24);
+}
+
 void render(){
+	SetPixelFormat(dc,ChoosePixelFormat(dc,&pfd),&pfd);
+	wglMakeCurrent(dc,wglCreateContext(dc));
+	glCreateProgram		      = wglGetProcAddress("glCreateProgram");
+	glCreateShader		      = wglGetProcAddress("glCreateShader");
+	glShaderSource		      = wglGetProcAddress("glShaderSource");
+	glCompileShader		      = wglGetProcAddress("glCompileShader");
+	glAttachShader		      = wglGetProcAddress("glAttachShader");
+	glLinkProgram		      = wglGetProcAddress("glLinkProgram");
+	glUseProgram		      = wglGetProcAddress("glUseProgram");
+	glEnableVertexAttribArray = wglGetProcAddress("glEnableVertexAttribArray");
+	glVertexAttribPointer     = wglGetProcAddress("glVertexAttribPointer");
+	glBufferData           	  = wglGetProcAddress("glBufferData");
+	glCreateBuffers           = wglGetProcAddress("glCreateBuffers");
+	glBindBuffer              = wglGetProcAddress("glBindBuffer");
+	glGetShaderInfoLog        = wglGetProcAddress("glGetShaderInfoLog");
+	glGenerateMipmap          = wglGetProcAddress("glGenerateMipmap");
+	wglSwapIntervalEXT        = wglGetProcAddress("wglSwapIntervalEXT");
+
+	wglSwapIntervalEXT(1);
+
+	u1*	fragmentSource = loadFile("fragment.frag");
+	u1* vertexSource   = loadFile("vertex.vert");
+	u4 shaderProgram   = glCreateProgram();
+	u4 vertexShader    = glCreateShader(GL_VERTEX_SHADER);
+	u4 fragmentShader  = glCreateShader(GL_FRAGMENT_SHADER);
+
+	glShaderSource(fragmentShader,1,(i1**)&fragmentSource,0);
+	glShaderSource(vertexShader,1,(i1**)&vertexSource,0);
+	glCompileShader(vertexShader);
+	glCompileShader(fragmentShader);
+	glAttachShader(shaderProgram,vertexShader);
+	glAttachShader(shaderProgram,fragmentShader);
+	glLinkProgram(shaderProgram);
+	glUseProgram(shaderProgram);
+	glCreateBuffers(1,&VBO);
+	glBindBuffer(GL_ARRAY_BUFFER,VBO);
+	
+	glGenTextures(1,&texture);
+	glBindTexture(GL_TEXTURE_2D,texture);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0,2,GL_FLOAT,0,4 * sizeof(float),(void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1,2,GL_FLOAT,0,4 * sizeof(float),(void*)(2 * sizeof(float)));
+
 	for(;;){
-		for(u4 x = player.pos.x-2;x <= player.pos.x+2;x++){
-			for(u4 y = player.pos.y-2;y <= player.pos.y+2;y++){
-				vram[x*RESX+y].r = 255;
-			}
+		illuminateMap((VEC3){1.0f,0.1f,0.1f},player.pos,4048);
+		for(u4 i = 0;i < bullethub.count;i++){
+			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullethub.state[i].pos,4048);
 		}
-		for(u4 i = 0;i < 2048;i++){
-			RAY2D ray = ray2dCreate(player.pos,(VEC2){rnd()+rnd()-3.0f,rnd()+rnd()-3.0f});
-			while(ray.roundPos.x > 0.0f && ray.roundPos.x < RESX && ray.roundPos.y > 0.0f && ray.roundPos.y < RESY){
-				if(map[(u4)(ray.roundPos.x/2.0f)*RESX/2+(u4)(ray.roundPos.y/2.0f)]){
-					vram[(u4)ray.roundPos.x*RESX+(u4)ray.roundPos.y].r++;
-					break;
-				}
-				ray2dIterate(&ray);
-			}
+		for(u4 i = 0;i < RESX*RESY;i++){
+			vram[i].r = tminf(vramf[i].r,255.0f);
+			vram[i].g = tminf(vramf[i].g,255.0f);
+			vram[i].b = tminf(vramf[i].b,255.0f);
 		}
-		StretchDIBits(dc,0,0,WNDY,WNDX,0,0,RESY,RESX,vram,&bmi,DIB_RGB_COLORS,SRCCOPY);
-		memset(vram,0,sizeof(RGB)*RESX*RESY);
+		drawSprite((VEC2){0.0f,0.0f},(VEC2){1.0f,1.0f},(IVEC2){RESX,RESY},vram);
+		drawSprite(mapCoordsToRenderCoords(player.pos),(VEC2){0.02f,0.02f},(IVEC2){16,16},player.texture);
+		for(u4 i = 0;i < bullethub.count;i++){
+			drawSprite(mapCoordsToRenderCoords(bullethub.state[i].pos),(VEC2){0.01f,0.01f},(IVEC2){16,16},bullethub.texture);
+		}
+		memset(vramf,0,sizeof(VEC3)*RESX*RESY);
+		SwapBuffers(dc);
 	}
 }
 
 void main(){
 	timeBeginPeriod(1);
-	vram   = HeapAlloc(GetProcessHeap(),8,sizeof(RGB)*RESX*RESY);
-	map    = HeapAlloc(GetProcessHeap(),8,MAPX*MAPY);
+	vram   = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*RESX*RESY);
+	vramf  = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(VEC3)*RESX*RESY);
+	map    = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,MAPX*MAPY);
+	bullethub.state   = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(BULLET)*255);
+	bullethub.texture = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*16*16);
+	player.texture = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*16*16);
 	wndclass.hInstance = GetModuleHandleA(0);
 	RegisterClassA(&wndclass);
 	window = CreateWindowExA(0,"class","hello",WS_VISIBLE,WNDOFFX,WNDOFFY,WNDY+15,WNDX+38,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
 	for(u4 i = 0;i < MAPX*MAPY;i++){
-		if(rnd()<1.1f){
-			map[i] = 1;
+		if(rnd()<1.05f) map[i] = 1;
+	}
+	//generate player texture
+	for(u4 x = 0;x < 16;x++){
+		for(u4 y = 0;y < 16;y++){
+			bullethub.texture[x*16+y].g = 255 - length((VEC2){abs(8-x),abs(8-y)}) * 16.0f;
+			player.texture[x*16+y].r = 255 - length((VEC2){abs(8-x),abs(8-y)}) * 16.0f;
 		}
 	}
 	CreateThread(0,0,render,0,0,0);
