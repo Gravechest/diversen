@@ -158,7 +158,9 @@ RGB*  vram;
 u1* map;
 PLAYER player = {.pos = {RESX/2,RESY/2}};
 
-BULLETHUB bullethub;
+BULLETHUB bullet;
+
+u4 spriteShader,mapShader;
 
 VEC2 VEC2absR(VEC2 p){
 	p.x = p.x < 0.0f ? -p.x : p.x;
@@ -257,6 +259,14 @@ f4 fract(f4 p){
 	return p - floorf(p);
 }
 
+i4 tmax(i4 p,i4 p2){
+	return p > p2 ? p : p2;
+}
+
+i4 tmin(i4 p,i4 p2){
+	return p < p2 ? p : p2;
+}
+
 f4 tmaxf(f4 p,f4 p2){
 	return p > p2 ? p : p2;
 }
@@ -267,6 +277,11 @@ f4 tminf(f4 p,f4 p2){
 
 f4 length(VEC2 p){
 	return sqrtf(p.x*p.x+p.y*p.y);
+}
+
+VEC2 VEC2normalizeR(VEC2 p){
+	f4 l = length(p);
+	return (VEC2){p.x/l,p.y/l};
 }
 
 VEC2 mapCoordsToRenderCoords(VEC2 p){
@@ -289,8 +304,8 @@ i4 proc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam){
 		GetCursorPos(&cursor);
 		ScreenToClient(window,&cursor);
 		VEC2 vel = VEC2subVEC2R((VEC2){cursor.x/8,RESX-cursor.y/8},player.pos);
-		bullethub.state[bullethub.count].pos = player.pos;
-		bullethub.state[bullethub.count++].vel = VEC2divR(vel,300.0f);
+		bullet.state[bullet.count].pos = player.pos;
+		bullet.state[bullet.count++].vel = VEC2normalizeR(vel,300.0f);
 		break;
 	}
 	}
@@ -336,8 +351,8 @@ void physics(){
 		}
 		VEC2addVEC2(&player.pos,player.vel);
 		VEC2mul(&player.vel,PR_FRICTION);
-		for(u4 i = 0;i < bullethub.count;i++){
-			VEC2addVEC2(&bullethub.state[i].pos,bullethub.state[i].vel);
+		for(u4 i = 0;i < bullet.count;i++){
+			VEC2addVEC2(&bullet.state[i].pos,bullet.state[i].vel);
 		}
 		Sleep(15);
 	}
@@ -354,6 +369,24 @@ void drawSprite(VEC2 pos,VEC2 size,IVEC2 textureSize,RGB* texture){
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glBufferData(GL_ARRAY_BUFFER,24 * sizeof(float),&quad,GL_DYNAMIC_DRAW);
 	glDrawArrays(GL_TRIANGLES,0,24);
+}
+
+u4 loadShader(u1* fragment,u1* vertex){
+	u1*	fragmentSource = loadFile(fragment);
+	u1* vertexSource   = loadFile(vertex);
+	u4 shaderProgram   = glCreateProgram();
+	u4 vertexShader    = glCreateShader(GL_VERTEX_SHADER);
+	u4 fragmentShader  = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader,1,(i1**)&fragmentSource,0);
+	glShaderSource(vertexShader,1,(i1**)&vertexSource,0);
+	glCompileShader(vertexShader);
+	glCompileShader(fragmentShader);
+	glAttachShader(shaderProgram,vertexShader);
+	glAttachShader(shaderProgram,fragmentShader);
+	glLinkProgram(shaderProgram);
+	HeapFree(GetProcessHeap(),0,fragmentSource);
+	HeapFree(GetProcessHeap(),0,vertexSource);
+	return shaderProgram;
 }
 
 void render(){
@@ -375,27 +408,18 @@ void render(){
 	glGenerateMipmap          = wglGetProcAddress("glGenerateMipmap");
 	wglSwapIntervalEXT        = wglGetProcAddress("wglSwapIntervalEXT");
 
-	wglSwapIntervalEXT(1);
+	wglSwapIntervalEXT(0);
 
-	u1*	fragmentSource = loadFile("fragment.frag");
-	u1* vertexSource   = loadFile("vertex.vert");
-	u4 shaderProgram   = glCreateProgram();
-	u4 vertexShader    = glCreateShader(GL_VERTEX_SHADER);
-	u4 fragmentShader  = glCreateShader(GL_FRAGMENT_SHADER);
+	spriteShader = loadShader("sprite.fs","vertex.vs");
+	mapShader    = loadShader("map.fs","vertex.vs");
+	glUseProgram(spriteShader);
 
-	glShaderSource(fragmentShader,1,(i1**)&fragmentSource,0);
-	glShaderSource(vertexShader,1,(i1**)&vertexSource,0);
-	glCompileShader(vertexShader);
-	glCompileShader(fragmentShader);
-	glAttachShader(shaderProgram,vertexShader);
-	glAttachShader(shaderProgram,fragmentShader);
-	glLinkProgram(shaderProgram);
-	glUseProgram(shaderProgram);
 	glCreateBuffers(1,&VBO);
 	glBindBuffer(GL_ARRAY_BUFFER,VBO);
 	
 	glGenTextures(1,&texture);
 	glBindTexture(GL_TEXTURE_2D,texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0,2,GL_FLOAT,0,4 * sizeof(float),(void*)0);
@@ -404,18 +428,20 @@ void render(){
 
 	for(;;){
 		illuminateMap((VEC3){1.0f,0.1f,0.1f},player.pos,4048);
-		for(u4 i = 0;i < bullethub.count;i++){
-			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullethub.state[i].pos,4048);
+		for(u4 i = 0;i < bullet.count;i++){
+			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullet.state[i].pos,4048);
 		}
 		for(u4 i = 0;i < RESX*RESY;i++){
 			vram[i].r = tminf(vramf[i].r,255.0f);
 			vram[i].g = tminf(vramf[i].g,255.0f);
 			vram[i].b = tminf(vramf[i].b,255.0f);
 		}
+		glUseProgram(mapShader);
 		drawSprite((VEC2){0.0f,0.0f},(VEC2){1.0f,1.0f},(IVEC2){RESX,RESY},vram);
+		glUseProgram(spriteShader);
 		drawSprite(mapCoordsToRenderCoords(player.pos),(VEC2){0.02f,0.02f},(IVEC2){16,16},player.texture);
-		for(u4 i = 0;i < bullethub.count;i++){
-			drawSprite(mapCoordsToRenderCoords(bullethub.state[i].pos),(VEC2){0.01f,0.01f},(IVEC2){16,16},bullethub.texture);
+		for(u4 i = 0;i < bullet.count;i++){
+			drawSprite(mapCoordsToRenderCoords(bullet.state[i].pos),(VEC2){0.01f,0.01f},(IVEC2){16,16},bullet.texture);
 		}
 		memset(vramf,0,sizeof(VEC3)*RESX*RESY);
 		SwapBuffers(dc);
@@ -427,8 +453,8 @@ void main(){
 	vram   = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*RESX*RESY);
 	vramf  = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(VEC3)*RESX*RESY);
 	map    = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,MAPX*MAPY);
-	bullethub.state   = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(BULLET)*255);
-	bullethub.texture = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*16*16);
+	bullet.state   = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(BULLET)*255);
+	bullet.texture = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*16*16);
 	player.texture = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*16*16);
 	wndclass.hInstance = GetModuleHandleA(0);
 	RegisterClassA(&wndclass);
@@ -440,8 +466,8 @@ void main(){
 	//generate player texture
 	for(u4 x = 0;x < 16;x++){
 		for(u4 y = 0;y < 16;y++){
-			bullethub.texture[x*16+y].g = 255 - length((VEC2){abs(8-x),abs(8-y)}) * 16.0f;
-			player.texture[x*16+y].r = 255 - length((VEC2){abs(8-x),abs(8-y)}) * 16.0f;
+			bullet.texture[x*16+y].g = tmax(255 - length((VEC2){fabsf(7.5f-x),fabsf(7.5f-y)}) * 32.0f,0);
+			player.texture[x*16+y].r = 255 - length((VEC2){fabsf(7.5f-x),fabsf(7.5f-y)}) * 16.0f;
 		}
 	}
 	CreateThread(0,0,render,0,0,0);
