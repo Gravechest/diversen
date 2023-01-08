@@ -22,8 +22,8 @@
 #define WNDOFFX 300
 #define WNDOFFY 0
 
-#define WNDX 512*2
-#define WNDY 512*2
+#define WNDX 1080
+#define WNDY 1080
 
 #define RESX 128
 #define RESY 128
@@ -123,6 +123,16 @@ typedef struct{
 }BULLETHUB;
 
 typedef struct{
+	VEC2 vel;
+	VEC2 pos;
+}ENEMY;
+
+typedef struct{
+	u4 count;
+	ENEMY* state;
+}ENEMYHUB;
+
+typedef struct{
 	VEC2 pos;
 	VEC2 dir;
 	VEC2 delta;
@@ -159,8 +169,9 @@ u1* map;
 PLAYER player = {.pos = {RESX/2,RESY/2}};
 
 BULLETHUB bullet;
+ENEMYHUB enemy;
 
-u4 spriteShader,mapShader;
+u4 spriteShader,mapShader,enemyShader;
 
 VEC2 VEC2absR(VEC2 p){
 	p.x = p.x < 0.0f ? -p.x : p.x;
@@ -183,6 +194,11 @@ VEC2 VEC2divR(VEC2 p,f4 d){
 void VEC2addVEC2(VEC2* p,VEC2 p2){
 	p->x += p2.x;
 	p->y += p2.y;
+}
+
+void VEC2subVEC2(VEC2* p,VEC2 p2){
+	p->x -= p2.x;
+	p->y -= p2.y;
 }
 
 void VEC2mul(VEC2* p,f4 m){
@@ -310,7 +326,7 @@ i4 proc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam){
 	    POINT cursor;
 		GetCursorPos(&cursor);
 		ScreenToClient(window,&cursor);
-		VEC2 vel = VEC2subVEC2R((VEC2){cursor.x/8,RESX-cursor.y/8},player.pos);
+		VEC2 vel = VEC2subVEC2R((VEC2){cursor.x/8.4375f,RESX-cursor.y/8.4375f},player.pos);
 		bullet.state[bullet.count].pos = player.pos;
 		bullet.state[bullet.count++].vel = VEC2normalizeR(vel,300.0f);
 		break;
@@ -340,14 +356,6 @@ void physics(){
 		u1 key_a = GetKeyState(VK_A) & 0x80;
 		u1 key_s = GetKeyState(VK_S) & 0x80;
 		u1 key_d = GetKeyState(VK_D) & 0x80;
-		if(GetKeyState(VK_RBUTTON) & 0x80){
-			POINT cursor;
-			GetCursorPos(&cursor);
-			ScreenToClient(window,&cursor);
-			VEC2 vel = VEC2subVEC2R((VEC2){cursor.x/8,RESX-cursor.y/8},player.pos);
-			bullet.state[bullet.count].pos = player.pos;
-			bullet.state[bullet.count++].vel = VEC2normalizeR(vel,300.0f);
-		}
 		if(key_w){
 			if(key_d || key_a) player.vel.y+=0.04f * 0.7f;
 			else               player.vel.y+=0.04f;
@@ -365,13 +373,48 @@ void physics(){
 			else               player.vel.x-=0.04f;
 		}
 		VEC2addVEC2(&player.pos,player.vel);
+		if(player.vel.x < 0.0f){
+			for(f4 i = player.pos.y - 1.25f;i <= player.pos.y + 1.25f;i+=0.625f){
+				if(map[(u4)i*RESX+(u4)(player.pos.x-1.25f)]){
+					player.pos.x -= player.vel.x;
+					player.vel.x = 0.0f;
+					break;
+				}
+			}
+		}
+		else{
+			for(f4 i = player.pos.y - 1.25f;i <= player.pos.y + 1.25f;i+=0.625f){
+				if(map[(u4)i*RESX+(u4)(player.pos.x+1.25f)]){
+					player.pos.x -= player.vel.x;
+					player.vel.x = 0.0f;
+					break;
+				}
+			}
+		}
+		if(player.vel.y < 0.0f){
+			for(f4 i = player.pos.x - 1.25f;i <= player.pos.x + 1.25f;i+=0.625f){
+				if(map[(u4)(player.pos.y-1.25f)*RESX+(u4)i]){
+					player.pos.y -= player.vel.y;
+					player.vel.y = 0.0f;
+					break;
+				}
+			}
+		}
+		else{
+			for(f4 i = player.pos.x - 1.25f;i <= player.pos.x + 1.25f;i+=0.625f){
+				if(map[(u4)(player.pos.y+1.25f)*RESX+(u4)i]){
+					player.pos.y -= player.vel.y;
+					player.vel.y = 0.0f;
+					break;
+				}
+			}
+		}
 		VEC2mul(&player.vel,PR_FRICTION);
 		for(u4 i = 0;i < bullet.count;i++){
 			VEC2addVEC2(&bullet.state[i].pos,bullet.state[i].vel);
 			if(bullet.state[i].pos.x < 0.0f || bullet.state[i].pos.x > RESX ||
 				bullet.state[i].pos.y < 0.0f || bullet.state[i].pos.y > RESX ||
 				map[(u4)bullet.state[i].pos.y*RESX+(u4)bullet.state[i].pos.x]){
-				map[(u4)bullet.state[i].pos.y*RESX+(u4)bullet.state[i].pos.x] = 0;
 				killBullet(i);
 			}
 		}
@@ -392,12 +435,23 @@ void drawSprite(VEC2 pos,VEC2 size,IVEC2 textureSize,RGB* texture){
 	glDrawArrays(GL_TRIANGLES,0,24);
 }
 
+void drawEnemy(VEC2 pos,VEC2 size){
+	quad.p1 = (VEC2){pos.x-size.x,pos.y-size.y};
+	quad.p2 = (VEC2){pos.x-size.x,pos.y+size.y};
+	quad.p3 = (VEC2){pos.x+size.x,pos.y-size.y};
+	quad.p4 = (VEC2){pos.x+size.x,pos.y+size.y};
+	quad.p5 = (VEC2){pos.x-size.x,pos.y+size.y};
+	quad.p6 = (VEC2){pos.x+size.x,pos.y-size.y};
+	glBufferData(GL_ARRAY_BUFFER,24 * sizeof(float),&quad,GL_DYNAMIC_DRAW);
+	glDrawArrays(GL_TRIANGLES,0,24);
+}
+
 u4 loadShader(u1* fragment,u1* vertex){
 	u1*	fragmentSource = loadFile(fragment);
 	u1* vertexSource   = loadFile(vertex);
-	u4 shaderProgram   = glCreateProgram();
-	u4 vertexShader    = glCreateShader(GL_VERTEX_SHADER);
-	u4 fragmentShader  = glCreateShader(GL_FRAGMENT_SHADER);
+	u4  shaderProgram  = glCreateProgram();
+	u4  vertexShader   = glCreateShader(GL_VERTEX_SHADER);
+	u4  fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShader,1,(i1**)&fragmentSource,0);
 	glShaderSource(vertexShader,1,(i1**)&vertexSource,0);
 	glCompileShader(vertexShader);
@@ -430,8 +484,9 @@ void render(){
 
 	wglSwapIntervalEXT(1);
 
-	spriteShader = loadShader("sprite.frag","vertex.vert");
-	mapShader    = loadShader("map.frag","vertex.vert");
+	spriteShader = loadShader("shaders/sprite.frag","shaders/vertex.vert");
+	mapShader    = loadShader("shaders/map.frag","shaders/vertex.vert");
+	enemyShader  = loadShader("shaders/enemy.frag","shaders/vertex.vert");
 	glUseProgram(spriteShader);
 
 	glCreateBuffers(1,&VBO);
@@ -447,9 +502,9 @@ void render(){
 	glVertexAttribPointer(1,2,GL_FLOAT,0,4 * sizeof(float),(void*)(2 * sizeof(float)));
 
 	for(;;){
-		illuminateMap((VEC3){1.0f,0.1f,0.1f},player.pos,4048*16);
+		illuminateMap((VEC3){1.0f,0.1f,0.1f},player.pos,1024);
 		for(u4 i = 0;i < bullet.count;i++){
-			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullet.state[i].pos,256);
+			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullet.state[i].pos,1024);
 		}
 		for(u4 i = 0;i < RESX*RESY;i++){
 			vram[i].r = tminf(vramf[i].r,255.0f);
@@ -459,12 +514,32 @@ void render(){
 		glUseProgram(mapShader);
 		drawSprite((VEC2){0.0f,0.0f},(VEC2){1.0f,1.0f},(IVEC2){RESX,RESY},vram);
 		glUseProgram(spriteShader);
-		drawSprite(mapCoordsToRenderCoords(player.pos),(VEC2){0.02f,0.02f},(IVEC2){16,16},player.texture);
+		drawSprite(mapCoordsToRenderCoords(player.pos),(VEC2){0.018f,0.018f},(IVEC2){16,16},player.texture);
 		for(u4 i = 0;i < bullet.count;i++){
 			drawSprite(mapCoordsToRenderCoords(bullet.state[i].pos),(VEC2){0.01f,0.01f},(IVEC2){16,16},bullet.texture);
 		}
+		//glUseProgram(enemyShader);
+		/*
+		for(u4 i = 0;i < 300;i++){
+			drawEnemy((VEC2){rnd()*2.0f-3.0f,rnd()*2.0f-3.0f},(VEC2){0.002f,0.002f});
+		}*/
 		memset(vramf,0,sizeof(VEC3)*RESX*RESY);
 		SwapBuffers(dc);
+	}
+}
+
+void genMap(IVEC2 crd,u4 depth,f4 value){
+	if(!depth){
+		if(value > 0.0f) map[crd.x*RESX+crd.y] = 1;
+		return;
+	}
+	else{
+		crd.x *= 2;
+		crd.y *= 2;
+		genMap((IVEC2){crd.x  ,crd.y  },depth-1,value+rnd()-1.5f);
+		genMap((IVEC2){crd.x+1,crd.y  },depth-1,value+rnd()-1.5f);
+		genMap((IVEC2){crd.x  ,crd.y+1},depth-1,value+rnd()-1.5f);
+		genMap((IVEC2){crd.x+1,crd.y+1},depth-1,value+rnd()-1.5f);
 	}
 }
 
@@ -473,16 +548,15 @@ void main(){
 	vram   = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*RESX*RESY);
 	vramf  = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(VEC3)*RESX*RESY);
 	map    = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,MAPX*MAPY);
-	bullet.state   = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(BULLET)*255);
+	bullet.state   = HeapAlloc(GetProcessHeap(),0,sizeof(BULLET)*255);
 	bullet.texture = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*16*16);
 	player.texture = HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(RGB)*16*16);
+	enemy.state    = HeapAlloc(GetProcessHeap(),0,sizeof(ENEMY)*255);
 	wndclass.hInstance = GetModuleHandleA(0);
 	RegisterClassA(&wndclass);
-	window = CreateWindowExA(0,"class","hello",WS_VISIBLE,WNDOFFX,WNDOFFY,WNDY+15,WNDX+38,0,0,wndclass.hInstance,0);
+	window = CreateWindowExA(0,"class","hello",WS_VISIBLE | WS_POPUP,WNDOFFX,WNDOFFY,WNDY,WNDX,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
-	for(u4 i = 0;i < MAPX*MAPY;i++){
-		map[i] = 1;
-	}
+	genMap((IVEC2){0,0},7,-1.0f);
 	//generate player texture
 	for(u4 x = 0;x < 16;x++){
 		for(u4 y = 0;y < 16;y++){
