@@ -25,11 +25,11 @@
 #define WNDX 512*2
 #define WNDY 512*2
 
-#define RESX 512/4
-#define RESY 512/4
+#define RESX 128
+#define RESY 128
 
-#define MAPX 32
-#define MAPY 32
+#define MAPX 128
+#define MAPY 128
 
 typedef unsigned char      u1;
 typedef unsigned short     u2;
@@ -240,7 +240,7 @@ i4 hash(i4 x) {
 	return x;
 }
 
-f4 rnd() {
+f4 rnd(){
 	union p {
 		f4 f;
 		i4 u;
@@ -285,7 +285,14 @@ VEC2 VEC2normalizeR(VEC2 p){
 }
 
 VEC2 mapCoordsToRenderCoords(VEC2 p){
-	return (VEC2){p.x/(MAPX*2.0f)-1.0f,p.y/(MAPY*2.0f)-1.0f};
+	return (VEC2){p.x/(RESX/2.0f)-1.0f,p.y/(RESY/2.0f)-1.0f};
+}
+
+void killBullet(u4 id){
+	for(u4 i = id;i < bullet.count;i++){
+		bullet.state[i] = bullet.state[i+1];
+	}
+	bullet.count--;
 }
 
 u1* loadFile(u1* name){
@@ -316,7 +323,7 @@ void illuminateMap(VEC3 color,VEC2 pos,u4 ammount){
 	for(u4 i = 0;i < ammount;i++){
 		RAY2D ray = ray2dCreate(pos,(VEC2){rnd()+rnd()-3.0f,rnd()+rnd()-3.0f});
 		while(ray.roundPos.x > 0.0f && ray.roundPos.x < RESX && ray.roundPos.y > 0.0f && ray.roundPos.y < RESY){
-			if(map[(u4)(ray.roundPos.y/2.0f)*MAPX/2+(u4)(ray.roundPos.x/2.0f)]){
+			if(map[(u4)(ray.roundPos.y)*RESX+(u4)(ray.roundPos.x)]){
 				vramf[(u4)ray.roundPos.y*RESX+(u4)ray.roundPos.x].r+=color.r;
 				vramf[(u4)ray.roundPos.y*RESX+(u4)ray.roundPos.x].g+=color.g;
 				vramf[(u4)ray.roundPos.y*RESX+(u4)ray.roundPos.x].b+=color.b;
@@ -333,6 +340,14 @@ void physics(){
 		u1 key_a = GetKeyState(VK_A) & 0x80;
 		u1 key_s = GetKeyState(VK_S) & 0x80;
 		u1 key_d = GetKeyState(VK_D) & 0x80;
+		if(GetKeyState(VK_RBUTTON) & 0x80){
+			POINT cursor;
+			GetCursorPos(&cursor);
+			ScreenToClient(window,&cursor);
+			VEC2 vel = VEC2subVEC2R((VEC2){cursor.x/8,RESX-cursor.y/8},player.pos);
+			bullet.state[bullet.count].pos = player.pos;
+			bullet.state[bullet.count++].vel = VEC2normalizeR(vel,300.0f);
+		}
 		if(key_w){
 			if(key_d || key_a) player.vel.y+=0.04f * 0.7f;
 			else               player.vel.y+=0.04f;
@@ -353,6 +368,12 @@ void physics(){
 		VEC2mul(&player.vel,PR_FRICTION);
 		for(u4 i = 0;i < bullet.count;i++){
 			VEC2addVEC2(&bullet.state[i].pos,bullet.state[i].vel);
+			if(bullet.state[i].pos.x < 0.0f || bullet.state[i].pos.x > RESX ||
+				bullet.state[i].pos.y < 0.0f || bullet.state[i].pos.y > RESX ||
+				map[(u4)bullet.state[i].pos.y*RESX+(u4)bullet.state[i].pos.x]){
+				map[(u4)bullet.state[i].pos.y*RESX+(u4)bullet.state[i].pos.x] = 0;
+				killBullet(i);
+			}
 		}
 		Sleep(15);
 	}
@@ -404,14 +425,13 @@ void render(){
 	glBufferData           	  = wglGetProcAddress("glBufferData");
 	glCreateBuffers           = wglGetProcAddress("glCreateBuffers");
 	glBindBuffer              = wglGetProcAddress("glBindBuffer");
-	glGetShaderInfoLog        = wglGetProcAddress("glGetShaderInfoLog");
 	glGenerateMipmap          = wglGetProcAddress("glGenerateMipmap");
 	wglSwapIntervalEXT        = wglGetProcAddress("wglSwapIntervalEXT");
 
-	wglSwapIntervalEXT(0);
+	wglSwapIntervalEXT(1);
 
-	spriteShader = loadShader("sprite.fs","vertex.vs");
-	mapShader    = loadShader("map.fs","vertex.vs");
+	spriteShader = loadShader("sprite.frag","vertex.vert");
+	mapShader    = loadShader("map.frag","vertex.vert");
 	glUseProgram(spriteShader);
 
 	glCreateBuffers(1,&VBO);
@@ -419,7 +439,7 @@ void render(){
 	
 	glGenTextures(1,&texture);
 	glBindTexture(GL_TEXTURE_2D,texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0,2,GL_FLOAT,0,4 * sizeof(float),(void*)0);
@@ -427,9 +447,9 @@ void render(){
 	glVertexAttribPointer(1,2,GL_FLOAT,0,4 * sizeof(float),(void*)(2 * sizeof(float)));
 
 	for(;;){
-		illuminateMap((VEC3){1.0f,0.1f,0.1f},player.pos,4048);
+		illuminateMap((VEC3){1.0f,0.1f,0.1f},player.pos,4048*16);
 		for(u4 i = 0;i < bullet.count;i++){
-			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullet.state[i].pos,4048);
+			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullet.state[i].pos,256);
 		}
 		for(u4 i = 0;i < RESX*RESY;i++){
 			vram[i].r = tminf(vramf[i].r,255.0f);
@@ -461,7 +481,7 @@ void main(){
 	window = CreateWindowExA(0,"class","hello",WS_VISIBLE,WNDOFFX,WNDOFFY,WNDY+15,WNDX+38,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
 	for(u4 i = 0;i < MAPX*MAPY;i++){
-		if(rnd()<1.05f) map[i] = 1;
+		map[i] = 1;
 	}
 	//generate player texture
 	for(u4 x = 0;x < 16;x++){
