@@ -7,6 +7,8 @@
 #pragma comment(lib,"Winmm.lib")
 #pragma comment(lib,"opengl32.lib")
 
+#define PLAYER_SIZE 1.25f
+
 #define GL_FRAGMENT_SHADER 0x8B30
 #define GL_VERTEX_SHADER 0x8B31
 #define GL_ARRAY_BUFFER 0x8892
@@ -117,7 +119,7 @@ typedef struct{
 }BULLET;
 
 typedef struct{
-	u4 count;
+	u4 cnt;
 	BULLET* state;
 	RGB* texture;
 }BULLETHUB;
@@ -128,7 +130,7 @@ typedef struct{
 }ENEMY;
 
 typedef struct{
-	u4 count;
+	u4 cnt;
 	ENEMY* state;
 }ENEMYHUB;
 
@@ -169,7 +171,7 @@ u1* map;
 PLAYER player = {.pos = {RESX/2,RESY/2}};
 
 BULLETHUB bullet;
-ENEMYHUB enemy;
+ENEMYHUB  enemy;
 
 u4 spriteShader,mapShader,enemyShader;
 
@@ -199,6 +201,11 @@ void VEC2addVEC2(VEC2* p,VEC2 p2){
 void VEC2subVEC2(VEC2* p,VEC2 p2){
 	p->x -= p2.x;
 	p->y -= p2.y;
+}
+
+void VEC2div(VEC2* p,f4 d){
+	p->x /= d;
+	p->y /= d;
 }
 
 void VEC2mul(VEC2* p,f4 m){
@@ -304,13 +311,6 @@ VEC2 mapCoordsToRenderCoords(VEC2 p){
 	return (VEC2){p.x/(RESX/2.0f)-1.0f,p.y/(RESY/2.0f)-1.0f};
 }
 
-void killBullet(u4 id){
-	for(u4 i = id;i < bullet.count;i++){
-		bullet.state[i] = bullet.state[i+1];
-	}
-	bullet.count--;
-}
-
 u1* loadFile(u1* name){
 	HANDLE h = CreateFileA(name,GENERIC_READ,0,0,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,0);
 	u4 fsize = GetFileSize(h,0);
@@ -327,8 +327,8 @@ i4 proc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam){
 		GetCursorPos(&cursor);
 		ScreenToClient(window,&cursor);
 		VEC2 vel = VEC2subVEC2R((VEC2){cursor.x/8.4375f,RESX-cursor.y/8.4375f},player.pos);
-		bullet.state[bullet.count].pos = player.pos;
-		bullet.state[bullet.count++].vel = VEC2normalizeR(vel,300.0f);
+		bullet.state[bullet.cnt].pos = player.pos;
+		bullet.state[bullet.cnt++].vel = VEC2normalizeR(vel,300.0f);
 		break;
 	}
 	}
@@ -348,6 +348,58 @@ void illuminateMap(VEC3 color,VEC2 pos,u4 ammount){
 			ray2dIterate(&ray);
 		}
 	}
+}
+
+void collision(VEC2* pos,VEC2 vel,f4 size){
+	f4 inc = size;
+	while(inc > 1.0f) inc *= 0.5f;
+	if(vel.x < 0.0f){
+		for(f4 i = pos->y - size;i <= pos->y + size;i+=inc){
+			if(map[(u4)i*RESX+(u4)(pos->x-size)]){
+				pos->x -= vel.x;
+				vel.x = 0.0f;
+				break;
+			}
+		}
+	}
+	else{
+		for(f4 i = pos->y - size;i <= pos->y + size;i+=inc){
+			if(map[(u4)i*RESX+(u4)(pos->x+size)]){
+				pos->x -= vel.x;
+				vel.x = 0.0f;
+				break;
+			}
+		}
+	}
+	if(vel.y < 0.0f){
+		for(f4 i = pos->x - size;i <= pos->x + size;i+=inc){
+			if(map[(u4)(pos->y-size)*RESX+(u4)i]){
+				pos->y -= vel.y;
+				vel.y = 0.0f;
+				break;
+			}
+		}
+	}
+	else{
+		for(f4 i = pos->x - size;i <= pos->x + size;i+=inc){
+			if(map[(u4)(pos->y+size)*RESX+(u4)i]){
+				pos->y -= vel.y;
+				vel.y = 0.0f;
+				break;
+			}
+		}
+	}
+}
+
+u1 lineOfSight(VEC2 pos,VEC2 dir,u4 iterations){
+	RAY2D ray = ray2dCreate(pos,dir);
+	for(u4 i = 0;i < iterations;i++){
+		if(map[(u4)(ray.roundPos.y)*RESX+(u4)(ray.roundPos.x)]){
+			return 0;	
+		}
+		ray2dIterate(&ray);
+	}
+	return 1;
 }
 
 void physics(){
@@ -373,49 +425,41 @@ void physics(){
 			else               player.vel.x-=0.04f;
 		}
 		VEC2addVEC2(&player.pos,player.vel);
-		if(player.vel.x < 0.0f){
-			for(f4 i = player.pos.y - 1.25f;i <= player.pos.y + 1.25f;i+=0.625f){
-				if(map[(u4)i*RESX+(u4)(player.pos.x-1.25f)]){
-					player.pos.x -= player.vel.x;
-					player.vel.x = 0.0f;
-					break;
-				}
-			}
-		}
-		else{
-			for(f4 i = player.pos.y - 1.25f;i <= player.pos.y + 1.25f;i+=0.625f){
-				if(map[(u4)i*RESX+(u4)(player.pos.x+1.25f)]){
-					player.pos.x -= player.vel.x;
-					player.vel.x = 0.0f;
-					break;
-				}
-			}
-		}
-		if(player.vel.y < 0.0f){
-			for(f4 i = player.pos.x - 1.25f;i <= player.pos.x + 1.25f;i+=0.625f){
-				if(map[(u4)(player.pos.y-1.25f)*RESX+(u4)i]){
-					player.pos.y -= player.vel.y;
-					player.vel.y = 0.0f;
-					break;
-				}
-			}
-		}
-		else{
-			for(f4 i = player.pos.x - 1.25f;i <= player.pos.x + 1.25f;i+=0.625f){
-				if(map[(u4)(player.pos.y+1.25f)*RESX+(u4)i]){
-					player.pos.y -= player.vel.y;
-					player.vel.y = 0.0f;
-					break;
-				}
-			}
-		}
+		collision(&player.pos,player.vel,1.25f);
 		VEC2mul(&player.vel,PR_FRICTION);
-		for(u4 i = 0;i < bullet.count;i++){
+		if(rnd()<1.02f && enemy.cnt < 8){
+			enemy.state[enemy.cnt++].pos = (VEC2){(rnd()-1.0f)*RESX,(rnd()-1.0f)*RESY};
+		}
+		for(u4 i = 0;i < enemy.cnt;i++){
+			if(enemy.state[i].pos.x < 1.0f || enemy.state[i].pos.x > RESX-1.0f ||
+			enemy.state[i].pos.y < 1.0f || enemy.state[i].pos.y > RESX-1.0f){
+				for(u4 j = i;j < enemy.cnt;j++){
+					enemy.state[j] = enemy.state[j+1];
+				}
+				enemy.cnt--;
+			}
+			u4 iterations = (u4)fabsf(player.pos.x-enemy.state[i].pos.x)+(u4)fabsf(player.pos.y-enemy.state[i].pos.y);
+			VEC2 toPlayer = VEC2normalizeR(VEC2subVEC2R(player.pos,enemy.state[i].pos));
+			if(lineOfSight(enemy.state[i].pos,toPlayer,iterations)){
+				VEC2div(&toPlayer,50.0f);
+				VEC2addVEC2(&enemy.state[i].vel,toPlayer);
+			}
+			else if(rnd() < 1.05f){
+				VEC2addVEC2(&enemy.state[i].vel,(VEC2){(rnd()-1.5f)/2.5f,(rnd()-1.5f)/2.5f});
+			}
+			VEC2addVEC2(&enemy.state[i].pos,enemy.state[i].vel);
+			collision(&enemy.state[i].pos,enemy.state[i].vel,0.5f);
+			VEC2mul(&enemy.state[i].vel,PR_FRICTION);	
+		}
+		for(u4 i = 0;i < bullet.cnt;i++){
 			VEC2addVEC2(&bullet.state[i].pos,bullet.state[i].vel);
 			if(bullet.state[i].pos.x < 0.0f || bullet.state[i].pos.x > RESX ||
-				bullet.state[i].pos.y < 0.0f || bullet.state[i].pos.y > RESX ||
-				map[(u4)bullet.state[i].pos.y*RESX+(u4)bullet.state[i].pos.x]){
-				killBullet(i);
+			bullet.state[i].pos.y < 0.0f || bullet.state[i].pos.y > RESX ||
+			map[(u4)bullet.state[i].pos.y*RESX+(u4)bullet.state[i].pos.x]){
+				for(u4 j = i;j < bullet.cnt;j++){
+					bullet.state[j] = bullet.state[j+1];
+				}
+				bullet.cnt--;
 			}
 		}
 		Sleep(15);
@@ -484,9 +528,9 @@ void render(){
 
 	wglSwapIntervalEXT(1);
 
-	spriteShader = loadShader("shaders/sprite.frag","shaders/vertex.vert");
-	mapShader    = loadShader("shaders/map.frag","shaders/vertex.vert");
-	enemyShader  = loadShader("shaders/enemy.frag","shaders/vertex.vert");
+	spriteShader = loadShader("shader/sprite.frag","shader/vertex.vert");
+	mapShader    = loadShader("shader/map.frag","shader/vertex.vert");
+	enemyShader  = loadShader("shader/enemy.frag","shader/vertex.vert");
 	glUseProgram(spriteShader);
 
 	glCreateBuffers(1,&VBO);
@@ -503,7 +547,7 @@ void render(){
 
 	for(;;){
 		illuminateMap((VEC3){1.0f,0.1f,0.1f},player.pos,1024);
-		for(u4 i = 0;i < bullet.count;i++){
+		for(u4 i = 0;i < bullet.cnt;i++){
 			illuminateMap((VEC3){0.1f,1.0f,0.1f},bullet.state[i].pos,1024);
 		}
 		for(u4 i = 0;i < RESX*RESY;i++){
@@ -515,14 +559,13 @@ void render(){
 		drawSprite((VEC2){0.0f,0.0f},(VEC2){1.0f,1.0f},(IVEC2){RESX,RESY},vram);
 		glUseProgram(spriteShader);
 		drawSprite(mapCoordsToRenderCoords(player.pos),(VEC2){0.018f,0.018f},(IVEC2){16,16},player.texture);
-		for(u4 i = 0;i < bullet.count;i++){
+		for(u4 i = 0;i < bullet.cnt;i++){
 			drawSprite(mapCoordsToRenderCoords(bullet.state[i].pos),(VEC2){0.01f,0.01f},(IVEC2){16,16},bullet.texture);
 		}
-		//glUseProgram(enemyShader);
-		/*
-		for(u4 i = 0;i < 300;i++){
-			drawEnemy((VEC2){rnd()*2.0f-3.0f,rnd()*2.0f-3.0f},(VEC2){0.002f,0.002f});
-		}*/
+		glUseProgram(enemyShader);
+		for(u4 i = 0;i < enemy.cnt;i++){
+			drawEnemy(mapCoordsToRenderCoords(enemy.state[i].pos),(VEC2){0.01f,0.01f});
+		}
 		memset(vramf,0,sizeof(VEC3)*RESX*RESY);
 		SwapBuffers(dc);
 	}
@@ -557,7 +600,6 @@ void main(){
 	window = CreateWindowExA(0,"class","hello",WS_VISIBLE | WS_POPUP,WNDOFFX,WNDOFFY,WNDY,WNDX,0,0,wndclass.hInstance,0);
 	dc = GetDC(window);
 	genMap((IVEC2){0,0},7,-1.0f);
-	//generate player texture
 	for(u4 x = 0;x < 16;x++){
 		for(u4 y = 0;y < 16;y++){
 			bullet.texture[x*16+y].g = tmax(255 - length((VEC2){fabsf(7.5f-x),fabsf(7.5f-y)}) * 32.0f,0);
